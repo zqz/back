@@ -66,7 +66,7 @@ func main() {
 	// Middleware
 	e.Use(mw.Logger())
 	e.Use(mw.Recover())
-	e.Use(CORS())
+	e.Use(CORSMiddleware())
 
 	// Route
 	e.Post("/sessions", controllers.SessionCreate)

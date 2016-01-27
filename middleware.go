@@ -2,7 +2,7 @@ package main
 
 import "github.com/labstack/echo"
 
-func CORS() echo.MiddlewareFunc {
+func CORSMiddleware() echo.MiddlewareFunc {
 	return func(h echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
 			req := c.Request()
