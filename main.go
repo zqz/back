@@ -60,6 +60,7 @@ func deleteUser(c *echo.Context) error {
 }
 
 func main() {
+	db := DatabaseConnect("zqz-users-dev", "dylan")
 	e := echo.New()
 
 	// Middleware
