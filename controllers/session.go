@@ -15,9 +15,9 @@ func SessionCreate(c *echo.Context) error {
 		return err
 	}
 
-	if s.Username == "foo" && s.Password == "bar" {
-		return c.JSON(http.StatusCreated, s)
-	} else {
+	if u, _ := models.UserFindByLogin(s.Username, s.Password); u != nil {
 		return c.NoContent(http.StatusUnauthorized)
+	} else {
+		return c.JSON(http.StatusCreated, u)
 	}
 }
