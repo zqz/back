@@ -1,0 +1,13 @@
+addons:
+  postgresql: '9.4'
+env:
+  global:
+    - DATABASE_NAME='zqz-test'
+    - DATABASE_USER='postgres'
+before_script:
+  - psql -c "CREATE DATABASE $DATABASE_NAME;" -U $DATABASE_USER
+
+language: go
+go:
+  - tip
+
