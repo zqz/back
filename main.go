@@ -5,6 +5,8 @@ import (
 	"strconv"
 
 	"github.com/zqzca/back/controllers"
+	"github.com/zqzca/back/db"
+	"github.com/zqzca/back/models"
 
 	"github.com/labstack/echo"
 	mw "github.com/labstack/echo/middleware"
@@ -60,7 +62,9 @@ func deleteUser(c *echo.Context) error {
 }
 
 func main() {
-	db := DatabaseConnect("zqz-users-dev", "dylan")
+	db := db.DatabaseConnect("zqz-users-dev", "dylan")
+
+	models.SetDB(db)
 	e := echo.New()
 
 	// Middleware

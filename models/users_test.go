@@ -1,27 +1,31 @@
 package models
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestUser_Valid(t *testing.T) {
 	// empty user is not valid
 	u := &User{}
 
 	if u.Valid() {
-		t.Error("Empty user should not be valid.")
+		t.Fatal("Empty user should not be valid.")
 	}
 
 	// factory is valid
 	u = buildValidUser()
 
 	if !u.Valid() {
-		t.Error("buildValidUser should build a valid user.")
+		t.Fatal("buildValidUser should build a valid user.")
 	}
 
 	// missing email is not valid
 	u.Email = ""
 
 	if u.Valid() {
-		t.Error("missing email should be invalid")
+		t.Fatal("missing email should be invalid")
 	}
 
 	// missing name is not valid
@@ -29,41 +33,45 @@ func TestUser_Valid(t *testing.T) {
 	u.FirstName = ""
 
 	if u.Valid() {
-		t.Error("missing first name should be invalid")
+		t.Fatal("missing first name should be invalid")
 	}
 
 	u = buildValidUser()
 	u.LastName = ""
 
 	if u.Valid() {
-		t.Error("missing last name should be invalid")
+		t.Fatal("missing last name should be invalid")
 	}
 
 	u = buildValidUser()
 	u.Username = ""
 
 	if u.Valid() {
-		t.Error("missing username should be invalid")
+		t.Fatal("missing username should be invalid")
 	}
 }
 
 func TestUser_Find(t *testing.T) {
-	truncateUsers()
+	TruncateUsers()
+
+	a := assert.New(t)
 
 	_, err := UserFind("foo")
-	expectNil(t, err)
+
+	a.Nil(err)
 
 	u := buildValidUser()
 	u.Save()
 	u2, err := UserFind(u.ID)
 
-	expectNil(t, err)
-	expectNotNil(t, u2)
+	a.Nil(err)
+	a.NotNil(u2)
 }
 
 func TestUser_Create(t *testing.T) {
-	truncateUsers()
+	TruncateUsers()
 
+	a := assert.New(t)
 	u := buildValidUser()
 
 	// invalid user
@@ -81,5 +89,5 @@ func TestUser_Create(t *testing.T) {
 		t.Error("Save should have been successful")
 	}
 
-	expectPresent(t, "ID", u.ID)
+	a.NotEmpty(u.ID)
 }

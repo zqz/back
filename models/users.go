@@ -2,9 +2,10 @@ package models
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"io"
 	"log"
 	"strings"
 
@@ -15,7 +16,7 @@ import (
 
 // User is a foo.
 type User struct {
-	ID        string `json:"uuid,omitempty" db:"uuid,omitempty"`
+	ID        string `json:"id,omitempty" db:"id,omitempty"`
 	FirstName string `json:"first_name" valid:"required,alphanum" db:"first_name"`
 	LastName  string `json:"last_name" valid:"required,alphanum" db:"last_name"`
 	Username  string `json:"username" valid:"required" db:"username"`
@@ -30,6 +31,10 @@ type User struct {
 	db     db.Database
 }
 
+type UserError struct {
+	Msg []string
+}
+
 // Valid return true or false depending on whether or not the User is valid. It
 // additionally sets the errors field on the User to provide information about
 // why the user is not valid
@@ -39,6 +44,10 @@ func (u *User) Valid() bool {
 		u.errors = strings.Split(strings.TrimRight(err.Error(), ";"), ";")
 	}
 	return result
+}
+
+func (u *User) Errors() *UserError {
+	return &UserError{u.errors}
 }
 
 func userCollection() db.Collection {
@@ -67,7 +76,7 @@ func UserFindByLogin(username string, password string) (*User, error) {
 	res.One(&u)
 
 	if len(u.ID) == 0 {
-		return nil, errors.New("Failed to find User with Credentials Provided")
+		return nil, errors.New("Invalid Credentials")
 	}
 
 	return &u, nil
@@ -92,11 +101,10 @@ func UserFindByAuthToken(token string) (*User, error) {
 }
 
 // UserCount is the count of users
-func UserCount() {
+func UserCount() int {
 	uc := userCollection()
 	cnt, _ := uc.Find().Count()
-
-	fmt.Println("User Count: ", cnt)
+	return int(cnt)
 }
 
 // UserFind finds by id
@@ -124,7 +132,7 @@ func (u *User) Save() bool {
 
 // SetID allows us to update the struct after the DB sets the ID
 func (u *User) SetID(values map[string]interface{}) error {
-	if valueInterface, ok := values["uuid"]; ok {
+	if valueInterface, ok := values["id"]; ok {
 		u.ID = valueInterface.(string)
 	}
 	return nil
@@ -169,10 +177,20 @@ func (u *User) Update() bool {
 	return true
 }
 
+func LoadUser(r io.Reader) *User {
+	u := User{}
+	json.NewDecoder(r).Decode(&u)
+	return &u
+}
+
 func (u *User) String() string {
 	buf := new(bytes.Buffer)
 
 	json.NewEncoder(buf).Encode(u)
 
 	return buf.String()
+}
+
+func TruncateUsers() {
+	database.Driver().(*sql.DB).Query("truncate users;")
 }

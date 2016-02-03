@@ -1,18 +1,17 @@
-package main
+package db
 
 import (
 	"database/sql"
 	"log"
 
 	"github.com/DavidHuie/gomigrate"
-	"github.com/zqzca/back/models"
 
 	"upper.io/db"
 	"upper.io/db/postgresql"
 )
 
 // AddDatabase connects to a psql db with the given name.
-func DatabaseConnect(name string, user string) {
+func DatabaseConnect(name string, user string) *db.Database {
 	settings := postgresql.ConnectionURL{
 		Database: name,
 		User:     user,
@@ -31,7 +30,8 @@ func DatabaseConnect(name string, user string) {
 
 	Migrate(database)
 
-	models.SetDB(&database)
+	// models.SetDB(&database)
+	return &database
 }
 
 func Migrate(database db.Database) {

@@ -1,43 +1,70 @@
 package controllers
 
 import (
+	"encoding/json"
 	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 
-	"github.com/labstack/echo"
 	"github.com/stretchr/testify/assert"
+	"github.com/zqzca/back/models"
 )
 
-func request(method string, path string, jsonRequest string) (*httptest.ResponseRecorder, *echo.Context) {
-	params := strings.NewReader(jsonRequest)
-	req, _ := http.NewRequest(echo.POST, "/", params)
-	req.Header.Add("Content-Type", "application/json")
+func CreateUser(username string, password string) *models.User {
+	u := &models.User{
+		FirstName: "Tester",
+		LastName:  "McTesterson",
+		Email:     "foo@bar.com",
+		APIKey:    "123456",
+		Username:  username,
+		Password:  password,
+	}
 
-	e := echo.New()
-	rec := httptest.NewRecorder()
-	res := echo.NewResponse(rec, e)
+	u.Save()
 
-	c := echo.NewContext(req, res, e)
+	return u
+}
 
-	return rec, c
+func CreateSessionRequest(username string, password string) string {
+	s := Session{
+		Username: username,
+		Password: password,
+	}
+
+	return s.String()
 }
 
 func TestSessionCreateValid(t *testing.T) {
+	models.TruncateUsers()
+
 	a := assert.New(t)
-	res, c := request(
-		"GET", "/",
-		`{"username": "foo", "password": "bar"}`,
-	)
+
+	CreateUser("foo", "bar")
+
+	res, c := post(CreateSessionRequest("foo", "bar"))
 
 	SessionCreate(c)
 
-	// Should be Unauthorized
-	a.Equal(201, res.Code, "Should be successful")
-	a.Equal(
-		`{"username": "foo"}`,
-		res.Body.String(),
-		"Should return user json",
-	)
+	a.Equal(http.StatusCreated, res.Code)
+
+	u := models.User{}
+	json.NewDecoder(res.Body).Decode(&u)
+
+	// Should return User struct
+	a.Equal(u.Username, "foo")
+	a.Empty(u.Password, "foo")
+}
+
+func TestSessionCreateInvalid(t *testing.T) {
+	models.TruncateUsers()
+
+	a := assert.New(t)
+
+	res, c := post(CreateSessionRequest("foo", "bar"))
+
+	SessionCreate(c)
+	a.Equal(http.StatusUnauthorized, res.Code)
+
+	s := SessionError{}
+	json.NewDecoder(res.Body).Decode(&s)
+	a.Equal("Invalid Credentials", s.Msg)
 }
