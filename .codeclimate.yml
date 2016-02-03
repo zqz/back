@@ -1,0 +1,21 @@
+---
+engines:
+  golint:
+    enabled: true
+  govet:
+    enabled: true
+  gofmt:
+    enabled: true
+  duplication:
+    enabled: true
+    config:
+      languages:
+        - go
+        - golang
+  fixme:
+    enabled: true
+ratings:
+  paths:
+  - "**.go"
+exclude_paths:
+  - "migrations/**.sql"
