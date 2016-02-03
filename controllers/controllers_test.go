@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	db := db.DatabaseConnect("zqz-users-test", "dylan")
+	db := db.DatabaseConnect()
 	models.SetDB(db)
 }
 

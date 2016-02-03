@@ -2,7 +2,9 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
+	"os"
 
 	"github.com/DavidHuie/gomigrate"
 
@@ -11,7 +13,19 @@ import (
 )
 
 // AddDatabase connects to a psql db with the given name.
-func DatabaseConnect(name string, user string) *db.Database {
+func DatabaseConnect() *db.Database {
+	name := os.Getenv("DATABASE_NAME")
+	if name == "" {
+		fmt.Println("DATABASE_NAME not specified")
+		os.Exit(1)
+	}
+
+	user := os.Getenv("DATABASE_USER")
+	if user == "" {
+		fmt.Println("DATABASE_USER not specified")
+		os.Exit(1)
+	}
+
 	settings := postgresql.ConnectionURL{
 		Database: name,
 		User:     user,
@@ -40,7 +54,7 @@ func Migrate(database db.Database) {
 	m, err := gomigrate.NewMigrator(
 		drv.(*sql.DB),
 		gomigrate.Postgres{},
-		"./migrations",
+		"./../migrations",
 	)
 
 	if err != nil {

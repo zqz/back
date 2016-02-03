@@ -3,7 +3,7 @@ package models
 import "github.com/zqzca/back/db"
 
 func init() {
-	db := db.DatabaseConnect("zqz-users-test", "dylan")
+	db := db.DatabaseConnect()
 	SetDB(db)
 }
 

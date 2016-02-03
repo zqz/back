@@ -62,7 +62,7 @@ func deleteUser(c *echo.Context) error {
 }
 
 func main() {
-	db := db.DatabaseConnect("zqz-users-dev", "dylan")
+	db := db.DatabaseConnect()
 
 	models.SetDB(db)
 	e := echo.New()
