@@ -8,8 +8,8 @@ import (
 	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/models"
 
-	"github.com/labstack/echo"
-	mw "github.com/labstack/echo/middleware"
+	"github.com/DylanJ/echo"
+	mw "github.com/DylanJ/echo/middleware"
 )
 
 type (

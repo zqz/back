@@ -1,6 +1,6 @@
 package main
 
-import "github.com/labstack/echo"
+import "github.com/DylanJ/echo"
 
 func CORSMiddleware() echo.MiddlewareFunc {
 	return func(h echo.HandlerFunc) echo.HandlerFunc {

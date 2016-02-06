@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 
-	"github.com/labstack/echo"
+	"github.com/DylanJ/echo"
 	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/models"
 )
