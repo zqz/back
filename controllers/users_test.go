@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -37,7 +36,22 @@ func TestUserCreateValid(t *testing.T) {
 }
 
 func TestUserGetValid(t *testing.T) {
-	u := CreateUser("doo", "bar")
+	models.TruncateUsers()
 
-	fmt.Println(u.ID)
+	a := assert.New(t)
+
+	u := CreateUser("foo", "bar")
+
+	res, c := get(u.String())
+
+	c.SetParam("id", u.ID)
+
+	UserGet(c)
+
+	a.Equal(200, res.Code)
+	a.Equal(1, models.UserCount())
+
+	u = models.LoadUser(res.Body)
+
+	a.Equal("foo", u.Username)
 }

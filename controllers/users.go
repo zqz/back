@@ -28,8 +28,15 @@ func UserCreate(c *echo.Context) error {
 	}
 }
 
+func UserGet(c *echo.Context) error {
+	id := c.Param("id")
+	if u, err := models.UserFind(id); err != nil {
+		return c.NoContent(http.StatusNotFound)
+	} else {
+		return c.JSON(http.StatusOK, u)
+	}
+}
+
 func UserIndex(c *echo.Context) error {
-
 	return nil
-
 }
