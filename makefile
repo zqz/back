@@ -9,7 +9,6 @@ ifndef TEST_USER
 	TEST_USER = 'dylan'
 endif
 
-
 DEV_ENV   = DATABASE_NAME=$(DEV_DB) DATABASE_USER=$(DEV_USER)
 TEST_ENV  = DATABASE_NAME=$(TEST_DB) DATABASE_USER=$(TEST_USER)
 
@@ -19,7 +18,7 @@ get-deps:
 	  go get -t ./...
 
 build:
-		go build -v ./... -o zqz
+		go build -o zqz *.go
 
 doc:
 	  godoc -http=:6060 -index
@@ -29,4 +28,3 @@ run:
 
 test:
 	  env $(TEST_ENV) go test -v ./...
-	  # env $(TEST_ENV) (go-test)

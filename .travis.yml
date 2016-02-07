@@ -4,6 +4,7 @@ env:
   global:
     - TEST_DB='zqz-test'
     - TEST_USER='postgres'
+    - MIGRATIONS=$TRAVIS_BUILD_DIR
 before_script:
   - psql -c "CREATE DATABASE \"$TEST_DB\";" -U $TEST_USER
 language: go

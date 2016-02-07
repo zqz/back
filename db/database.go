@@ -42,19 +42,29 @@ func DatabaseConnect() *db.Database {
 		log.Fatalf("Failed to ping database: %s - %s\n", name, err.Error())
 	}
 
-	Migrate(database)
+	migrationPath := os.Getenv("MIGRATIONS")
+
+	if len(migrationPath) > 0 {
+		Migrate(database, migrationPath)
+	}
 
 	// models.SetDB(&database)
 	return &database
 }
 
-func Migrate(database db.Database) {
+func Migrate(database db.Database, migrationsRoot string) {
+	path := fmt.Sprintf("%s/%s", migrationsRoot, "migrations")
+
+	if len(path) == 0 {
+		log.Fatalln("No migration path specified")
+	}
+
 	drv := (database).Driver()
 
 	m, err := gomigrate.NewMigrator(
 		drv.(*sql.DB),
 		gomigrate.Postgres{},
-		"./migrations",
+		path,
 	)
 
 	if err != nil {
