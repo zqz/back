@@ -8,8 +8,8 @@ import (
 	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/models"
 
-	"github.com/DylanJ/echo"
-	mw "github.com/DylanJ/echo/middleware"
+	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 )
 
 type (
@@ -40,11 +40,6 @@ func createUser(c *echo.Context) error {
 	return c.JSON(http.StatusCreated, u)
 }
 
-func getUser(c *echo.Context) error {
-	id, _ := strconv.Atoi(c.Param("id"))
-	return c.JSON(http.StatusOK, users[id])
-}
-
 func updateUser(c *echo.Context) error {
 	u := new(user)
 	if err := c.Bind(u); err != nil {
@@ -68,14 +63,14 @@ func main() {
 	e := echo.New()
 
 	// Middleware
-	e.Use(mw.Logger())
-	e.Use(mw.Recover())
+	e.Use(middleware.Recover())
+	e.Use(middleware.Logger())
 	e.Use(CORSMiddleware())
 
 	// Route
 	e.Post("/sessions", controllers.SessionCreate)
-	e.Post("/users", createUser)
-	e.Get("/users/:id", getUser)
+	e.Post("/users", controllers.UserCreate)
+	e.Get("/users/:id", controllers.UserGet)
 	e.Patch("/users/:id", updateUser)
 	e.Delete("/users/:id", deleteUser)
 

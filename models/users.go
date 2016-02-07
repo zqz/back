@@ -118,6 +118,10 @@ func UserFind(id string) (*User, error) {
 	res := uc.Find(db.Cond{"id": id})
 	res.One(&u)
 
+	if len(u.ID) == 0 {
+		return nil, errors.New("User not found")
+	}
+
 	return &u, nil
 }
 

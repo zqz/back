@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/DylanJ/echo"
+	"github.com/labstack/echo"
 	"github.com/zqzca/back/models"
 )
 
 type UserError struct {
-	msg string
+	Msg string `json:"error"`
 }
 
 func UserCreate(c *echo.Context) error {
@@ -29,9 +29,11 @@ func UserCreate(c *echo.Context) error {
 }
 
 func UserGet(c *echo.Context) error {
-	id := c.Param("id")
+	id := GetParam(c, "id")
+
 	if u, err := models.UserFind(id); err != nil {
-		return c.NoContent(http.StatusNotFound)
+		errors := &UserError{err.Error()}
+		return c.JSON(http.StatusNotFound, errors)
 	} else {
 		return c.JSON(http.StatusOK, u)
 	}

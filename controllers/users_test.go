@@ -3,6 +3,7 @@ package controllers
 import (
 	"testing"
 
+	"github.com/labstack/echo"
 	"github.com/stretchr/testify/assert"
 	"github.com/zqzca/back/models"
 )
@@ -44,7 +45,9 @@ func TestUserGetValid(t *testing.T) {
 
 	res, c := get(u.String())
 
-	c.SetParam("id", u.ID)
+	GetParam = func(c *echo.Context, key string) string {
+		return u.ID
+	}
 
 	UserGet(c)
 

@@ -29,3 +29,4 @@ run:
 
 test:
 	  env $(TEST_ENV) go test -v ./...
+	  # env $(TEST_ENV) (go-test)

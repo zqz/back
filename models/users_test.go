@@ -58,7 +58,8 @@ func TestUser_Find(t *testing.T) {
 
 	_, err := UserFind("foo")
 
-	a.Nil(err)
+	a.NotNil(err)
+	a.Equal(err.Error(), "User not found")
 
 	u := buildValidUser()
 	u.Save()

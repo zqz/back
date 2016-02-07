@@ -9,21 +9,6 @@ import (
 	"github.com/zqzca/back/models"
 )
 
-func CreateUser(username string, password string) *models.User {
-	u := &models.User{
-		FirstName: "Tester",
-		LastName:  "McTesterson",
-		Email:     "foo@bar.com",
-		APIKey:    "123456",
-		Username:  username,
-		Password:  password,
-	}
-
-	u.Save()
-
-	return u
-}
-
 func CreateSessionRequest(username string, password string) string {
 	s := Session{
 		Username: username,

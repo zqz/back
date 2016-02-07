@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 
-	"github.com/DylanJ/echo"
+	"github.com/labstack/echo"
 	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/models"
 )
@@ -35,4 +35,19 @@ func get(r string) (*httptest.ResponseRecorder, *echo.Context) {
 
 func post(r string) (*httptest.ResponseRecorder, *echo.Context) {
 	return request("POST", "/", r)
+}
+
+func CreateUser(username string, password string) *models.User {
+	u := &models.User{
+		FirstName: "Tester",
+		LastName:  "McTesterson",
+		Email:     "foo@bar.com",
+		APIKey:    "123456",
+		Username:  username,
+		Password:  password,
+	}
+
+	u.Save()
+
+	return u
 }

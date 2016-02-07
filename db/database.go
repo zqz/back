@@ -54,7 +54,7 @@ func Migrate(database db.Database) {
 	m, err := gomigrate.NewMigrator(
 		drv.(*sql.DB),
 		gomigrate.Postgres{},
-		"./../migrations",
+		"./migrations",
 	)
 
 	if err != nil {
