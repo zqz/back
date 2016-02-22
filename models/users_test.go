@@ -92,3 +92,30 @@ func TestUser_Create(t *testing.T) {
 
 	a.NotEmpty(u.ID)
 }
+
+func TestUserFindByLogin(t *testing.T) {
+	TruncateUsers()
+
+	a := assert.New(t)
+
+	var u *User
+	u, _ = UserFindByLogin("foo", "bar")
+
+	a.Nil(u, "No users obviously shouldnt work")
+
+	u = &User{
+		FirstName: "Foo",
+		LastName:  "Last",
+		Username:  "foo",
+		Password:  "bar",
+		Email:     "foo@bar.com",
+	}
+
+	u.Save()
+
+	u, _ = UserFindByLogin("foo", "wrongpass")
+	a.Nil(u, "Wrong pass should not work")
+
+	u, _ = UserFindByLogin("foo", "bar")
+	a.NotNil(u, "Correct username/pass works")
+}

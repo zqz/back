@@ -71,7 +71,9 @@ func UserFindByLogin(username string, password string) (*User, error) {
 
 	var u User
 	uc := userCollection()
-	res := uc.Find(db.Cond{"username": username})
+	res := uc.Find(
+		db.Cond{"username": username, "password": password},
+	)
 
 	res.One(&u)
 
