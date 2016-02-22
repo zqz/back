@@ -42,3 +42,13 @@ func UserGet(c *echo.Context) error {
 func UserIndex(c *echo.Context) error {
 	return nil
 }
+
+func UserNameValid(c *echo.Context) error {
+	name := GetParam(c, "name")
+
+	if models.UserNameValid(name) {
+		return c.NoContent(http.StatusOK)
+	} else {
+		return c.NoContent(http.StatusNotAcceptable)
+	}
+}

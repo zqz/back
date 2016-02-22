@@ -43,7 +43,7 @@ func TestUserGetValid(t *testing.T) {
 
 	u := CreateUser("foo", "bar")
 
-	res, c := get(u.String())
+	res, c := get("users/id")
 
 	GetParam = func(c *echo.Context, key string) string {
 		return u.ID
@@ -57,4 +57,28 @@ func TestUserGetValid(t *testing.T) {
 	u = models.LoadUser(res.Body)
 
 	a.Equal("foo", u.Username)
+}
+
+func TestUserNameValid(t *testing.T) {
+	models.TruncateUsers()
+
+	a := assert.New(t)
+
+	res, c := get("")
+
+	// Stub params to eq username
+	GetParam = func(c *echo.Context, key string) string {
+		return "foobar"
+	}
+
+	UserNameValid(c)
+	a.Equal(200, res.Code)
+
+	u := CreateUser("foobar", "bar")
+	u.Save()
+
+	res, c = get("")
+
+	UserNameValid(c)
+	a.Equal(406, res.Code)
 }
