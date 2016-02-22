@@ -1,6 +1,13 @@
 package main
 
-import "github.com/labstack/echo"
+import (
+	"fmt"
+	"net/http"
+	"os"
+
+	"github.com/dgrijalva/jwt-go"
+	"github.com/labstack/echo"
+)
 
 func CORSMiddleware() echo.MiddlewareFunc {
 	return func(h echo.HandlerFunc) echo.HandlerFunc {
@@ -29,5 +36,42 @@ func CORSMiddleware() echo.MiddlewareFunc {
 
 			return nil
 		}
+	}
+}
+
+// A JSON Web Token middleware
+func JWTAuth() echo.HandlerFunc {
+	Bearer := "Bearer"
+	Secret := os.Getenv("JWT_SECRET")
+
+	return func(c *echo.Context) error {
+
+		// Skip WebSocket
+		if (c.Request().Header.Get(echo.Upgrade)) == echo.WebSocket {
+			return nil
+		}
+
+		auth := c.Request().Header.Get("Authorization")
+		l := len(Bearer)
+		he := echo.NewHTTPError(http.StatusUnauthorized)
+
+		if len(auth) > l+1 && auth[:l] == Bearer {
+			t, err := jwt.Parse(auth[l+1:], func(token *jwt.Token) (interface{}, error) {
+
+				// Always check the signing method
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+				}
+
+				// Return the key for validation
+				return []byte(Secret), nil
+			})
+			if err == nil && t.Valid {
+				// Store token claims in echo.Context
+				c.Set("claims", t.Claims)
+				return nil
+			}
+		}
+		return he
 	}
 }

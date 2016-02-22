@@ -39,6 +39,13 @@ func main() {
 	// Route
 	e.Post("/sessions", controllers.SessionCreate)
 	e.Post("/users", controllers.UserCreate)
+	e.Get("/users/validateUsername", controllers.UserNameValid)
+
+	r := e.Group("/users")
+	r.Use(JWTAuth())
+	r.Get("/:id", controllers.UserGet)
+	// e.Patch("/users/:id", updateUser)
+	// e.Delete("/users/:id", deleteUser)
 
 	// Start server
 	e.Run(":3001")
