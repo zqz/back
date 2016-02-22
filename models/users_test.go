@@ -119,3 +119,30 @@ func TestUserFindByLogin(t *testing.T) {
 	u, _ = UserFindByLogin("foo", "bar")
 	a.NotNil(u, "Correct username/pass works")
 }
+
+func TestUserNameValid(t *testing.T) {
+	TruncateUsers()
+
+	a := assert.New(t)
+
+	a.Equal(UserNameValid("a23"), false, "Should not allow usenames < 4 chars")
+	a.Equal(UserNameValid("abc3456789012345"), false,
+		"Should not allow usenames > 14 chars",
+	)
+	a.Equal(UserNameValid("世界"), false, "No tricking unicode")
+	a.Equal(UserNameValid("世界ada"), true, "No tricking unicode")
+
+	a.Equal(UserNameValid("foobar"), true)
+
+	u := &User{
+		FirstName: "Foo",
+		LastName:  "Last",
+		Username:  "foobar",
+		Password:  "bar",
+		Email:     "foo@bar.com",
+	}
+
+	u.Save()
+
+	a.Equal(UserNameValid("foobar"), false, "Cant use previously taken name")
+}

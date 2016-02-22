@@ -9,10 +9,15 @@ import (
 	"log"
 	"strings"
 
+	"unicode/utf8"
+
 	"upper.io/db"
 
 	"github.com/asaskevich/govalidator"
 )
+
+const minUsernameLength = 4
+const maxUsernameLength = 14
 
 // User is a foo.
 type User struct {
@@ -195,6 +200,28 @@ func (u *User) String() string {
 	json.NewEncoder(buf).Encode(u)
 
 	return buf.String()
+}
+
+func UserNameValid(name string) bool {
+	length := utf8.RuneCount([]byte(name))
+
+	if length < minUsernameLength {
+		return false
+	}
+
+	if length > maxUsernameLength {
+		return false
+	}
+
+	uc := userCollection()
+	res := uc.Find(db.Cond{"username": name})
+
+	// Don't allow duplicate names.
+	if count, _ := res.Count(); count > 0 {
+		return false
+	}
+
+	return true
 }
 
 func TruncateUsers() {
