@@ -1,4 +1,6 @@
-.PHONY: build doc run test get-deps
+# this might only work with fish shell.
+
+.PHONY: build doc run testrun test get-deps
 
 DEV_USER  = 'dylan'
 DEV_DB    = 'zqz-dev'
@@ -25,6 +27,9 @@ doc:
 
 run:
 	  env $(DEV_ENV) go run -v *.go
+
+testrun:
+	  env $(TEST_ENV) ginkgo watch -r | colortest
 
 test:
 	  env $(TEST_ENV) go test -v ./...
