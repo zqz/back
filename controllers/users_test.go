@@ -1,15 +1,16 @@
-package controllers
+package controllers_test
 
 import (
 	"testing"
 
 	"github.com/labstack/echo"
 	"github.com/stretchr/testify/assert"
+	. "github.com/zqzca/back/controllers"
 	"github.com/zqzca/back/models"
 )
 
 func TestUserCreateValid(t *testing.T) {
-	models.TruncateUsers()
+	models.Truncate("users")
 
 	a := assert.New(t)
 
@@ -37,7 +38,7 @@ func TestUserCreateValid(t *testing.T) {
 }
 
 func TestUserGetValid(t *testing.T) {
-	models.TruncateUsers()
+	models.Truncate("users")
 
 	a := assert.New(t)
 
@@ -60,7 +61,7 @@ func TestUserGetValid(t *testing.T) {
 }
 
 func TestUserNameValid(t *testing.T) {
-	models.TruncateUsers()
+	models.Truncate("Users")
 
 	a := assert.New(t)
 

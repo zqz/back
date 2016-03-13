@@ -36,8 +36,20 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(CORSMiddleware())
 
+	// servers other static files
+	e.ServeDir("/assets", "assets")
+	e.ServeFile("/", "assets/index.html")
+	e.ServeFile("/favicon.ico", "assets/favicon.ico")
+
 	// Route
+	// e.Get("/chunk/status", controllers.ChunkStatus)
+	e.Get("/d/:file_id", controllers.FileDownload)
+	e.Get("/files", controllers.FileIndex)
+	e.Get("/files/status/:hash", controllers.FileStatus)
+	e.Get("/files/download/:file_id", controllers.FileDownload)
 	e.Post("/sessions", controllers.SessionCreate)
+	e.Post("/files", controllers.FileCreate)
+	e.Post("/chunks", controllers.ChunkCreate)
 	e.Post("/users", controllers.UserCreate)
 	e.Get("/users/validateUsername", controllers.UserNameValid)
 

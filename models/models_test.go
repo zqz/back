@@ -1,10 +1,8 @@
-package models
+package models_test
 
 import (
-	"database/sql"
-	"fmt"
-
 	"github.com/zqzca/back/db"
+	. "github.com/zqzca/back/models"
 )
 
 func init() {
@@ -23,7 +21,18 @@ func buildValidUser() *User {
 	}
 }
 
-func truncate(table string) {
-	cmd := fmt.Sprintf("truncate %s;", table)
-	database.Driver().(*sql.DB).Query(cmd)
+func buildFile() *File {
+	return &File{
+		Name:  "Foo",
+		Size:  123,
+		Hash:  "foo",
+		Type:  "image/jpg",
+		State: Incomplete,
+	}
+}
+
+func createFile() *File {
+	f := buildFile()
+	f.Save()
+	return f
 }

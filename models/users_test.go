@@ -1,9 +1,10 @@
-package models
+package models_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	. "github.com/zqzca/back/models"
 )
 
 func TestUser_Valid(t *testing.T) {
@@ -52,7 +53,7 @@ func TestUser_Valid(t *testing.T) {
 }
 
 func TestUser_Find(t *testing.T) {
-	TruncateUsers()
+	Truncate("users")
 
 	a := assert.New(t)
 
@@ -70,7 +71,7 @@ func TestUser_Find(t *testing.T) {
 }
 
 func TestUser_Create(t *testing.T) {
-	TruncateUsers()
+	Truncate("users")
 
 	a := assert.New(t)
 	u := buildValidUser()
@@ -94,7 +95,7 @@ func TestUser_Create(t *testing.T) {
 }
 
 func TestUserFindByLogin(t *testing.T) {
-	TruncateUsers()
+	Truncate("users")
 
 	a := assert.New(t)
 
@@ -121,7 +122,7 @@ func TestUserFindByLogin(t *testing.T) {
 }
 
 func TestUserNameValid(t *testing.T) {
-	TruncateUsers()
+	Truncate("users")
 
 	a := assert.New(t)
 

@@ -1,4 +1,4 @@
-package controllers
+package controllers_test
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	. "github.com/zqzca/back/controllers"
 	"github.com/zqzca/back/models"
 )
 
@@ -19,7 +20,7 @@ func CreateSessionRequest(username string, password string) string {
 }
 
 func TestSessionCreateValid(t *testing.T) {
-	models.TruncateUsers()
+	models.Truncate("users")
 
 	a := assert.New(t)
 
@@ -40,7 +41,7 @@ func TestSessionCreateValid(t *testing.T) {
 }
 
 func TestSessionCreateInvalid(t *testing.T) {
-	models.TruncateUsers()
+	models.Truncate("users")
 
 	a := assert.New(t)
 

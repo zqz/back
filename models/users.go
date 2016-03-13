@@ -2,7 +2,6 @@ package models
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -56,7 +55,7 @@ func (u *User) Errors() *UserError {
 }
 
 func userCollection() db.Collection {
-	col, err := database.Collection("users")
+	col, err := Database.Collection("users")
 
 	if err != nil {
 		log.Fatalln("Failed to find users collection", err.Error())
@@ -222,8 +221,4 @@ func UserNameValid(name string) bool {
 	}
 
 	return true
-}
-
-func TruncateUsers() {
-	database.Driver().(*sql.DB).Query("truncate users;")
 }
