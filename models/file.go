@@ -145,5 +145,8 @@ func (f *File) SetID(values map[string]interface{}) error {
 }
 
 func (f *File) Process() {
+	fmt.Println("processing files")
+	f.State = Processing
+	f.Save()
 
 }
