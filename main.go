@@ -41,6 +41,11 @@ func main() {
 	e.ServeFile("/", "assets/index.html")
 	e.ServeFile("/favicon.ico", "assets/favicon.ico")
 
+	api := e.Group("/api")
+
+	api.Get("/p2p/join/:id", controllers.P2PJoin)
+	api.Post("/p2p/join/:id", controllers.P2PJoinAnswer)
+	api.Get("/p2p/signaling", controllers.P2PWS)
 	// Route
 	// e.Get("/chunk/status", controllers.ChunkStatus)
 	e.Get("/d/:file_id", controllers.FileDownload)
