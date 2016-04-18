@@ -1,3 +1,3 @@
-DROP TRIGGER files_trigger_set_created_at ON users;
-DROP TRIGGER files_trigger_set_updated_at ON users;
-DROP TABLE files;
+DROP TRIGGER chunks_trigger_set_created_at ON chunks;
+DROP TRIGGER chunks_trigger_set_updated_at ON chunks;
+DROP TABLE chunks;
