@@ -50,7 +50,7 @@ const setStateSQL = `
 	RETURNING state
 `
 
-// Create a file inside of a transaction.
+// Create a File inside of a transaction.
 func (f *File) Create(tx *sql.Tx) error {
 	err := tx.
 		QueryRow(insertSQL, f.Size, f.Hash, f.Chunks, f.Name, f.Type, f.State).
@@ -59,7 +59,7 @@ func (f *File) Create(tx *sql.Tx) error {
 	return err
 }
 
-// FindByHash returns a file with the specified hash.
+// FindByHash returns a File with the specified hash.
 func FindByHash(tx *sql.Tx, hash string) (*File, error) {
 	var f File
 	f.Hash = hash
@@ -70,7 +70,7 @@ func FindByHash(tx *sql.Tx, hash string) (*File, error) {
 	return &f, err
 }
 
-// FindByID returns a file with the specified id.
+// FindByID returns a File with the specified id.
 func FindByID(tx *sql.Tx, id string) (*File, error) {
 	var f File
 	f.ID = id
@@ -81,6 +81,7 @@ func FindByID(tx *sql.Tx, id string) (*File, error) {
 	return &f, err
 }
 
+// SetState sets the state of the File.
 func (f *File) SetState(tx *sql.Tx, state int) error {
 	err := tx.QueryRow(setStateSQL, f.ID, state).Scan(&f.State)
 	return err
