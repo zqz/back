@@ -139,108 +139,10 @@ func (u *User) SetPassword(tx *sql.Tx, password string) bool {
 	return err == nil
 }
 
-// // Valid return true or false depending on whether or not the User is valid. It
-// // additionally sets the errors field on the User to provide information about
-// // why the user is not valid
-// func (u *User) Valid() bool {
-// 	result, err := govalidator.ValidateStruct(u)
-// 	if err != nil {
-// 		u.errors = strings.Split(strings.TrimRight(err.Error(), ";"), ";")
-// 	}
-// 	return result
-// }
-
-// func (u *User) Errors() *UserError {
-// 	return &UserError{u.errors}
-// }
-
-// // UserFindByAuthToken adwad
-// func UserFindByAuthToken(token string) (*User, error) {
-// 	if len(token) == 0 {
-// 		return nil, errors.New("Token unspecified")
-// 	}
-
-// 	var u User
-// 	uc := userCollection()
-// 	res := uc.Find(db.Cond{"api_key": token})
-// 	res.One(&u)
-
-// 	if len(u.ID) == 0 {
-// 		return nil, errors.New("Failed to find User with Auth Token Provided")
-// 	}
-
-// 	return &u, nil
-// }
-
-// // UserCount is the count of users
-// func UserCount() int {
-// 	uc := userCollection()
-// 	cnt, _ := uc.Find().Count()
-// 	return int(cnt)
-// }
-
-// // UserFind finds by id
-// func UserFind(id string) (*User, error) {
-// 	if len(id) == 0 {
-// 		return nil, errors.New("ID unspecified")
-// 	}
-
-// 	var u User
-// 	uc := userCollection()
-// 	res := uc.Find(db.Cond{"id": id})
-// 	res.One(&u)
-
-// 	if len(u.ID) == 0 {
-// 		return nil, errors.New("User not found")
-// 	}
-
-// 	return &u, nil
-// }
-
-// // Save the user to the database
-// func (u *User) Save() bool {
-// 	if len(u.ID) == 0 {
-// 		return u.Create()
-// 	}
-
-// 	return u.Update()
-// }
-
-// // Update a user
-// func (u *User) Update() bool {
-// 	uc := userCollection()
-
-// 	if uc == nil {
-// 		return false
-// 	}
-
-// 	res := uc.Find(db.Cond{"id": u.ID})
-
-// 	if err := res.Update(u); err != nil {
-// 		log.Println("failed to update user", err.Error())
-// 		return false
-// 	}
-
-// 	return true
-// }
-
-// func LoadUser(r io.Reader) *User {
-// 	u := User{}
-// 	json.NewDecoder(r).Decode(&u)
-// 	return &u
-// }
-
-// func (u *User) String() string {
-// 	buf := new(bytes.Buffer)
-
-// 	json.NewEncoder(buf).Encode(u)
-
-// 	return buf.String()
-// }
-
 const minUsernameLength = 4
 const maxUsernameLength = 14
 
+// UsernameFree returns true if the provider username can be used.
 func UsernameFree(tx *sql.Tx, username string) bool {
 	length := utf8.RuneCount([]byte(username))
 
