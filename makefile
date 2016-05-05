@@ -25,6 +25,9 @@ build:
 doc:
 	  godoc -http=:6060 -index
 
+sudorun:
+	  env ${DEV_ENV} ./zqz
+
 run:
 	  env $(DEV_ENV) go run -v *.go
 

@@ -2,12 +2,7 @@ package user
 
 import (
 	"database/sql"
-	"fmt"
-	"strings"
 	"time"
-	"unicode/utf8"
-
-	"github.com/asaskevich/govalidator"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -46,35 +41,11 @@ const insertSQL = `
 	RETURNING id
 `
 
-const validCredentialsSQL = `
-	SELECT hash
-	FROM users
-	WHERE username = $1
-`
-
 const setPasswordSQL = `
 	UPDATE users
 	SET hash = $2
 	WHERE id = $1
 `
-
-const usernameFreeSQL = `
-	SELECT NOT EXISTS (
-		SELECT 1
-		FROM users
-		WHERE username = $1
-	)
-`
-
-// Valid checks if the user had valid Data. It assigns to the errors field if
-// the User is invalid.
-func (u *User) Valid() bool {
-	result, err := govalidator.ValidateStruct(u)
-	if err != nil {
-		u.errors = strings.Split(strings.TrimRight(err.Error(), ";"), ";")
-	}
-	return result
-}
 
 // Create a user inside of a transaction.
 func (u *User) Create(tx *sql.Tx) error {
@@ -93,29 +64,6 @@ func (u *User) hashPassword() {
 	hash, _ := bcrypt.GenerateFromPassword([]byte(u.Password), 4)
 	u.Password = ""
 	u.Hash = string(hash)
-}
-
-// ValidCredentials checks if a username and password combination exists.
-func ValidCredentials(tx *sql.Tx, username string, password string) bool {
-	if len(username) == 0 {
-		return false
-	}
-
-	if len(password) == 0 {
-		return false
-	}
-
-	var hash string
-
-	err := tx.QueryRow(validCredentialsSQL, username).Scan(&hash)
-
-	if err != nil {
-		return false
-	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-
-	return err == nil
 }
 
 // FindByUsername returns a User with the specified username
@@ -137,33 +85,4 @@ func (u *User) SetPassword(tx *sql.Tx, password string) bool {
 	err, _ := tx.Exec(setPasswordSQL, u.ID, u.Hash)
 
 	return err == nil
-}
-
-const minUsernameLength = 4
-const maxUsernameLength = 14
-
-// UsernameFree returns true if the provider username can be used.
-func UsernameFree(tx *sql.Tx, username string) bool {
-	length := utf8.RuneCount([]byte(username))
-
-	fmt.Println("length", length)
-
-	if length < minUsernameLength {
-		return false
-	}
-
-	if length > maxUsernameLength {
-		return false
-	}
-
-	var free bool
-	err := tx.QueryRow(usernameFreeSQL, username).Scan(&free)
-
-	fmt.Println(err)
-
-	if err != nil {
-		return false
-	}
-
-	return free
 }

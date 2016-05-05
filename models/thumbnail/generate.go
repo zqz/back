@@ -1,6 +1,7 @@
 package thumbnail
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 
@@ -8,9 +9,7 @@ import (
 	"github.com/zqzca/back/lib"
 )
 
-const thumbPath = "files/thumbs/"
-
-func Generate(r []byte, path string) {
+func Generate(r []byte) {
 	options := vips.Options{
 		Width:        200,
 		Height:       200,
@@ -28,13 +27,14 @@ func Generate(r []byte, path string) {
 		return
 	}
 
-	hash, err := lib.HashFile(buf)
+	b := bytes.NewReader(buf)
+	hash, err := lib.Hash(b)
 
 	if err != nil {
 		fmt.Println("thumbnail error:", err)
 		return
 	}
 
-	path := fmt.Sprintf("%s%s", thumbPath, hash)
+	path := lib.LocalPath(hash)
 	ioutil.WriteFile(path, buf, 0644)
 }

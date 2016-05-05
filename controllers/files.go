@@ -79,9 +79,7 @@ func FileCreate(c *echo.Context) error {
 
 func FileStatus(c *echo.Context) error {
 	hash := GetParam(c, "hash")
-
 	f, err := models.FileFindByHash(hash)
-
 	fs := models.FileStatusForFile(f)
 
 	if err == nil {

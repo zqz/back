@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"crypto/sha1"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo"
+	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
 )
 
@@ -54,7 +54,7 @@ func ChunkCreate(c *echo.Context) error {
 	defer src.Close()
 
 	var hash string
-	if hash, err = hashFile(src); err != nil {
+	if hash, err = lib.HashFile(src); err != nil {
 		return err
 	}
 
@@ -95,22 +95,6 @@ func ChunkCreate(c *echo.Context) error {
 	fmt.Println("pos: ", position)
 
 	return c.NoContent(http.StatusOK)
-}
-
-func hashFile(src io.ReadSeeker) (string, error) {
-	h := sha1.New()
-
-	if _, err := io.Copy(h, src); err != nil {
-		fmt.Println(err)
-		return "", err
-	}
-
-	if _, err := src.Seek(0, os.SEEK_SET); err != nil {
-		fmt.Println(err)
-		return "", err
-	}
-
-	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
 func storeChunk(src io.Reader, path string) (int, error) {

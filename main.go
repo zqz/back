@@ -1,9 +1,14 @@
 package main
 
 import (
+	"io/ioutil"
+	"os"
+
 	"github.com/zqzca/back/controllers"
 	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/post"
+	"github.com/zqzca/back/scp"
 
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
@@ -25,7 +30,18 @@ var (
 // Handlers
 //----------
 
+func sshServer() {
+	s := scp.NewSCPServer()
+	s.ListenAndServe()
+}
+
 func main() {
+	f, _ := os.Open("/tmp/tst.jpg")
+	b, _ := ioutil.ReadAll(f)
+
+	post.Thumbnail(b)
+
+	// go sshServer()
 	db := db.DatabaseConnect()
 
 	models.SetDB(db)
@@ -40,6 +56,7 @@ func main() {
 	e.ServeDir("/assets", "assets")
 	e.ServeFile("/", "assets/index.html")
 	e.ServeFile("/favicon.ico", "assets/favicon.ico")
+	e.Get("/d/:file_id", controllers.FileDownload)
 
 	api := e.Group("/api")
 
@@ -48,21 +65,23 @@ func main() {
 	api.Get("/p2p/signaling", controllers.P2PWS)
 	// Route
 	// e.Get("/chunk/status", controllers.ChunkStatus)
-	e.Get("/d/:file_id", controllers.FileDownload)
-	e.Get("/files", controllers.FileIndex)
-	e.Get("/files/status/:hash", controllers.FileStatus)
-	e.Get("/files/download/:file_id", controllers.FileDownload)
-	e.Post("/sessions", controllers.SessionCreate)
-	e.Post("/files", controllers.FileCreate)
-	e.Post("/chunks", controllers.ChunkCreate)
-	e.Post("/users", controllers.UserCreate)
-	e.Get("/users/validateUsername", controllers.UserNameValid)
+	api.Get("/file/:hash", controllers.FileStatus)
+	api.Get("/files", controllers.FileIndex)
+	api.Get("/files/status/:hash", controllers.FileStatus)
+	api.Get("/files/download/:file_id", controllers.FileDownload)
+	api.Post("/sessions", controllers.SessionCreate)
+	api.Post("/files", controllers.FileCreate)
+	api.Post("/chunks", controllers.ChunkCreate)
+	api.Post("/users", controllers.UserCreate)
+	api.Get("/users/validateUsername", controllers.UserNameValid)
 
-	r := e.Group("/users")
+	r := api.Group("/users")
 	r.Use(JWTAuth())
 	r.Get("/:id", controllers.UserGet)
 	// e.Patch("/users/:id", updateUser)
 	// e.Delete("/users/:id", deleteUser)
+
+	e.ServeFile("/*", "assets/index.html")
 
 	// Start server
 	e.Run(":3001")
