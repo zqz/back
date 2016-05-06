@@ -1,13 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
-	"os"
-
 	"github.com/zqzca/back/controllers"
-	"github.com/zqzca/back/db"
-	"github.com/zqzca/back/models"
-	"github.com/zqzca/back/post"
 	"github.com/zqzca/back/scp"
 
 	"github.com/labstack/echo"
@@ -36,15 +30,6 @@ func sshServer() {
 }
 
 func main() {
-	f, _ := os.Open("/tmp/tst.jpg")
-	b, _ := ioutil.ReadAll(f)
-
-	post.Thumbnail(b)
-
-	// go sshServer()
-	db := db.DatabaseConnect()
-
-	models.SetDB(db)
 	e := echo.New()
 
 	// Middleware
