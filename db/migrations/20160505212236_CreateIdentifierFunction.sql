@@ -1,4 +1,5 @@
 -- +goose Up
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION identifier(len int DEFAULT 10) RETURNS text
   LANGUAGE plpgsql
   AS $$
@@ -18,6 +19,7 @@ CREATE OR REPLACE FUNCTION identifier(len int DEFAULT 10) RETURNS text
       );
     END;
   $$;
+-- +goose StatementEnd
 
 -- +goose Down
 DROP FUNCTION IF EXISTS identifier(int);

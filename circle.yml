@@ -17,11 +17,12 @@ dependencies:
 test:
   pre:
     - go vet ./...
+    - createdb zqz-test
     - goose -env test up
     - goose -env test status
 
   override:
-    - godep go test ./... -race
+    - go test ./... -race
 
   post:
     - overalls -project=github.com/zqzca/back -covermode=count
