@@ -5,15 +5,24 @@ machine:
 dependencies:
   pre:
     - go get github.com/tools/godep
+    - go get github.com/go-playground/overalls
+    - go get github.com/mattn/goveralls
 
   override:
+    - go get -t -d -v ./...
     - mkdir -p "$GOPATH/src/$IMPORT_PATH"
     - rsync -azC --delete ./ "$GOPATH/src/$IMPORT_PATH/"
 
 test:
   pre:
     - go vet ./...
+    - goose -env test up
+    - goose -env test status
 
   override:
-    - godep go test ./...
+    - godep go test ./... -race
+
+  post:
+    - overalls -project=github.com/zqzca/back -covermode=count
+    - goveralls -coverprofile=overalls.coverprofile -repotoken ${COVERALLS_TOKEN}
 
