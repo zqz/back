@@ -10,7 +10,7 @@ dependencies:
     - go get bitbucket.org/liamstask/goose/cmd/goose
 
   override:
-    - go get -t -d -v ./...
+    - godep get
     - mkdir -p "$GOPATH/src/$IMPORT_PATH"
     - rsync -azC --delete ./ "$GOPATH/src/$IMPORT_PATH/"
 
