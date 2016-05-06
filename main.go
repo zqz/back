@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/zqzca/back/controllers"
-	"github.com/zqzca/back/scp"
 
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
@@ -24,10 +23,10 @@ var (
 // Handlers
 //----------
 
-func sshServer() {
-	s := scp.NewSCPServer()
-	s.ListenAndServe()
-}
+// func sshServer() {
+// 	s := scp.NewSCPServer()
+// 	s.ListenAndServe()
+// }
 
 func main() {
 	e := echo.New()
