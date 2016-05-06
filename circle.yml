@@ -17,6 +17,7 @@ dependencies:
 test:
   pre:
     - go vet ./...
+    - dropdb --if-exists zqz-test
     - createdb zqz-test
     - goose -env test up
     - goose -env test status
