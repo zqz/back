@@ -1,0 +1,95 @@
+{
+	"ImportPath": "github.com/zqzca/back",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v63",
+	"Deps": [
+		{
+			"ImportPath": "github.com/asaskevich/govalidator",
+			"Comment": "v2-35-g0b1c675",
+			"Rev": "0b1c6756fe84d7fc34a1af0f6bc49bd25e40abcf"
+		},
+		{
+			"ImportPath": "github.com/davecgh/go-spew/spew",
+			"Rev": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
+		},
+		{
+			"ImportPath": "github.com/dgrijalva/jwt-go",
+			"Comment": "v2.4.0-11-gf219341",
+			"Rev": "f2193411bd642f7db03249fd79d5292c9b34916a"
+		},
+		{
+			"ImportPath": "github.com/gorilla/websocket",
+			"Rev": "361d4c0ffd78338ebe0a9e6320cdbe115d7dc026"
+		},
+		{
+			"ImportPath": "github.com/labstack/echo",
+			"Comment": "v1.3-53-gbb0735b",
+			"Rev": "bb0735bbc53640213083d8af296e9e71560ca9f3"
+		},
+		{
+			"ImportPath": "github.com/labstack/echo/middleware",
+			"Comment": "v1.3-53-gbb0735b",
+			"Rev": "bb0735bbc53640213083d8af296e9e71560ca9f3"
+		},
+		{
+			"ImportPath": "github.com/labstack/gommon/color",
+			"Comment": "v0.0.3-32-g28bf924",
+			"Rev": "28bf9248c3e81039c18bff6a1cf2a7f0841caf35"
+		},
+		{
+			"ImportPath": "github.com/labstack/gommon/log",
+			"Comment": "v0.0.3-32-g28bf924",
+			"Rev": "28bf9248c3e81039c18bff6a1cf2a7f0841caf35"
+		},
+		{
+			"ImportPath": "github.com/lib/pq",
+			"Comment": "go1.0-cutoff-61-g83c4f41",
+			"Rev": "83c4f410d0aed80a0f44bac6a576a7f2435791f3"
+		},
+		{
+			"ImportPath": "github.com/lib/pq/oid",
+			"Comment": "go1.0-cutoff-61-g83c4f41",
+			"Rev": "83c4f410d0aed80a0f44bac6a576a7f2435791f3"
+		},
+		{
+			"ImportPath": "github.com/mattn/go-colorable",
+			"Rev": "40e4aedc8fabf8c23e040057540867186712faa5"
+		},
+		{
+			"ImportPath": "github.com/mattn/go-isatty",
+			"Rev": "56b76bdf51f7708750eac80fa38b952bb9f32639"
+		},
+		{
+			"ImportPath": "github.com/satori/go.uuid",
+			"Rev": "e673fdd4dea8a7334adbbe7f57b7e4b00bdc5502"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/bcrypt",
+			"Rev": "575fdbe86e5dd89229707ebec0575ce7d088a4a6"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/blowfish",
+			"Rev": "575fdbe86e5dd89229707ebec0575ce7d088a4a6"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "a179abb31d787abdb406d922dff79635a8d784a4"
+		},
+		{
+			"ImportPath": "golang.org/x/net/http2",
+			"Rev": "a179abb31d787abdb406d922dff79635a8d784a4"
+		},
+		{
+			"ImportPath": "golang.org/x/net/http2/hpack",
+			"Rev": "a179abb31d787abdb406d922dff79635a8d784a4"
+		},
+		{
+			"ImportPath": "golang.org/x/net/websocket",
+			"Rev": "a179abb31d787abdb406d922dff79635a8d784a4"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "b776ec39b3e54652e09028aaaaac9757f4f8211a"
+		}
+	]
+}
