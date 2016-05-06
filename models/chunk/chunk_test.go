@@ -95,3 +95,21 @@ func TestFindByFileID(t *testing.T) {
 		a.Equal((*chunks)[2].Hash, "c")
 	})
 }
+
+func TestHaveChunkForFile(t *testing.T) {
+	t.Parallel()
+	models.TxWrapper(func(tx *sql.Tx) {
+		a := assert.New(t)
+		f := &file.File{}
+		f.Create(tx)
+
+		haveChunk := chunk.HaveChunkForFile(tx, f.ID, 1)
+		a.Equal(false, haveChunk)
+
+		c1 := &chunk.Chunk{Hash: "a", FileID: f.ID, Position: 1}
+		c1.Create(tx)
+
+		haveChunk = chunk.HaveChunkForFile(tx, f.ID, 1)
+		a.Equal(true, haveChunk)
+	})
+}

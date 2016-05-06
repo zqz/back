@@ -23,21 +23,32 @@ const findByIDSQL = `
 	SELECT
 	file_id, size, hash, position, created_at, updated_at
 	FROM chunks
-	WHERE id = $1`
+	WHERE id = $1
+`
 
 const findByFileIDSQL = `
 	SELECT
 	id, size, hash, position
 	FROM chunks
 	WHERE file_id = $1
-	ORDER BY position asc`
+	ORDER BY position asc
+`
+
+const haveChunkForFileSQL = `
+	SELECT EXISTS (
+		SELECT 1
+		FROM chunks
+		WHERE file_id = $1 AND position = $2
+	)
+`
 
 const insertSQL = `
 	INSERT INTO chunks
 	(file_id, size, hash, position)
 	VALUES
 	($1, $2, $3, $4)
-	RETURNING id`
+	RETURNING id
+`
 
 const updateChunkSQL = `
 	UPDATE chunks
@@ -59,8 +70,10 @@ func FindByID(tx *sql.Tx, id string) (*Chunk, error) {
 // TODO: cleanup
 func FindByFileID(tx *sql.Tx, id string) (*[]Chunk, error) {
 	var chunks []Chunk
-	rows, err := tx.Query(findByFileIDSQL, id)
-	if err != nil {
+	var err error
+	var rows *sql.Rows
+
+	if rows, err = tx.Query(findByFileIDSQL, id); err != nil {
 		return &chunks, err
 	}
 	defer rows.Close()
@@ -68,18 +81,28 @@ func FindByFileID(tx *sql.Tx, id string) (*[]Chunk, error) {
 	for rows.Next() {
 		var c Chunk
 
-		if err := rows.Scan(&c.ID, &c.Size, &c.Hash, &c.Position); err != nil {
+		if err = rows.Scan(&c.ID, &c.Size, &c.Hash, &c.Position); err != nil {
 			log.Fatal(err)
 		}
 
 		chunks = append(chunks, c)
 	}
 
-	if err := rows.Err(); err != nil {
+	if err = rows.Err(); err != nil {
 		log.Fatal(err)
 	}
 
 	return &chunks, err
+}
+
+func HaveChunkForFile(tx *sql.Tx, fileID string, position int) bool {
+	var exists bool
+	err := tx.QueryRow(haveChunkForFileSQL, fileID, position).Scan(&exists)
+
+	if err != nil {
+		return false
+	}
+	return exists
 }
 
 // Create a chunk inside of a transaction.
