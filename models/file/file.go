@@ -2,6 +2,7 @@ package file
 
 import (
 	"database/sql"
+	"log"
 	"time"
 )
 
@@ -22,6 +23,15 @@ const (
 	Processing
 	Finished
 )
+
+const paginationSQL = `
+	SELECT
+	id, size, hash, chunks, name, type, state, created_at, updated_at
+	FROM files
+	ORDER BY created_at desc
+	OFFSET $1
+	LIMIT $2
+`
 
 const findByIDSQL = `
 	SELECT
@@ -81,8 +91,55 @@ func FindByID(tx *sql.Tx, id string) (*File, error) {
 	return &f, err
 }
 
+func Pagination(tx *sql.Tx, page int, perPage int) (*[]File, error) {
+	var files []File
+	var err error
+	var rows *sql.Rows
+
+	if perPage == 0 {
+		perPage = 20
+	}
+
+	page = page - 1
+	if page < 0 {
+		page = 0
+	}
+
+	offset := perPage * page
+
+	if rows, err = tx.Query(paginationSQL, offset, perPage); err != nil {
+		return &files, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var f File
+
+		err = rows.Scan(
+			&f.ID, &f.Size, &f.Hash, &f.Chunks, &f.Name, &f.Type, &f.State,
+			&f.CreatedAt, &f.UpdatedAt,
+		)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		files = append(files, f)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	return &files, err
+}
+
 // SetState sets the state of the File.
 func (f *File) SetState(tx *sql.Tx, state int) error {
 	err := tx.QueryRow(setStateSQL, f.ID, state).Scan(&f.State)
 	return err
+}
+
+func (f *File) Process(tx *sql.Tx) error {
+	return f.SetState(tx, Finished)
 }

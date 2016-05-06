@@ -100,3 +100,26 @@ func TestSetState(t *testing.T) {
 		a.Equal(f.State, file.Processing)
 	})
 }
+
+func TestPagination(t *testing.T) {
+	t.Parallel()
+	models.TxWrapper(func(tx *sql.Tx) {
+		a := assert.New(t)
+
+		f := &file.File{
+			Size:  1,
+			Name:  "doo",
+			State: file.Incomplete,
+		}
+
+		f.Create(tx)
+
+		files, err := file.Pagination(tx, 0, 10)
+		a.Nil(err)
+		a.NotNil((*files)[0])
+		a.Equal((*files)[0].ID, f.ID)
+
+		f.SetState(tx, file.Processing)
+		a.Equal(f.State, file.Processing)
+	})
+}
