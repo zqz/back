@@ -1,18 +1,20 @@
 package controllers_test
 
 import (
+	"database/sql"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 
 	"github.com/labstack/echo"
-	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/models/user"
 )
 
+var database *sql.DB
+
 func init() {
-	db := db.DatabaseConnect()
-	models.SetDB(db)
+	database, _ = models.Connection()
 }
 
 func request(method string, path string, jsonRequest string) (*httptest.ResponseRecorder, *echo.Context) {
@@ -37,17 +39,16 @@ func post(r string) (*httptest.ResponseRecorder, *echo.Context) {
 	return request("POST", "/", r)
 }
 
-func CreateUser(username string, password string) *models.User {
-	u := &models.User{
+func CreateUser(tx *sql.Tx, username string, password string) *user.User {
+	u := &user.User{
 		FirstName: "Tester",
 		LastName:  "McTesterson",
 		Email:     "foo@bar.com",
-		APIKey:    "123456",
 		Username:  username,
 		Password:  password,
 	}
 
-	u.Save()
+	u.Create(tx)
 
 	return u
 }
