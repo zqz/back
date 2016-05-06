@@ -57,7 +57,7 @@ func (c *wscon) ReadPump() {
 
 			if err = json.Unmarshal(message, &s); err != nil {
 				fmt.Println(err.Error())
-				fmt.Println("Failed to decode json: %s", message)
+				fmt.Println("Failed to decode json: ", message)
 				break
 			}
 
