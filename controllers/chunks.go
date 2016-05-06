@@ -9,7 +9,8 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/zqzca/back/lib"
-	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/models/chunk"
+	"github.com/zqzca/back/models/file"
 )
 
 func ChunkCreate(c *echo.Context) error {
@@ -21,21 +22,26 @@ func ChunkCreate(c *echo.Context) error {
 
 	fileID := c.Form("file_id")
 
+	tx := StartTransaction()
+
 	// Make sure file exists.
-	f, err := models.FileFindByID(fileID)
+	f, err := file.FindByID(tx, fileID)
 	if err != nil {
+		tx.Rollback()
 		fmt.Println("File does not exist")
 		return c.NoContent(http.StatusNotFound)
 	}
 
 	// Make sure chunk is not previously uploaded.
-	if _, err = models.ChunkFindByFileIDAndPosition(fileID, position); err == nil {
+	if chunk.HaveChunkForFile(tx, fileID, position) {
+		tx.Rollback()
 		fmt.Println("Already received chunk at position", position)
 		return c.NoContent(http.StatusNotAcceptable)
 	}
 
 	// Make sure we're only uploading chunks to incomplete files.
-	if f.State != models.Incomplete {
+	if f.State != file.Incomplete {
+		tx.Rollback()
 		fmt.Println("File is not in incomplete state", f.State)
 		return c.NoContent(http.StatusNotAcceptable)
 	}
@@ -49,19 +55,15 @@ func ChunkCreate(c *echo.Context) error {
 	// Source file
 	src, err := file.Open()
 	if err != nil {
-		return err
+		fmt.Println("createChunk error: failed to open file", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	defer src.Close()
 
 	var hash string
-	if hash, err = lib.HashFile(src); err != nil {
-		return err
-	}
-
-	// Make sure chunk is not previously uploaded.
-	if _, err = models.ChunkFindByHash(hash); err == nil {
-		fmt.Println("Already received hash: ", hash)
-		return c.NoContent(http.StatusNotAcceptable)
+	if hash, err = lib.Hash(src); err != nil {
+		fmt.Println("createChunk error: failed to hash file", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// Destination file
@@ -69,30 +71,31 @@ func ChunkCreate(c *echo.Context) error {
 
 	var size int
 	if size, err = storeChunk(src, dstPath); err != nil {
-		return err
+		fmt.Println("not sure:", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	chunk := &models.Chunk{
+	chnk := &chunk.Chunk{
 		FileID:   f.ID,
 		Size:     size,
 		Hash:     hash,
 		Position: position,
 	}
 
-	chunk.Save()
-	chunks, _ := models.ChunksByFileID(fileID)
+	chnk.Create(tx)
+	chunks, _ := chunk.FindByFileID(tx, fileID)
 
-	fmt.Println("i have :", chunks, "chunks")
+	fmt.Println("i have :", len(*chunks), "chunks")
 	fmt.Println("i need :", f.Chunks, "chunks")
-	if len(chunks) == f.Chunks {
-		f.Process()
+
+	if len(*chunks) == f.Chunks {
+		f.Process(tx)
 	}
 
-	fmt.Println(hash)
-	fmt.Println("h: ", hash)
-	fmt.Println("p: ", dstPath)
+	fmt.Println("h: ", chnk.Hash)
 	fmt.Println("f: ", fileID)
 	fmt.Println("pos: ", position)
+	tx.Commit()
 
 	return c.NoContent(http.StatusOK)
 }

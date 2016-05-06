@@ -6,14 +6,17 @@ import (
 	"strings"
 
 	"github.com/labstack/echo"
-	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/models/file"
 )
 
 func FileIndex(c *echo.Context) error {
-	var page uint = 0
-	var per_page uint = 10
+	tx := StartTransaction()
+	defer tx.Rollback()
 
-	files, err := models.FilePagination(page, per_page)
+	page := 0
+	perPage := 10
+
+	files, err := file.Pagination(tx, page, perPage)
 
 	if err != nil {
 		fmt.Println("failed to fetch page:", err)
@@ -24,10 +27,11 @@ func FileIndex(c *echo.Context) error {
 }
 
 func FileDownload(c *echo.Context) error {
-	file_id := c.Param("file_id")
-	f, err := models.FileFindByID(file_id)
+	tx := StartTransaction()
+	defer tx.Rollback()
 
-	// File must exist
+	fileID := c.Param("file_id")
+	f, err := file.FindByID(tx, fileID)
 	if err != nil {
 		return c.NoContent(http.StatusNotFound)
 	}
@@ -49,7 +53,7 @@ func FileDownload(c *echo.Context) error {
 	}
 
 	// Build file and spit it out.
-	fb := models.NewFileBuilder(f)
+	fb := file.NewBuilder(tx, f)
 
 	if fb == nil {
 		return c.NoContent(http.StatusInternalServerError)
@@ -61,26 +65,30 @@ func FileDownload(c *echo.Context) error {
 		res.Flush()
 	})
 
-	return nil
+	return nil // Don't return anything, we sent data already.
 }
 
 func FileCreate(c *echo.Context) error {
-	f := &models.File{}
+	f := &file.File{}
 
 	if err := c.Bind(f); err != nil {
 		return err
 	}
 
-	f.State = models.Incomplete
-	f.Save()
+	tx := StartTransaction()
+	f.State = file.Incomplete
+	f.Create(tx)
+	tx.Commit()
 
 	return c.JSON(http.StatusOK, f)
 }
 
 func FileStatus(c *echo.Context) error {
+	tx := StartTransaction()
+	defer tx.Rollback()
 	hash := GetParam(c, "hash")
-	f, err := models.FileFindByHash(hash)
-	fs := models.FileStatusForFile(f)
+	f, err := file.FindByHash(tx, hash)
+	fs := file.StatusForFile(tx, f)
 
 	if err == nil {
 		return c.JSON(http.StatusOK, fs)

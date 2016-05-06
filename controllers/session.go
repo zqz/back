@@ -1,40 +1,35 @@
 package controllers
 
 import (
-	"bytes"
-	"encoding/json"
 	"net/http"
 
 	"github.com/labstack/echo"
-	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/models/user"
 )
 
-type Session struct {
+type session struct {
 	Username string
 	Password string
 }
 
-func (s Session) String() string {
-	buf := new(bytes.Buffer)
-	json.NewEncoder(buf).Encode(s)
-	return buf.String()
-}
-
-type SessionError struct {
+type sessionError struct {
 	Msg string `json:"error"`
 }
 
 func SessionCreate(c *echo.Context) error {
-	s := &Session{}
+	tx := StartTransaction()
+	defer tx.Rollback()
+	s := &session{}
 
 	if err := c.Bind(s); err != nil {
 		return err
 	}
 
-	if u, err := models.UserFindByLogin(s.Username, s.Password); err != nil {
-		errors := &SessionError{err.Error()}
-		return c.JSON(http.StatusUnauthorized, errors)
-	} else {
+	if user.ValidCredentials(tx, s.Username, s.Password) {
+		u, _ := user.FindByUsername(tx, s.Username)
 		return c.JSON(http.StatusCreated, u)
+	} else {
+		errors := &sessionError{"Invalid Credentials"}
+		return c.JSON(http.StatusUnauthorized, errors)
 	}
 }

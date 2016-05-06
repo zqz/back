@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo"
-	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/models/user"
 )
 
 type UserError struct {
@@ -13,7 +13,7 @@ type UserError struct {
 }
 
 func UserCreate(c *echo.Context) error {
-	u := &models.User{}
+	u := &user.User{}
 
 	if err := c.Bind(u); err != nil {
 		fmt.Println(err.Error())
@@ -21,22 +21,28 @@ func UserCreate(c *echo.Context) error {
 	}
 
 	if u.Valid() {
-		u.Save()
+		tx := StartTransaction()
+		u.Create(tx)
+		tx.Commit()
 		return c.JSON(http.StatusCreated, u)
 	} else {
-		return c.JSON(http.StatusBadRequest, u.Errors())
+		return c.NoContent(http.StatusBadRequest)
 	}
 }
 
 func UserGet(c *echo.Context) error {
-	id := GetParam(c, "id")
+	// tx := StartTransaction()
+	// defer tx.Rollback()
+	// id := GetParam(c, "id")
 
-	if u, err := models.UserFind(id); err != nil {
-		errors := &UserError{err.Error()}
-		return c.JSON(http.StatusNotFound, errors)
-	} else {
-		return c.JSON(http.StatusOK, u)
-	}
+	// if u, err := user.FindByID(tx, id); err != nil {
+	// 	errors := &UserError{err.Error()}
+	// 	return c.JSON(http.StatusOK, u)
+	// 	return c.JSON(http.StatusNotFound, errors)
+	// } else {
+	// 	return c.JSON(http.StatusOK, u)
+	// }
+	return nil
 }
 
 func UserIndex(c *echo.Context) error {
@@ -44,9 +50,11 @@ func UserIndex(c *echo.Context) error {
 }
 
 func UserNameValid(c *echo.Context) error {
+	tx := StartTransaction()
+	defer tx.Rollback()
 	name := GetParam(c, "name")
 
-	if models.UserNameValid(name) {
+	if user.UsernameFree(tx, name) {
 		return c.NoContent(http.StatusOK)
 	} else {
 		return c.NoContent(http.StatusNotAcceptable)
