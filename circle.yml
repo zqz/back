@@ -23,7 +23,7 @@ test:
     - goose -env test status
 
   override:
-    - go test ./... -race
+    - godep go test ./... -race
 
   post:
     - overalls -project=github.com/zqzca/back -covermode=count
