@@ -3,32 +3,34 @@ package thumbnail
 import (
 	"bytes"
 	"fmt"
+	"image"
 	"io/ioutil"
 
-	"github.com/daddye/vips"
+	"github.com/disintegration/imaging"
 	"github.com/zqzca/back/lib"
 )
 
 func Generate(r []byte) {
-	options := vips.Options{
-		Width:        200,
-		Height:       200,
-		Crop:         true,
-		Extend:       vips.EXTEND_BLACK,
-		Interpolator: vips.NOHALO,
-		Gravity:      vips.CENTRE,
-		Quality:      95,
-	}
+	raw, format, err := image.Decode(bytes.NewReader(r))
 
-	buf, err := vips.Resize(r, options)
+	fmt.Println("fmt", format)
 
 	if err != nil {
-		fmt.Println("thumbnail error:", err)
+		fmt.Println("failed to decode image", err)
 		return
 	}
 
-	b := bytes.NewReader(buf)
-	hash, err := lib.Hash(b)
+	dst := imaging.Fill(raw, 200, 200, imaging.Center, imaging.Lanczos)
+
+	var b bytes.Buffer
+	err = imaging.Encode(&b, dst, imaging.PNG)
+
+	if err != nil {
+		fmt.Println("failed to encode data", err)
+	}
+
+	buf := bytes.NewReader(b.Bytes())
+	hash, err := lib.Hash(buf)
 
 	if err != nil {
 		fmt.Println("thumbnail error:", err)
@@ -36,5 +38,5 @@ func Generate(r []byte) {
 	}
 
 	path := lib.LocalPath(hash)
-	ioutil.WriteFile(path, buf, 0644)
+	ioutil.WriteFile(path, b.Bytes(), 0644)
 }
