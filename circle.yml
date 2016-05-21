@@ -1,6 +1,6 @@
 machine:
   environment:
-    IMPORT_PATH: "github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME"
+    IMPORT_PATH: "github.com/zqzca/back"
 
 dependencies:
   pre:
@@ -12,7 +12,7 @@ dependencies:
   override:
     - mkdir -p "$GOPATH/src/$IMPORT_PATH"
     - rsync -azC --delete ./ "$GOPATH/src/$IMPORT_PATH/"
-    - govendor sync
+    - cd "$GOPATH/src/$IMPORT_PATH" && govendor sync
 
 test:
   pre:
