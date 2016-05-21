@@ -1,0 +1,3 @@
+build:
+  image: library/golang:1.5
+
