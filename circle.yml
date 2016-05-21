@@ -8,11 +8,11 @@ dependencies:
     - go get github.com/go-playground/overalls
     - go get github.com/mattn/goveralls
     - go get bitbucket.org/liamstask/goose/cmd/goose
-    - govendor sync
 
   override:
     - mkdir -p "$GOPATH/src/$IMPORT_PATH"
     - rsync -azC --delete ./ "$GOPATH/src/$IMPORT_PATH/"
+    - govendor sync
 
 test:
   pre:
