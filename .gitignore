@@ -1,5 +1,6 @@
 files/
 assets/
+assets
 zqz
 *.coverprofile
 /vendor/*

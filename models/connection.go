@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/lib/pq"
 )
@@ -15,8 +16,12 @@ type Executor interface {
 }
 
 var database *sql.DB
+var mu sync.Mutex
 
 func GetDB() (*sql.DB, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
 	var err error
 	if database == nil {
 		database, err = Connection()
