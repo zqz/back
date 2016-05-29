@@ -1,4 +1,4 @@
-package controllers_test
+package controllers
 
 import (
 	"database/sql"
@@ -7,15 +7,8 @@ import (
 	"strings"
 
 	"github.com/labstack/echo"
-	"github.com/zqzca/back/models"
 	"github.com/zqzca/back/models/user"
 )
-
-var database *sql.DB
-
-func init() {
-	database, _ = models.Connection()
-}
 
 func request(method string, path string, jsonRequest string) (*httptest.ResponseRecorder, *echo.Context) {
 	params := strings.NewReader(jsonRequest)

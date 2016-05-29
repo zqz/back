@@ -1,11 +1,15 @@
-package controllers_test
+package controllers
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/models/user"
 )
 
 func CreateSessionRequest(username string, password string) string {
@@ -13,25 +17,31 @@ func CreateSessionRequest(username string, password string) string {
 }
 
 func TestSessionCreateValid(t *testing.T) {
-	t.Parallel()
-	models.TxWrapper(func(tx *sql.Tx) {
-		// a := assert.New(t)
+	db, err := models.Connection()
+	a := assert.New(t)
 
-		// CreateUser(tx, "foo", "bar")
+	u := &user.User{
+		Username: "foo",
+		Password: "bar",
+	}
 
-		// res, c := post(CreateSessionRequest("foo", "bar"))
+	err = u.Create(db)
 
-		// SessionCreate(c)
+	a.NoError(err)
 
-		// a.Equal(http.StatusCreated, res.Code)
+	res, c := post(CreateSessionRequest("foo", "bar"))
 
-		// u := user.User{}
-		// json.NewDecoder(res.Body).Decode(&u)
+	SessionCreate(c)
+	u.Delete(db)
 
-		// // Should return User struct
-		// a.Equal(u.Username, "foo")
-		// a.Empty(u.Password, "foo")
-	})
+	a.Equal(http.StatusCreated, res.Code)
+
+	u = &user.User{}
+	json.NewDecoder(res.Body).Decode(u)
+
+	// Should return User struct
+	a.Equal(u.Username, "foo")
+	a.Empty(u.Password)
 }
 
 func TestSessionCreateInvalid(t *testing.T) {

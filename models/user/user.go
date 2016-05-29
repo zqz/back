@@ -1,8 +1,9 @@
 package user
 
 import (
-	"database/sql"
 	"time"
+
+	"github.com/zqzca/back/models"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -47,13 +48,18 @@ const setPasswordSQL = `
 	WHERE id = $1
 `
 
+const deleteSQL = `
+	DELETE FROM users
+	WHERE id = $1
+`
+
 // Create a user inside of a transaction.
-func (u *User) Create(tx *sql.Tx) error {
+func (u *User) Create(ex models.Executor) error {
 	if len(u.Hash) == 0 {
 		u.hashPassword()
 	}
 
-	err := tx.QueryRow(insertSQL,
+	err := ex.QueryRow(insertSQL,
 		u.FirstName, u.LastName, u.Username, u.Phone, u.Email, u.Hash,
 	).Scan(&u.ID)
 
@@ -67,10 +73,10 @@ func (u *User) hashPassword() {
 }
 
 // FindByUsername returns a User with the specified username
-func FindByUsername(tx *sql.Tx, username string) (*User, error) {
+func FindByUsername(ex models.Executor, username string) (*User, error) {
 	var u User
 	u.Username = username
-	err := tx.QueryRow(findByUsernameSQL, username).Scan(
+	err := ex.QueryRow(findByUsernameSQL, username).Scan(
 		&u.ID, &u.FirstName, &u.LastName, &u.Phone, &u.Email, &u.Banned,
 		&u.CreatedAt, &u.UpdatedAt,
 	)
@@ -78,11 +84,18 @@ func FindByUsername(tx *sql.Tx, username string) (*User, error) {
 }
 
 // SetPassword changes the users password.
-func (u *User) SetPassword(tx *sql.Tx, password string) bool {
+func (u *User) SetPassword(ex models.Executor, password string) bool {
 	u.Password = password
 	u.hashPassword()
 
-	err, _ := tx.Exec(setPasswordSQL, u.ID, u.Hash)
+	err, _ := ex.Exec(setPasswordSQL, u.ID, u.Hash)
+
+	return err == nil
+}
+
+// SetPassword changes the users password.
+func (u *User) Delete(ex models.Executor) bool {
+	err, _ := ex.Exec(deleteSQL, u.ID)
 
 	return err == nil
 }

@@ -3,12 +3,30 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"os"
 
 	"github.com/lib/pq"
 )
 
+type Executor interface {
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+}
+
+var database *sql.DB
+
+func GetDB() (*sql.DB, error) {
+	var err error
+	if database == nil {
+		database, err = Connection()
+	}
+
+	return database, err
+}
+
 func Connection() (*sql.DB, error) {
-	open := "dbname=zqz-test sslmode=disable"
+	open := os.Getenv("DATABASE_URL")
 
 	if parsedURL, err := pq.ParseURL(open); err == nil && parsedURL != "" {
 		open = parsedURL
@@ -16,12 +34,16 @@ func Connection() (*sql.DB, error) {
 
 	db, err := sql.Open("postgres", open)
 
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	return db, err
 }
 
 // TxWrapper is used in tests
 func TxWrapper(callback func(*sql.Tx)) {
-	db, err := Connection()
+	db, err := GetDB()
 
 	if err != nil {
 		fmt.Println(err)
@@ -29,6 +51,14 @@ func TxWrapper(callback func(*sql.Tx)) {
 	}
 
 	if tx, err := db.Begin(); err == nil {
+
+		defer func() {
+			// Catch panics
+			if r := recover(); r != nil {
+				tx.Rollback()
+			}
+		}()
+
 		callback(tx)
 		tx.Rollback()
 	} else {

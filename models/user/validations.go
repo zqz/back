@@ -1,11 +1,11 @@
 package user
 
 import (
-	"database/sql"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/asaskevich/govalidator"
+	"github.com/zqzca/back/models"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -34,7 +34,7 @@ func (u *User) Valid() bool {
 }
 
 // ValidCredentials checks if a username and password combination exists.
-func ValidCredentials(tx *sql.Tx, username string, password string) bool {
+func ValidCredentials(ex models.Executor, username string, password string) bool {
 	if len(username) == 0 {
 		return false
 	}
@@ -45,7 +45,7 @@ func ValidCredentials(tx *sql.Tx, username string, password string) bool {
 
 	var hash string
 
-	err := tx.QueryRow(validCredentialsSQL, username).Scan(&hash)
+	err := ex.QueryRow(validCredentialsSQL, username).Scan(&hash)
 
 	if err != nil {
 		return false
@@ -60,7 +60,7 @@ const minUsernameLength = 4
 const maxUsernameLength = 14
 
 // UsernameFree returns true if the provider username can be used.
-func UsernameFree(tx *sql.Tx, username string) bool {
+func UsernameFree(ex models.Executor, username string) bool {
 	length := utf8.RuneCount([]byte(username))
 
 	if length < minUsernameLength {
@@ -72,7 +72,7 @@ func UsernameFree(tx *sql.Tx, username string) bool {
 	}
 
 	var free bool
-	err := tx.QueryRow(usernameFreeSQL, username).Scan(&free)
+	err := ex.QueryRow(usernameFreeSQL, username).Scan(&free)
 
 	if err != nil {
 		return false

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo"
+	"github.com/zqzca/back/models"
 	"github.com/zqzca/back/models/user"
 )
 
@@ -17,16 +18,16 @@ type sessionError struct {
 }
 
 func SessionCreate(c *echo.Context) error {
-	tx := StartTransaction()
-	defer tx.Rollback()
+	db, _ := models.GetDB()
+
 	s := &session{}
 
 	if err := c.Bind(s); err != nil {
 		return err
 	}
 
-	if user.ValidCredentials(tx, s.Username, s.Password) {
-		u, _ := user.FindByUsername(tx, s.Username)
+	if user.ValidCredentials(db, s.Username, s.Password) {
+		u, _ := user.FindByUsername(db, s.Username)
 		return c.JSON(http.StatusCreated, u)
 	} else {
 		errors := &sessionError{"Invalid Credentials"}

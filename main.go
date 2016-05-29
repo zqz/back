@@ -65,6 +65,7 @@ func main() {
 	// e.Patch("/users/:id", updateUser)
 	// e.Delete("/users/:id", deleteUser)
 
+	e.ServeFile("/signin", "assets/signin.html")
 	e.ServeFile("/*", "assets/index.html")
 
 	// Start server
