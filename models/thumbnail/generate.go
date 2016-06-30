@@ -10,14 +10,14 @@ import (
 	"github.com/zqzca/back/lib"
 )
 
-func Generate(r []byte) {
+func Generate(r []byte) (*Thumbnail, error) {
 	raw, format, err := image.Decode(bytes.NewReader(r))
 
 	fmt.Println("fmt", format)
 
 	if err != nil {
 		fmt.Println("failed to decode image", err)
-		return
+		return nil, err
 	}
 
 	dst := imaging.Fill(raw, 200, 200, imaging.Center, imaging.Lanczos)
@@ -27,6 +27,7 @@ func Generate(r []byte) {
 
 	if err != nil {
 		fmt.Println("failed to encode data", err)
+		return nil, err
 	}
 
 	buf := bytes.NewReader(b.Bytes())
@@ -34,9 +35,16 @@ func Generate(r []byte) {
 
 	if err != nil {
 		fmt.Println("thumbnail error:", err)
-		return
+		return nil, err
 	}
 
 	path := lib.LocalPath(hash)
 	ioutil.WriteFile(path, b.Bytes(), 0644)
+
+	t := &Thumbnail{
+		Hash: hash,
+		Size: len(b.Bytes()),
+	}
+
+	return t, nil
 }

@@ -6,7 +6,7 @@ import (
 
 	"database/sql"
 
-	_ "github.com/lib/pq"
+	"github.com/zqzca/back/db"
 )
 
 type Chunk struct {
@@ -57,10 +57,10 @@ const updateChunkSQL = `
 `
 
 // FindByID returns a chunk with the specified id.
-func FindByID(tx *sql.Tx, id string) (*Chunk, error) {
+func FindByID(ex db.Executor, id string) (*Chunk, error) {
 	var c Chunk
 	c.ID = id
-	err := tx.QueryRow(findByIDSQL, id).Scan(
+	err := ex.QueryRow(findByIDSQL, id).Scan(
 		&c.FileID, &c.Size, &c.Hash, &c.Position, &c.CreatedAt, &c.UpdatedAt,
 	)
 	return &c, err
@@ -68,12 +68,12 @@ func FindByID(tx *sql.Tx, id string) (*Chunk, error) {
 
 // FindByFileID return all chunks with the specified FileID.
 // TODO: cleanup
-func FindByFileID(tx *sql.Tx, id string) (*[]Chunk, error) {
+func FindByFileID(ex db.Executor, id string) (*[]Chunk, error) {
 	var chunks []Chunk
 	var err error
 	var rows *sql.Rows
 
-	if rows, err = tx.Query(findByFileIDSQL, id); err != nil {
+	if rows, err = ex.Query(findByFileIDSQL, id); err != nil {
 		return &chunks, err
 	}
 	defer rows.Close()
@@ -95,9 +95,9 @@ func FindByFileID(tx *sql.Tx, id string) (*[]Chunk, error) {
 	return &chunks, err
 }
 
-func HaveChunkForFile(tx *sql.Tx, fileID string, position int) bool {
+func HaveChunkForFile(ex db.Executor, fileID string, position int) bool {
 	var exists bool
-	err := tx.QueryRow(haveChunkForFileSQL, fileID, position).Scan(&exists)
+	err := ex.QueryRow(haveChunkForFileSQL, fileID, position).Scan(&exists)
 
 	if err != nil {
 		return false
@@ -106,8 +106,8 @@ func HaveChunkForFile(tx *sql.Tx, fileID string, position int) bool {
 }
 
 // Create a chunk inside of a transaction.
-func (c *Chunk) Create(tx *sql.Tx) error {
-	err := tx.
+func (c *Chunk) Create(ex db.Executor) error {
+	err := ex.
 		QueryRow(insertSQL, c.FileID, c.Size, c.Hash, c.Position).
 		Scan(&c.ID)
 

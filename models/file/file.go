@@ -1,9 +1,15 @@
 package file
 
 import (
+	"bufio"
+	"bytes"
 	"database/sql"
+	"fmt"
 	"log"
 	"time"
+
+	"github.com/zqzca/back/db"
+	"github.com/zqzca/back/models/thumbnail"
 )
 
 type File struct {
@@ -61,8 +67,8 @@ const setStateSQL = `
 `
 
 // Create a File inside of a transaction.
-func (f *File) Create(tx *sql.Tx) error {
-	err := tx.
+func (f *File) Create(ex db.Executor) error {
+	err := ex.
 		QueryRow(insertSQL, f.Size, f.Hash, f.Chunks, f.Name, f.Type, f.State).
 		Scan(&f.ID)
 
@@ -70,10 +76,10 @@ func (f *File) Create(tx *sql.Tx) error {
 }
 
 // FindByHash returns a File with the specified hash.
-func FindByHash(tx *sql.Tx, hash string) (*File, error) {
+func FindByHash(ex db.Executor, hash string) (*File, error) {
 	var f File
 	f.Hash = hash
-	err := tx.QueryRow(findByHashSQL, hash).Scan(
+	err := ex.QueryRow(findByHashSQL, hash).Scan(
 		&f.ID, &f.Size, &f.Chunks, &f.Name, &f.Type, &f.State,
 		&f.CreatedAt, &f.UpdatedAt,
 	)
@@ -81,17 +87,17 @@ func FindByHash(tx *sql.Tx, hash string) (*File, error) {
 }
 
 // FindByID returns a File with the specified id.
-func FindByID(tx *sql.Tx, id string) (*File, error) {
+func FindByID(ex db.Executor, id string) (*File, error) {
 	var f File
 	f.ID = id
-	err := tx.QueryRow(findByIDSQL, id).Scan(
+	err := ex.QueryRow(findByIDSQL, id).Scan(
 		&f.Size, &f.Hash, &f.Chunks, &f.Name, &f.Type, &f.State,
 		&f.CreatedAt, &f.UpdatedAt,
 	)
 	return &f, err
 }
 
-func Pagination(tx *sql.Tx, page int, perPage int) (*[]File, error) {
+func Pagination(ex db.Executor, page int, perPage int) (*[]File, error) {
 	var files []File
 	var err error
 	var rows *sql.Rows
@@ -107,7 +113,7 @@ func Pagination(tx *sql.Tx, page int, perPage int) (*[]File, error) {
 
 	offset := perPage * page
 
-	if rows, err = tx.Query(paginationSQL, offset, perPage); err != nil {
+	if rows, err = ex.Query(paginationSQL, offset, perPage); err != nil {
 		return &files, err
 	}
 	defer rows.Close()
@@ -135,11 +141,33 @@ func Pagination(tx *sql.Tx, page int, perPage int) (*[]File, error) {
 }
 
 // SetState sets the state of the File.
-func (f *File) SetState(tx *sql.Tx, state int) error {
-	err := tx.QueryRow(setStateSQL, f.ID, state).Scan(&f.State)
+func (f *File) SetState(ex db.Executor, state int) error {
+	err := ex.QueryRow(setStateSQL, f.ID, state).Scan(&f.State)
 	return err
 }
 
-func (f *File) Process(tx *sql.Tx) error {
-	return f.SetState(tx, Finished)
+func (f *File) Process(ex db.Executor) error {
+	fmt.Println("PROCESSING")
+
+	var data bytes.Buffer
+	dataWriter := bufio.NewWriter(&data)
+	builder := NewBuilder(ex, f)
+	builder.Copy(dataWriter, func() {})
+
+	t, err := thumbnail.Generate(data.Bytes())
+
+	if err != nil {
+		fmt.Println("Failed to create Thumbnail", err)
+		return nil
+	}
+
+	t.FileID = f.ID
+	err = t.Create(ex)
+
+	if err != nil {
+		fmt.Println("Failed to save thumbnail", err)
+	}
+
+	fmt.Println("PROCESSED")
+	return f.SetState(ex, Finished)
 }

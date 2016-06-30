@@ -1,8 +1,9 @@
 package thumbnail
 
 import (
-	"database/sql"
 	"time"
+
+	"github.com/zqzca/back/db"
 )
 
 type Thumbnail struct {
@@ -28,21 +29,32 @@ const findByFileIDSQL = `
 	WHERE id = $1
 `
 
+const deleteByFileIDSQL = `
+	DELETE FROM thumbnails
+	WHERE file_id = $1
+`
+
 // Create a thumbnail inside of a transaction.
-func (t *Thumbnail) Create(tx *sql.Tx) error {
-	err := tx.
+func (t *Thumbnail) Create(ex db.Executor) error {
+	err := ex.
 		QueryRow(insertSQL, t.Size, t.Hash, t.FileID).
 		Scan(&t.ID)
 
 	return err
 }
 
-func FindByFileID(tx *sql.Tx, id string) (*Thumbnail, error) {
+func FindByFileID(ex db.Executor, id string) (*Thumbnail, error) {
 	var t Thumbnail
 	t.FileID = id
-	err := tx.QueryRow(findByFileIDSQL, id).Scan(
+	err := ex.QueryRow(findByFileIDSQL, id).Scan(
 		&t.ID, &t.Size, &t.Hash, &t.CreatedAt, &t.UpdatedAt,
 	)
 
 	return &t, err
+}
+
+func DeleteByFileID(ex db.Executor, id string) error {
+	_, err := ex.Exec(deleteByFileIDSQL, id)
+
+	return err
 }

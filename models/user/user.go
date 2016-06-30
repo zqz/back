@@ -3,7 +3,7 @@ package user
 import (
 	"time"
 
-	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/db"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -54,7 +54,7 @@ const deleteSQL = `
 `
 
 // Create a user inside of a transaction.
-func (u *User) Create(ex models.Executor) error {
+func (u *User) Create(ex db.Executor) error {
 	if len(u.Hash) == 0 {
 		u.hashPassword()
 	}
@@ -73,7 +73,7 @@ func (u *User) hashPassword() {
 }
 
 // FindByUsername returns a User with the specified username
-func FindByUsername(ex models.Executor, username string) (*User, error) {
+func FindByUsername(ex db.Executor, username string) (*User, error) {
 	var u User
 	u.Username = username
 	err := ex.QueryRow(findByUsernameSQL, username).Scan(
@@ -84,7 +84,7 @@ func FindByUsername(ex models.Executor, username string) (*User, error) {
 }
 
 // SetPassword changes the users password.
-func (u *User) SetPassword(ex models.Executor, password string) bool {
+func (u *User) SetPassword(ex db.Executor, password string) bool {
 	u.Password = password
 	u.hashPassword()
 
@@ -94,7 +94,7 @@ func (u *User) SetPassword(ex models.Executor, password string) bool {
 }
 
 // SetPassword changes the users password.
-func (u *User) Delete(ex models.Executor) bool {
+func (u *User) Delete(ex db.Executor) bool {
 	err, _ := ex.Exec(deleteSQL, u.ID)
 
 	return err == nil

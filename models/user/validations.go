@@ -5,7 +5,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/asaskevich/govalidator"
-	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/db"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -34,7 +34,7 @@ func (u *User) Valid() bool {
 }
 
 // ValidCredentials checks if a username and password combination exists.
-func ValidCredentials(ex models.Executor, username string, password string) bool {
+func ValidCredentials(ex db.Executor, username string, password string) bool {
 	if len(username) == 0 {
 		return false
 	}
@@ -60,7 +60,7 @@ const minUsernameLength = 4
 const maxUsernameLength = 14
 
 // UsernameFree returns true if the provider username can be used.
-func UsernameFree(ex models.Executor, username string) bool {
+func UsernameFree(ex db.Executor, username string) bool {
 	length := utf8.RuneCount([]byte(username))
 
 	if length < minUsernameLength {

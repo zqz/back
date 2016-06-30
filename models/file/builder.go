@@ -1,23 +1,23 @@
 package file
 
 import (
-	"database/sql"
 	"fmt"
 	"io"
 	"os"
 
+	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/models/chunk"
 )
 
 type Builder struct {
 	file   *File
 	chunks *[]chunk.Chunk
-	tx     *sql.Tx
+	ex     db.Executor
 }
 
-func NewBuilder(tx *sql.Tx, f *File) *Builder {
+func NewBuilder(ex db.Executor, f *File) *Builder {
 	fb := Builder{
-		tx:   tx,
+		ex:   ex,
 		file: f,
 	}
 
@@ -53,7 +53,7 @@ func chunkReadCloser(hash string) (io.ReadCloser, error) {
 }
 
 func (fb *Builder) fetchChunks() error {
-	chunks, err := chunk.FindByFileID(fb.tx, fb.file.ID)
+	chunks, err := chunk.FindByFileID(fb.ex, fb.file.ID)
 
 	if err != nil {
 		return err
