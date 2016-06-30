@@ -2,7 +2,7 @@ package users
 
 import "github.com/labstack/echo"
 
-func Read(c *echo.Context) error {
+func Read(c echo.Context) error {
 	// tx := StartTransaction()
 	// defer tx.Rollback()
 	// id := GetParam(c, "id")

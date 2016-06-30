@@ -12,7 +12,7 @@ type UserError struct {
 	Msg string `json:"error"`
 }
 
-func Valid(c *echo.Context) error {
+func Valid(c echo.Context) error {
 	tx := db.StartTransaction()
 	defer tx.Rollback()
 	name := c.Param("name")

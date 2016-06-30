@@ -1,22 +1,20 @@
 package main
 
 import (
-	"github.com/zqzca/back/controllers"
+	"database/sql"
+	"fmt"
+	"os"
+
+	"github.com/lib/pq"
+	"github.com/zqzca/back/controllers/chunks"
+	"github.com/zqzca/back/controllers/files"
+	"github.com/zqzca/back/controllers/sessions"
+	"github.com/zqzca/back/controllers/users"
+	"github.com/zqzca/back/db"
 
 	"github.com/labstack/echo"
+	"github.com/labstack/echo/engine/standard"
 	"github.com/labstack/echo/middleware"
-)
-
-type (
-	user struct {
-		ID   int
-		Name string
-	}
-)
-
-var (
-	users = map[int]*user{}
-	seq   = 1
 )
 
 //----------
@@ -31,43 +29,84 @@ var (
 func main() {
 	e := echo.New()
 
+	connect()
 	// Middleware
 	e.Use(middleware.Recover())
 	e.Use(middleware.Logger())
-	e.Use(CORSMiddleware())
+
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowHeaders: []string{"Origin", "Content-Type", "Authorization"},
+	}))
 
 	// servers other static files
-	e.ServeDir("/assets", "assets")
-	e.ServeFile("/", "assets/index.html")
-	e.ServeFile("/favicon.ico", "assets/favicon.ico")
-	e.Get("/d/:file_id", controllers.FileDownload)
+	// e.ServeDir("/assets", "assets")
+	// e.ServeFile("/", "assets/index.html")
+	// e.ServeFile("/favicon.ico", "assets/favicon.ico")
+	e.Get("/d/:id", files.Download)
 
-	api := e.Group("/api")
+	// api := e.Group("/api")
+	v1 := e.Group("/api/v1")
 
-	api.Get("/p2p/join/:id", controllers.P2PJoin)
-	api.Post("/p2p/join/:id", controllers.P2PJoinAnswer)
-	api.Get("/p2p/signaling", controllers.P2PWS)
+	// api.Get("/p2p/join/:id", controllers.P2PJoin)
+	// api.Post("/p2p/join/:id", controllers.P2PJoinAnswer)
+	// api.Get("/p2p/signaling", controllers.P2PWS)
 	// Route
 	// e.Get("/chunk/status", controllers.ChunkStatus)
-	api.Get("/file/:hash", controllers.FileStatus)
-	api.Get("/files", controllers.FileIndex)
-	api.Get("/files/status/:hash", controllers.FileStatus)
-	api.Get("/files/download/:file_id", controllers.FileDownload)
-	api.Post("/sessions", controllers.SessionCreate)
-	api.Post("/files", controllers.FileCreate)
-	api.Post("/chunks", controllers.ChunkCreate)
-	api.Post("/users", controllers.UserCreate)
-	api.Get("/users/validateUsername", controllers.UserNameValid)
 
-	r := api.Group("/users")
-	r.Use(JWTAuth())
-	r.Get("/:id", controllers.UserGet)
+	// Files
+	v1.Get("/files", files.Index)
+	v1.Get("/files/:id", files.Read)
+	v1.Get("/files/:id/data", files.Download)
+	v1.Post("/files", files.Create)
+	v1.Post("/files/:id/process", files.Process)
+
+	// Chunks
+	v1.Post("/files/:file_id/chunks/:id", chunks.Write)
+	v1.Get("/files/:file_id/chunks/:id", chunks.Read)
+
+	// Users
+	v1.Post("/users", users.Create)
+	v1.Get("/username/valid", users.Valid)
+	v1.Get("/users/:id", users.Read)
+
+	// Sessions
+	v1.Post("/sessions", sessions.Create)
+
+	// r := api.Group("/users")
+	// r.Use(JWTAuth())
+	// r.Get("/:id", controllers.UserGet)
 	// e.Patch("/users/:id", updateUser)
 	// e.Delete("/users/:id", deleteUser)
 
-	e.ServeFile("/signin", "assets/signin.html")
-	e.ServeFile("/*", "assets/index.html")
+	// e.ServeFile("/signin", "assets/signin.html")
+	// e.ServeFile("/*", "assets/index.html")
+	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
+		Root:   "assets",
+		Browse: false,
+		Index:  "index.html",
+		HTML5:  true,
+	}))
 
 	// Start server
-	e.Run(":3001")
+	e.Run(standard.New(":3001"))
+
+}
+
+func connect() error {
+	open := os.Getenv("DATABASE_URL")
+
+	if parsedURL, err := pq.ParseURL(open); err == nil && parsedURL != "" {
+		open = parsedURL
+	}
+
+	con, err := sql.Open("postgres", open)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	db.Connection = con
+
+	return err
 }

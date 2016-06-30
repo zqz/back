@@ -9,7 +9,7 @@ import (
 	"github.com/zqzca/back/models/user"
 )
 
-func Create(c *echo.Context) error {
+func Create(c echo.Context) error {
 	u := &user.User{}
 
 	if err := c.Bind(u); err != nil {

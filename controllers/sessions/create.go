@@ -17,7 +17,7 @@ type sessionError struct {
 	Msg string `json:"error"`
 }
 
-func Create(c *echo.Context) error {
+func Create(c echo.Context) error {
 	s := &session{}
 
 	if err := c.Bind(s); err != nil {
