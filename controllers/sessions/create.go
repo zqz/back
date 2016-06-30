@@ -1,10 +1,10 @@
-package controllers
+package sessions
 
 import (
 	"net/http"
 
 	"github.com/labstack/echo"
-	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/models/user"
 )
 
@@ -17,17 +17,15 @@ type sessionError struct {
 	Msg string `json:"error"`
 }
 
-func SessionCreate(c *echo.Context) error {
-	db, _ := models.GetDB()
-
+func Create(c *echo.Context) error {
 	s := &session{}
 
 	if err := c.Bind(s); err != nil {
 		return err
 	}
 
-	if user.ValidCredentials(db, s.Username, s.Password) {
-		u, _ := user.FindByUsername(db, s.Username)
+	if user.ValidCredentials(db.Connection, s.Username, s.Password) {
+		u, _ := user.FindByUsername(db.Connection, s.Username)
 		return c.JSON(http.StatusCreated, u)
 	} else {
 		errors := &sessionError{"Invalid Credentials"}

@@ -1,4 +1,4 @@
-package controllers
+package chunks
 
 import (
 	"fmt"
@@ -8,12 +8,13 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo"
+	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models/chunk"
 	"github.com/zqzca/back/models/file"
 )
 
-func ChunkCreate(c *echo.Context) error {
+func Write(c *echo.Context) error {
 	position, err := strconv.Atoi(c.Form("position"))
 	if err != nil {
 		fmt.Println("Failed to convert position")
@@ -22,7 +23,7 @@ func ChunkCreate(c *echo.Context) error {
 
 	fileID := c.Form("file_id")
 
-	tx := StartTransaction()
+	tx := db.StartTransaction()
 
 	// Make sure file exists.
 	f, err := file.FindByID(tx, fileID)
@@ -89,7 +90,11 @@ func ChunkCreate(c *echo.Context) error {
 	fmt.Println("i need :", f.Chunks, "chunks")
 
 	if len(*chunks) == f.Chunks {
-		f.Process(tx)
+		go func() {
+			ntx := db.StartTransaction()
+			f.Process(ntx)
+			ntx.Commit()
+		}()
 	}
 
 	fmt.Println("h: ", chnk.Hash)
