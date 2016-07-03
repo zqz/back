@@ -32,7 +32,9 @@ func main() {
 	connect()
 	// Middleware
 	e.Use(middleware.Recover())
-	e.Use(middleware.Logger())
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format: "${status} ${method} ${uri} - ${latency_human}, rx=${rx_bytes}\n",
+	}))
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
@@ -55,15 +57,16 @@ func main() {
 	// e.Get("/chunk/status", controllers.ChunkStatus)
 
 	// Files
+	v1.Get("/check/:hash", files.Status)
 	v1.Get("/files", files.Index)
-	v1.Get("/files/:id", files.Read)
+	v1.Get("/files/:file_id", files.Read)
 	v1.Get("/files/:id/data", files.Download)
 	v1.Post("/files", files.Create)
 	v1.Post("/files/:id/process", files.Process)
 
 	// Chunks
-	v1.Post("/files/:file_id/chunks/:id", chunks.Write)
-	v1.Get("/files/:file_id/chunks/:id", chunks.Read)
+	v1.Post("/files/:file_id/chunks/:chunk_id", chunks.Write)
+	v1.Get("/files/:file_id/chunks/:chunk_id", chunks.Read)
 
 	// Users
 	v1.Post("/users", users.Create)

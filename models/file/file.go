@@ -158,14 +158,17 @@ func (f *File) Process(ex db.Executor) error {
 
 	if err != nil {
 		fmt.Println("Failed to create Thumbnail", err)
-		return nil
 	}
 
-	t.FileID = f.ID
-	err = t.Create(ex)
+	if t != nil {
+		t.FileID = f.ID
+		err = t.Create(ex)
 
-	if err != nil {
-		fmt.Println("Failed to save thumbnail", err)
+		if err != nil {
+			fmt.Println("Failed to save thumbnail", err)
+		}
+	} else {
+		fmt.Println("Skipping thumbnail gen")
 	}
 
 	fmt.Println("PROCESSED")

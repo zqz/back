@@ -1,102 +1,89 @@
 package chunks
 
 import (
+	"bytes"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/labstack/echo"
+	"github.com/zqzca/back/db"
+	"github.com/zqzca/back/lib"
+	"github.com/zqzca/back/models/chunk"
+	"github.com/zqzca/back/models/file"
 )
 
 func Write(c echo.Context) error {
-	// position, err := strconv.Atoi(c.FormValue("position"))
-	// if err != nil {
-	// 	fmt.Println("Failed to convert position")
-	// 	return c.NoContent(http.StatusBadRequest)
-	// }
+	req := c.Request()
+	length := req.ContentLength()
 
-	// fileID := c.FormValue("file_id")
+	if length > 5*1024*1024 {
+		return c.NoContent(http.StatusRequestEntityTooLarge)
+	}
 
-	// tx := db.StartTransaction()
+	tx := db.StartTransaction()
 
-	// // Make sure file exists.
-	// f, err := file.FindByID(tx, fileID)
-	// if err != nil {
-	// 	tx.Rollback()
-	// 	fmt.Println("File does not exist")
-	// 	return c.NoContent(http.StatusNotFound)
-	// }
+	fileID := c.Param("file_id")
+	chunkID, err := strconv.ParseInt(c.Param("chunk_id"), 10, 16)
 
-	// // Make sure chunk is not previously uploaded.
-	// if chunk.HaveChunkForFile(tx, fileID, position) {
-	// 	tx.Rollback()
-	// 	fmt.Println("Already received chunk at position", position)
-	// 	return c.NoContent(http.StatusNotAcceptable)
-	// }
+	if err != nil {
+		fmt.Println("Can not parse chunk id", c.Param("chunk_id"))
+		return c.NoContent(http.StatusInternalServerError)
+	}
 
-	// // Make sure we're only uploading chunks to incomplete files.
-	// if f.State != file.Incomplete {
-	// 	tx.Rollback()
-	// 	fmt.Println("File is not in incomplete state", f.State)
-	// 	return c.NoContent(http.StatusNotAcceptable)
-	// }
+	if !fileExists(tx, fileID) {
+		return c.NoContent(http.StatusNotFound)
+	}
 
-	// req := c.Request()
-	// // req.ParseMultipartForm(16 << 20)
+	if chunkExists(tx, fileID, int(chunkID)) {
+		return c.NoContent(http.StatusConflict)
+	}
 
-	// // files := req.MultipartForm.File["data"]
-	// file := files[0]
+	// Actually read file.
+	buf, _ := ioutil.ReadAll(req.Body())
+	b := bytes.NewReader(buf)
+	hash, _ := lib.Hash(b)
 
-	// // Source file
-	// src, err := file.Open()
-	// if err != nil {
-	// 	fmt.Println("createChunk error: failed to open file", err)
-	// 	return c.NoContent(http.StatusInternalServerError)
-	// }
-	// defer src.Close()
+	fmt.Println("Length: ", length)
+	fmt.Println("Size:", b.Size())
+	fmt.Println("Hash:", hash)
 
-	// var hash string
-	// if hash, err = lib.Hash(src); err != nil {
-	// 	fmt.Println("createChunk error: failed to hash file", err)
-	// 	return c.NoContent(http.StatusInternalServerError)
-	// }
+	// Destination file
+	dstPath := fmt.Sprintf("files/chunks/%s", hash)
 
-	// // Destination file
-	// dstPath := fmt.Sprintf("files/chunks/%s", hash)
+	var size int
+	if size, err = storeChunk(b, dstPath); err != nil {
+		fmt.Println("failed to store chunk:", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
 
-	// var size int
-	// if size, err = storeChunk(src, dstPath); err != nil {
-	// 	fmt.Println("not sure:", err)
-	// 	return c.NoContent(http.StatusInternalServerError)
-	// }
+	chnk := &chunk.Chunk{
+		FileID:   fileID,
+		Position: int(chunkID),
+		Size:     size,
+		Hash:     hash,
+	}
 
-	// chnk := &chunk.Chunk{
-	// 	FileID:   f.ID,
-	// 	Size:     size,
-	// 	Hash:     hash,
-	// 	Position: position,
-	// }
+	chnk.Create(tx)
 
-	// chnk.Create(tx)
-	// chunks, _ := chunk.FindByFileID(tx, fileID)
+	tx.Commit()
 
-	// fmt.Println("i have :", len(*chunks), "chunks")
-	// fmt.Println("i need :", f.Chunks, "chunks")
+	go checkFinished(fileID)
 
-	// if len(*chunks) == f.Chunks {
-	// 	go func() {
-	// 		ntx := db.StartTransaction()
-	// 		f.Process(ntx)
-	// 		ntx.Commit()
-	// 	}()
-	// }
+	return c.NoContent(http.StatusCreated)
+}
 
-	// fmt.Println("h: ", chnk.Hash)
-	// fmt.Println("f: ", fileID)
-	// fmt.Println("pos: ", position)
-	// tx.Commit()
+func fileExists(ex db.Executor, fid string) bool {
+	_, err := file.FindByID(ex, fid)
 
-	return c.NoContent(http.StatusOK)
+	return err == nil
+}
+
+func chunkExists(ex db.Executor, fid string, cid int) bool {
+	return chunk.HaveChunkForFile(ex, fid, cid)
 }
 
 func storeChunk(src io.Reader, path string) (int, error) {
@@ -116,4 +103,30 @@ func storeChunk(src io.Reader, path string) (int, error) {
 	}
 
 	return int(fileSize), nil
+}
+
+func checkFinished(fid string) {
+	chunks, err := chunk.FindByFileID(db.Connection, fid)
+
+	if err != nil {
+		fmt.Println("Failed to query for all chunks with file id:", fid)
+		return
+	}
+
+	f, err := file.FindByID(db.Connection, fid)
+
+	if err != nil {
+		fmt.Println("Failed to query for file", err)
+		return
+	}
+
+	completed_chunks := len(*chunks)
+	required_chunks := f.Chunks
+
+	if completed_chunks == required_chunks {
+		fmt.Println("processing")
+		tx := db.StartTransaction()
+		f.Process(tx)
+		tx.Commit()
+	}
 }
