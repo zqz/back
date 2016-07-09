@@ -29,7 +29,7 @@ type dashboardData struct {
 
 const paginationSQL = `
 	SELECT
-	f.name, t.id, f.url, f.created_at
+	f.name, t.id, f.slug, f.created_at
 	FROM files AS f
 	LEFT JOIN thumbnails as t
 	ON t.file_id = f.id
