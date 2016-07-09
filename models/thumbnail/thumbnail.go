@@ -22,7 +22,7 @@ const insertSQL = `
 	($1, $2, $3)
 	RETURNING id`
 
-const findByFileIDSQL = `
+const findByIDSQL = `
 	SELECT
 	id, size, hash, created_at, updated_at
 	FROM thumbnails
@@ -43,10 +43,10 @@ func (t *Thumbnail) Create(ex db.Executor) error {
 	return err
 }
 
-func FindByFileID(ex db.Executor, id string) (*Thumbnail, error) {
+func FindByID(ex db.Executor, id string) (*Thumbnail, error) {
 	var t Thumbnail
 	t.FileID = id
-	err := ex.QueryRow(findByFileIDSQL, id).Scan(
+	err := ex.QueryRow(findByIDSQL, id).Scan(
 		&t.ID, &t.Size, &t.Hash, &t.CreatedAt, &t.UpdatedAt,
 	)
 
