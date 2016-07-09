@@ -1,6 +1,6 @@
 -- +goose Up
-	ALTER TABLE files ADD COLUMN url text DEFAULT identifier(7);
-	ALTER TABLE files ALTER COLUMN url SET STORAGE plain;
+	ALTER TABLE files ADD COLUMN slug text DEFAULT identifier(7);
+	ALTER TABLE files ALTER COLUMN slug SET STORAGE plain;
 
 -- +goose Down
-	ALTER TABLE files DROP COLUMN url;
+	ALTER TABLE files DROP COLUMN slug;

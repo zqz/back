@@ -20,6 +20,7 @@ type File struct {
 	Name      string    `json:"name" valid:"required"`
 	Type      string    `json:"type" valid:"required"`
 	State     int       `json:"state"`
+	Slug      string    `json:"slug"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -32,7 +33,7 @@ const (
 
 const paginationSQL = `
 	SELECT
-	id, size, hash, chunks, name, type, state, created_at, updated_at
+	id, size, hash, chunks, name, type, state, slug, created_at, updated_at
 	FROM files
 	ORDER BY created_at desc
 	OFFSET $1
@@ -41,13 +42,19 @@ const paginationSQL = `
 
 const findByIDSQL = `
 	SELECT
-	size, hash, chunks, name, type, state, created_at, updated_at
+	size, hash, chunks, name, type, state, slug, created_at, updated_at
 	FROM files
 	WHERE id = $1`
 
+const findBySlugSQL = `
+	SELECT
+	id, size, hash, chunks, name, type, state, created_at, updated_at
+	FROM files
+	WHERE slug = $1`
+
 const findByHashSQL = `
 	SELECT
-	id, size, chunks, name, type, state, created_at, updated_at
+	id, size, chunks, name, type, state, slug created_at, updated_at
 	FROM files
 	WHERE hash = $1`
 
@@ -75,12 +82,23 @@ func (f *File) Create(ex db.Executor) error {
 	return err
 }
 
+// FindBySlug returns a File with the specified slug.
+func FindBySlug(ex db.Executor, slug string) (*File, error) {
+	var f File
+	f.Slug = slug
+	err := ex.QueryRow(findBySlugSQL, slug).Scan(
+		&f.ID, &f.Size, &f.Hash, &f.Chunks, &f.Name, &f.Type, &f.State,
+		&f.CreatedAt, &f.UpdatedAt,
+	)
+	return &f, err
+}
+
 // FindByHash returns a File with the specified hash.
 func FindByHash(ex db.Executor, hash string) (*File, error) {
 	var f File
 	f.Hash = hash
 	err := ex.QueryRow(findByHashSQL, hash).Scan(
-		&f.ID, &f.Size, &f.Chunks, &f.Name, &f.Type, &f.State,
+		&f.ID, &f.Size, &f.Chunks, &f.Name, &f.Type, &f.State, &f.Slug,
 		&f.CreatedAt, &f.UpdatedAt,
 	)
 	return &f, err
@@ -91,7 +109,7 @@ func FindByID(ex db.Executor, id string) (*File, error) {
 	var f File
 	f.ID = id
 	err := ex.QueryRow(findByIDSQL, id).Scan(
-		&f.Size, &f.Hash, &f.Chunks, &f.Name, &f.Type, &f.State,
+		&f.Size, &f.Hash, &f.Chunks, &f.Name, &f.Type, &f.State, &f.Slug,
 		&f.CreatedAt, &f.UpdatedAt,
 	)
 	return &f, err
@@ -122,7 +140,7 @@ func Pagination(ex db.Executor, page int, perPage int) (*[]File, error) {
 		var f File
 
 		err = rows.Scan(
-			&f.ID, &f.Size, &f.Hash, &f.Chunks, &f.Name, &f.Type, &f.State,
+			&f.ID, &f.Size, &f.Hash, &f.Chunks, &f.Name, &f.Type, &f.State, &f.Slug,
 			&f.CreatedAt, &f.UpdatedAt,
 		)
 
