@@ -3,12 +3,16 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/lib/pq"
 	"github.com/zqzca/back/controllers/chunks"
+	"github.com/zqzca/back/controllers/dashboard"
 	"github.com/zqzca/back/controllers/files"
+	"github.com/zqzca/back/controllers/p2p"
 	"github.com/zqzca/back/controllers/sessions"
+	"github.com/zqzca/back/controllers/thumbnails"
 	"github.com/zqzca/back/controllers/users"
 	"github.com/zqzca/back/db"
 
@@ -45,24 +49,24 @@ func main() {
 	// e.ServeDir("/assets", "assets")
 	// e.ServeFile("/", "assets/index.html")
 	// e.ServeFile("/favicon.ico", "assets/favicon.ico")
-	e.Get("/d/:id", files.Download)
+	e.Get("/d/:slug", files.Download)
 
 	// api := e.Group("/api")
 	v1 := e.Group("/api/v1")
 
-	// api.Get("/p2p/join/:id", controllers.P2PJoin)
-	// api.Post("/p2p/join/:id", controllers.P2PJoinAnswer)
-	// api.Get("/p2p/signaling", controllers.P2PWS)
 	// Route
 	// e.Get("/chunk/status", controllers.ChunkStatus)
 
 	// Files
 	v1.Get("/check/:hash", files.Status)
 	v1.Get("/files", files.Index)
-	v1.Get("/files/:file_id", files.Read)
-	v1.Get("/files/:id/data", files.Download)
+	v1.Get("/files/:slug", files.Read)
+	v1.Get("/files/:slug/data", files.Download)
 	v1.Post("/files", files.Create)
 	v1.Post("/files/:id/process", files.Process)
+
+	// Thumbnail
+	v1.Get("/thumbnails/:id", thumbnails.Download)
 
 	// Chunks
 	v1.Post("/files/:file_id/chunks/:chunk_id", chunks.Write)
@@ -75,6 +79,14 @@ func main() {
 
 	// Sessions
 	v1.Post("/sessions", sessions.Create)
+
+	// P2P
+	v1.Get("/p2p/signaling", standard.WrapHandler(http.HandlerFunc(p2p.Signaling())))
+	v1.Get("/p2p/:id", p2p.Join)
+	v1.Post("/p2p/:id", p2p.Answer)
+
+	// Dashboard
+	v1.Get("/dashboard", dashboard.Index)
 
 	// r := api.Group("/users")
 	// r.Use(JWTAuth())
