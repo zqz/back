@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/labstack/echo"
+	"github.com/zqzca/echo"
 	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models/thumbnail"

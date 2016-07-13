@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 
-	"github.com/labstack/echo"
+	"github.com/zqzca/echo"
 	"github.com/zqzca/back/models/user"
 )
 

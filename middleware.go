@@ -6,7 +6,7 @@ package main
 // 	"os"
 
 // 	"github.com/dgrijalva/jwt-go"
-// 	"github.com/labstack/echo"
+// 	"github.com/zqzca/echo"
 // )
 
 // func CORSMiddleware() echo.MiddlewareFunc {

@@ -1,6 +1,6 @@
 package users
 
-import "github.com/labstack/echo"
+import "github.com/zqzca/echo"
 
 func UserIndex(c *echo.Context) error {
 	return nil
