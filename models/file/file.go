@@ -54,7 +54,7 @@ const findBySlugSQL = `
 
 const findByHashSQL = `
 	SELECT
-	id, size, chunks, name, type, state, slug created_at, updated_at
+	id, size, chunks, name, type, state, slug, created_at, updated_at
 	FROM files
 	WHERE hash = $1`
 
