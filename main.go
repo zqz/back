@@ -1,10 +1,15 @@
 package main
 
 import (
+	"crypto/tls"
 	"database/sql"
+	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
+
+	"golang.org/x/net/http2"
 
 	"github.com/lib/pq"
 	"github.com/zqzca/back/controllers/chunks"
@@ -32,7 +37,19 @@ import (
 // 	s.ListenAndServe()
 // }
 
+func redirect() {
+	http.ListenAndServe(":3001", http.HandlerFunc(
+		func(w http.ResponseWriter, req *http.Request) {
+			http.Redirect(w, req, "https://"+req.Host+req.RequestURI, http.StatusMovedPermanently)
+		},
+	))
+}
+
 func main() {
+	secure := flag.Bool("secure", false, "Enable HTTPS")
+
+	flag.Parse()
+
 	e := echo.New()
 
 	connect()
@@ -98,16 +115,45 @@ func main() {
 
 	// e.ServeFile("/signin", "assets/signin.html")
 	// e.ServeFile("/*", "assets/index.html")
-	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
-		Root:   "assets",
-		Browse: false,
-		Index:  "index.html",
-		HTML5:  true,
-	}))
+	// e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
+	// 	Root:   "public",
+	// 	Browse: false,
+	// 	Index:  "index.html",
+	// 	HTML5:  true,
+	// }))
+
+	e.Static("/assets", "assets")
+	e.File("/*", "assets/index.html")
+
+	var s *standard.Server
+
+	if *secure == true {
+		fmt.Println("Running in Secure Mode")
+		var m letsencrypt.Manager
+		if err := m.CacheFile("certs/letsencrypt.cache"); err != nil {
+			log.Fatal(err)
+		}
+
+		cfg := &tls.Config{
+			GetCertificate: m.GetCertificate,
+		}
+
+		config := engine.Config{
+			Address:   ":3002",
+			TLSConfig: cfg,
+		}
+
+		s = standard.WithConfig(config)
+
+		http2.ConfigureServer(s.Server, &http2.Server{})
+		go redirect()
+	} else {
+		fmt.Println("Running in Insecure Mode")
+		s = standard.New(":3001")
+	}
 
 	// Start server
-	e.Run(standard.New(":3001"))
-
+	e.Run(s)
 }
 
 func connect() error {
