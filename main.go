@@ -64,6 +64,10 @@ func main() {
 		AllowHeaders: []string{"Origin", "Content-Type", "Authorization"},
 	}))
 
+	e.Use(middleware.GzipWithConfig(middleware.GzipConfig{
+		Level: 5,
+	}))
+
 	// servers other static files
 	// e.ServeDir("/assets", "assets")
 	// e.ServeFile("/", "assets/index.html")
