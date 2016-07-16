@@ -1,33 +1,37 @@
 package thumbnail_test
 
 import (
-	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/db"
+	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models/file"
 	"github.com/zqzca/back/models/thumbnail"
 )
 
-func createFile(tx *sql.Tx) *file.File {
+func init() {
+	lib.Connect()
+}
+
+func createFile(ex db.Executor) *file.File {
 	f := &file.File{}
-	f.Create(tx)
+	f.Create(ex)
 	return f
 }
 
 func TestCreate(t *testing.T) {
 	t.Parallel()
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
-		f := createFile(tx)
+		f := createFile(ex)
 		t := &thumbnail.Thumbnail{
 			Size:   123,
 			Hash:   "foo",
 			FileID: f.ID,
 		}
 
-		err := t.Create(tx)
+		err := t.Create(ex)
 
 		// There should not be an error.
 		a.Nil(err)
@@ -37,20 +41,20 @@ func TestCreate(t *testing.T) {
 	})
 }
 
-func TestGetByFileID(t *testing.T) {
+func TestGetByID(t *testing.T) {
 	t.Parallel()
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
-		f := createFile(tx)
+		f := createFile(ex)
 		t := &thumbnail.Thumbnail{
 			Size:   123,
 			Hash:   "foo",
 			FileID: f.ID,
 		}
 
-		t.Create(tx)
+		t.Create(ex)
 
-		e, err := thumbnail.FindByFileID(tx, t.ID)
+		e, err := thumbnail.FindByID(ex, t.ID)
 
 		a.Nil(err)
 

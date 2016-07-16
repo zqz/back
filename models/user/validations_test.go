@@ -1,18 +1,22 @@
 package user_test
 
 import (
-	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/db"
+	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models/user"
 )
+
+func init() {
+	lib.Connect()
+}
 
 func TestValidCredentials_Success(t *testing.T) {
 	t.Parallel()
 
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
 
 		u := user.User{
@@ -20,9 +24,9 @@ func TestValidCredentials_Success(t *testing.T) {
 			Password: "bar",
 		}
 
-		u.Create(tx)
+		u.Create(ex)
 
-		exists := user.ValidCredentials(tx, "foo", "bar")
+		exists := user.ValidCredentials(ex, "foo", "bar")
 		a.Equal(exists, true)
 	})
 }
@@ -30,7 +34,7 @@ func TestValidCredentials_Success(t *testing.T) {
 func TestValidCredentials_Failure(t *testing.T) {
 	t.Parallel()
 
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
 
 		u := user.User{
@@ -38,18 +42,18 @@ func TestValidCredentials_Failure(t *testing.T) {
 			Password: "bar",
 		}
 
-		u.Create(tx)
+		u.Create(ex)
 
-		exists := user.ValidCredentials(tx, "", "NOPE")
+		exists := user.ValidCredentials(ex, "", "NOPE")
 		a.Equal(exists, false)
 
-		exists = user.ValidCredentials(tx, "foo", "")
+		exists = user.ValidCredentials(ex, "foo", "")
 		a.Equal(exists, false)
 
-		exists = user.ValidCredentials(tx, "foo", "NOPE")
+		exists = user.ValidCredentials(ex, "foo", "NOPE")
 		a.Equal(exists, false)
 
-		exists = user.ValidCredentials(tx, "NOPE", "bar")
+		exists = user.ValidCredentials(ex, "NOPE", "bar")
 		a.Equal(exists, false)
 	})
 }
@@ -57,19 +61,19 @@ func TestValidCredentials_Failure(t *testing.T) {
 func TestUsernameFree(t *testing.T) {
 	t.Parallel()
 
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
 
 		// Below min length
-		a.Equal(user.UsernameFree(tx, "a23"), false)
+		a.Equal(user.UsernameFree(ex, "a23"), false)
 		// Over max length
-		a.Equal(user.UsernameFree(tx, "abc3456789012345"), false)
+		a.Equal(user.UsernameFree(ex, "abc3456789012345"), false)
 
 		// Support unicode
-		a.Equal(user.UsernameFree(tx, "世界"), false)
-		a.Equal(user.UsernameFree(tx, "世界ada"), true)
+		a.Equal(user.UsernameFree(ex, "世界"), false)
+		a.Equal(user.UsernameFree(ex, "世界ada"), true)
 
-		a.Equal(user.UsernameFree(tx, "foobar"), true)
+		a.Equal(user.UsernameFree(ex, "foobar"), true)
 
 		u := &user.User{
 			FirstName: "Foo",
@@ -79,10 +83,10 @@ func TestUsernameFree(t *testing.T) {
 			Email:     "foo@bar.com",
 		}
 
-		u.Create(tx)
+		u.Create(ex)
 
 		// Username is taken
-		a.Equal(user.UsernameFree(tx, "foobar"), false)
+		a.Equal(user.UsernameFree(ex, "foobar"), false)
 	})
 }
 

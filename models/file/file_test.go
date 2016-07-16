@@ -1,17 +1,16 @@
 package file_test
 
 import (
-	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/models/file"
 )
 
 func TestCreate(t *testing.T) {
 	t.Parallel()
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
 
 		f := &file.File{
@@ -20,7 +19,7 @@ func TestCreate(t *testing.T) {
 			State: file.Incomplete,
 		}
 
-		err := f.Create(tx)
+		err := f.Create(ex)
 
 		// There should not be an error.
 		a.Nil(err)
@@ -32,7 +31,7 @@ func TestCreate(t *testing.T) {
 
 func TestFindByHash(t *testing.T) {
 	t.Parallel()
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
 
 		f := &file.File{
@@ -42,9 +41,9 @@ func TestFindByHash(t *testing.T) {
 			State: file.Incomplete,
 		}
 
-		f.Create(tx)
+		f.Create(ex)
 
-		e, err := file.FindByHash(tx, f.Hash)
+		e, err := file.FindByHash(ex, f.Hash)
 
 		// There should not be an error.
 		a.Nil(err)
@@ -55,7 +54,7 @@ func TestFindByHash(t *testing.T) {
 
 func TestFindByID(t *testing.T) {
 	t.Parallel()
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
 
 		f := &file.File{
@@ -64,9 +63,9 @@ func TestFindByID(t *testing.T) {
 			State: file.Incomplete,
 		}
 
-		f.Create(tx)
+		f.Create(ex)
 
-		e, err := file.FindByID(tx, f.ID)
+		e, err := file.FindByID(ex, f.ID)
 
 		// There should not be an error.
 		a.Nil(err)
@@ -84,7 +83,7 @@ func TestFindByID(t *testing.T) {
 
 func TestSetState(t *testing.T) {
 	t.Parallel()
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
 
 		f := &file.File{
@@ -93,17 +92,17 @@ func TestSetState(t *testing.T) {
 			State: file.Incomplete,
 		}
 
-		f.Create(tx)
+		f.Create(ex)
 		a.Equal(f.State, file.Incomplete)
 
-		f.SetState(tx, file.Processing)
+		f.SetState(ex, file.Processing)
 		a.Equal(f.State, file.Processing)
 	})
 }
 
 func TestPagination(t *testing.T) {
 	t.Parallel()
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
 
 		f := &file.File{
@@ -112,14 +111,14 @@ func TestPagination(t *testing.T) {
 			State: file.Incomplete,
 		}
 
-		f.Create(tx)
+		f.Create(ex)
 
-		files, err := file.Pagination(tx, 0, 10)
+		files, err := file.Pagination(ex, 0, 10)
 		a.Nil(err)
 		a.NotNil((*files)[0])
 		a.Equal((*files)[0].ID, f.ID)
 
-		f.SetState(tx, file.Processing)
+		f.SetState(ex, file.Processing)
 		a.Equal(f.State, file.Processing)
 	})
 }

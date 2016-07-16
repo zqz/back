@@ -1,18 +1,17 @@
 package user_test
 
 import (
-	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/models/user"
 )
 
 func TestCreate(t *testing.T) {
 	t.Parallel()
 
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
 
 		u := &user.User{
@@ -20,7 +19,7 @@ func TestCreate(t *testing.T) {
 			Password: "bar",
 		}
 
-		err := u.Create(tx)
+		err := u.Create(ex)
 
 		a.Nil(err)
 		a.NotNil(u.ID)
@@ -30,15 +29,15 @@ func TestCreate(t *testing.T) {
 func TestFindByUsername_Success(t *testing.T) {
 	t.Parallel()
 
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
 		u := user.User{
 			Username: "foo",
 			Password: "bar",
 		}
-		u.Create(tx)
+		u.Create(ex)
 
-		e, err := user.FindByUsername(tx, "foo")
+		e, err := user.FindByUsername(ex, "foo")
 
 		a.Nil(err)
 		a.NotNil(e)
@@ -57,15 +56,15 @@ func TestFindByUsername_Success(t *testing.T) {
 func TestFindByUsername_Failure(t *testing.T) {
 	t.Parallel()
 
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
 		u := user.User{
 			Username: "foo",
 			Password: "bar",
 		}
-		u.Create(tx)
+		u.Create(ex)
 
-		e, err := user.FindByUsername(tx, "bar")
+		e, err := user.FindByUsername(ex, "bar")
 
 		a.NotNil(err)
 		a.Empty(e.ID)
@@ -75,22 +74,22 @@ func TestFindByUsername_Failure(t *testing.T) {
 func TestSetPassword(t *testing.T) {
 	t.Parallel()
 
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
 		u := user.User{
 			Username: "foo",
 			Password: "first",
 		}
-		u.Create(tx)
+		u.Create(ex)
 
-		exists := user.ValidCredentials(tx, "foo", "first")
+		exists := user.ValidCredentials(ex, "foo", "first")
 		a.Equal(exists, true)
 
-		u.SetPassword(tx, "second")
-		exists = user.ValidCredentials(tx, "foo", "first")
+		u.SetPassword(ex, "second")
+		exists = user.ValidCredentials(ex, "foo", "first")
 		a.Equal(exists, false)
 
-		exists = user.ValidCredentials(tx, "foo", "second")
+		exists = user.ValidCredentials(ex, "foo", "second")
 		a.Equal(exists, true)
 	})
 }

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/zqzca/echo"
 	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/models/user"
+	"github.com/zqzca/echo"
 )
 
 func Create(c echo.Context) error {
@@ -18,9 +18,7 @@ func Create(c echo.Context) error {
 	}
 
 	if u.Valid() {
-		tx := db.StartTransaction()
-		u.Create(tx)
-		tx.Commit()
+		u.Create(db.Connection)
 		return c.JSON(http.StatusCreated, u)
 	} else {
 		return c.NoContent(http.StatusBadRequest)

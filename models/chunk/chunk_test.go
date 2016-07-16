@@ -1,27 +1,31 @@
 package chunk_test
 
 import (
-	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/db"
+	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models/chunk"
 	"github.com/zqzca/back/models/file"
 )
 
-func createFile(tx *sql.Tx) *file.File {
+func init() {
+	lib.Connect()
+}
+
+func createFile(ex db.Executor) *file.File {
 	f := &file.File{}
-	f.Create(tx)
+	f.Create(ex)
 	return f
 }
 
 func TestCreate(t *testing.T) {
 	t.Parallel()
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
 
-		f := createFile(tx)
+		f := createFile(ex)
 
 		c := &chunk.Chunk{
 			Size:     123,
@@ -30,7 +34,7 @@ func TestCreate(t *testing.T) {
 			Position: 1,
 		}
 
-		c_err := c.Create(tx)
+		c_err := c.Create(ex)
 
 		// There should not be an error.
 		a.Nil(c_err)
@@ -42,9 +46,9 @@ func TestCreate(t *testing.T) {
 
 func TestFindByID(t *testing.T) {
 	t.Parallel()
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
-		f := createFile(tx)
+		f := createFile(ex)
 		c := &chunk.Chunk{
 			Size:     123,
 			Hash:     "foo",
@@ -52,9 +56,9 @@ func TestFindByID(t *testing.T) {
 			Position: 1,
 		}
 
-		c.Create(tx)
+		c.Create(ex)
 
-		e, err := chunk.FindByID(tx, c.ID)
+		e, err := chunk.FindByID(ex, c.ID)
 
 		// There should not be an error.
 		a.Nil(err)
@@ -71,20 +75,20 @@ func TestFindByID(t *testing.T) {
 
 func TestFindByFileID(t *testing.T) {
 	t.Parallel()
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
 
 		f := &file.File{}
-		f.Create(tx)
+		f.Create(ex)
 
 		c1 := &chunk.Chunk{Hash: "a", FileID: f.ID, Position: 1}
-		c1.Create(tx)
+		c1.Create(ex)
 		c2 := &chunk.Chunk{Hash: "b", FileID: f.ID, Position: 1}
-		c2.Create(tx)
+		c2.Create(ex)
 		c3 := &chunk.Chunk{Hash: "c", FileID: f.ID, Position: 1}
-		c3.Create(tx)
+		c3.Create(ex)
 
-		chunks, err := chunk.FindByFileID(tx, f.ID)
+		chunks, err := chunk.FindByFileID(ex, f.ID)
 
 		a.Nil(err)
 		a.Equal(len(*chunks), 3)
@@ -98,18 +102,18 @@ func TestFindByFileID(t *testing.T) {
 
 func TestHaveChunkForFile(t *testing.T) {
 	t.Parallel()
-	models.TxWrapper(func(tx *sql.Tx) {
+	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
 		f := &file.File{}
-		f.Create(tx)
+		f.Create(ex)
 
-		haveChunk := chunk.HaveChunkForFile(tx, f.ID, 1)
+		haveChunk := chunk.HaveChunkForFile(ex, f.ID, 1)
 		a.Equal(false, haveChunk)
 
 		c1 := &chunk.Chunk{Hash: "a", FileID: f.ID, Position: 1}
-		c1.Create(tx)
+		c1.Create(ex)
 
-		haveChunk = chunk.HaveChunkForFile(tx, f.ID, 1)
+		haveChunk = chunk.HaveChunkForFile(ex, f.ID, 1)
 		a.Equal(true, haveChunk)
 	})
 }

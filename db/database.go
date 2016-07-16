@@ -27,7 +27,7 @@ func StartTransaction() *sql.Tx {
 }
 
 // TxWrapper is used in tests
-func TxWrapper(callback func(*sql.Tx)) {
+func TxWrapper(callback func(Executor)) {
 	if tx, err := Connection.Begin(); err == nil {
 		defer func() {
 			// Catch panics

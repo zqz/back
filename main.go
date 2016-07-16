@@ -2,16 +2,13 @@ package main
 
 import (
 	"crypto/tls"
-	"database/sql"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 
 	"golang.org/x/net/http2"
 
-	"github.com/lib/pq"
 	"github.com/zqzca/back/controllers/chunks"
 	"github.com/zqzca/back/controllers/dashboard"
 	"github.com/zqzca/back/controllers/files"
@@ -19,7 +16,7 @@ import (
 	"github.com/zqzca/back/controllers/sessions"
 	"github.com/zqzca/back/controllers/thumbnails"
 	"github.com/zqzca/back/controllers/users"
-	"github.com/zqzca/back/db"
+	"github.com/zqzca/back/lib"
 	"github.com/zqzca/echo"
 
 	"github.com/rsc/letsencrypt"
@@ -161,19 +158,5 @@ func main() {
 }
 
 func connect() error {
-	open := os.Getenv("DATABASE_URL")
-
-	if parsedURL, err := pq.ParseURL(open); err == nil && parsedURL != "" {
-		open = parsedURL
-	}
-
-	con, err := sql.Open("postgres", open)
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	db.Connection = con
-
-	return err
+	return lib.Connect()
 }

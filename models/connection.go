@@ -48,7 +48,7 @@ package models
 
 // // TxWrapper is used in tests
 // func TxWrapper(callback func(*sql.Tx)) {
-// 	db, err := GetDB()
+// 	db, err := db.Connection
 
 // 	if err != nil {
 // 		fmt.Println(err)

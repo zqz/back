@@ -4,33 +4,38 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/zqzca/back/controllers/users"
+	"github.com/zqzca/back/db"
+	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/models/user"
 )
 
 func TestUserCreateValid(t *testing.T) {
 	t.Parallel()
-	models.TxWrapper(func(tx *sql.Tx) {
-		// a := assert.New(t)
+	db.TxWrapper(func(tx *sql.Tx) {
+		a := assert.New(t)
 
-		// u := &user.User{
-		// 	Username:  "foo",
-		// 	Password:  "bar",
-		// 	Email:     "foo@bar.com",
-		// 	FirstName: "Foo",
-		// 	LastName:  "Bar",
-		// }
+		u := &user.User{
+			Username:  "foo",
+			Password:  "bar",
+			Email:     "foo@bar.com",
+			FirstName: "Foo",
+			LastName:  "Bar",
+		}
 
-		// res, c := post(lib.ToJSON(u))
+		res, c := post(lib.ToJSON(u))
 
-		// UserCreate(c)
+		users.Create(c)
 
-		// a.Equal(201, res.Code)
+		a.Equal(201, res.Code)
 
-		// u = models.LoadUser(res.Body)
-		// a.Equal("foo", u.Username)
-		// a.Equal("Foo", u.FirstName)
-		// a.Equal("Bar", u.LastName)
-		// a.NotEmpty(u.ID)
+		u = models.LoadUser(res.Body)
+		a.Equal("foo", u.Username)
+		a.Equal("Foo", u.FirstName)
+		a.Equal("Bar", u.LastName)
+		a.NotEmpty(u.ID)
 	})
 }
 
