@@ -118,20 +118,21 @@ func TestHaveChunkForFile(t *testing.T) {
 	})
 }
 
-func TestHaveChunkWithHashAndFileID(t *testing.T) {
+func TestHaveChunkForFileWithHash(t *testing.T) {
 	t.Parallel()
 	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)
 		f := &file.File{}
 		f.Create(ex)
 
-		haveChunk := chunk.HaveChunkForFile(ex, f.ID, 1)
+		// when hash is not found
+		haveChunk := chunk.HaveChunkForFileWithHash(ex, f.ID, "no-way")
 		a.Equal(false, haveChunk)
 
 		c1 := &chunk.Chunk{Hash: "a", FileID: f.ID, Position: 1}
 		c1.Create(ex)
 
-		haveChunk = chunk.HaveChunkForFile(ex, f.ID, 1)
+		haveChunk = chunk.HaveChunkForFileWithHash(ex, f.ID, "a")
 		a.Equal(true, haveChunk)
 	})
 }

@@ -42,11 +42,11 @@ const haveChunkForFileSQL = `
 	)
 `
 
-const haveChunkWithHashAndFileIDSQL = `
+const haveChunkForFileWithHashSQL = `
 	SELECT EXISTS (
 		SELECT 1
 		FROM chunks
-		WHERE hash = $1 AND file_id = $2
+		WHERE file_id = $1 AND hash = $2
 	)
 `
 
@@ -113,10 +113,10 @@ func HaveChunkForFile(ex db.Executor, fileID string, position int) bool {
 	return exists
 }
 
-func HaveChunkWithHashAndFileID(ex db.Executor, hash string, fid string) bool {
+func HaveChunkForFileWithHash(ex db.Executor, fid string, hash string) bool {
 	var exists bool
 
-	err := ex.QueryRow(haveChunkWithHashAndFileIDSQL, hash, fid).Scan(&exists)
+	err := ex.QueryRow(haveChunkForFileWithHashSQL, fid, hash).Scan(&exists)
 
 	if err != nil {
 		return false
