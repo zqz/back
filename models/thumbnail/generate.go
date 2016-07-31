@@ -23,7 +23,7 @@ func Generate(r []byte) (*Thumbnail, error) {
 	dst := imaging.Fill(raw, 200, 200, imaging.Center, imaging.Lanczos)
 
 	var b bytes.Buffer
-	err = imaging.Encode(&b, dst, imaging.PNG)
+	err = imaging.Encode(&b, dst, imaging.JPEG)
 
 	if err != nil {
 		fmt.Println("failed to encode data", err)
