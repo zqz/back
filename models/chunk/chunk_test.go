@@ -91,16 +91,34 @@ func TestFindByFileID(t *testing.T) {
 		chunks, err := chunk.FindByFileID(ex, f.ID)
 
 		a.Nil(err)
-		a.Equal(len(*chunks), 3)
+		a.Equal(len(chunks), 3)
 
 		// Ordered
-		a.Equal((*chunks)[0].Hash, "a")
-		a.Equal((*chunks)[1].Hash, "b")
-		a.Equal((*chunks)[2].Hash, "c")
+		a.Equal((chunks)[0].Hash, "a")
+		a.Equal((chunks)[1].Hash, "b")
+		a.Equal((chunks)[2].Hash, "c")
 	})
 }
 
 func TestHaveChunkForFile(t *testing.T) {
+	t.Parallel()
+	db.TxWrapper(func(ex db.Executor) {
+		a := assert.New(t)
+		f := &file.File{}
+		f.Create(ex)
+
+		haveChunk := chunk.HaveChunkForFile(ex, f.ID, 1)
+		a.Equal(false, haveChunk)
+
+		c1 := &chunk.Chunk{Hash: "a", FileID: f.ID, Position: 1}
+		c1.Create(ex)
+
+		haveChunk = chunk.HaveChunkForFile(ex, f.ID, 1)
+		a.Equal(true, haveChunk)
+	})
+}
+
+func TestHaveChunkWithHashAndFileID(t *testing.T) {
 	t.Parallel()
 	db.TxWrapper(func(ex db.Executor) {
 		a := assert.New(t)

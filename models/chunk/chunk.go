@@ -42,6 +42,14 @@ const haveChunkForFileSQL = `
 	)
 `
 
+const haveChunkWithHashAndFileIDSQL = `
+	SELECT EXISTS (
+		SELECT 1
+		FROM chunks
+		WHERE hash = $1 AND file_id = $2
+	)
+`
+
 const insertSQL = `
 	INSERT INTO chunks
 	(file_id, size, hash, position)
@@ -68,18 +76,18 @@ func FindByID(ex db.Executor, id string) (*Chunk, error) {
 
 // FindByFileID return all chunks with the specified FileID.
 // TODO: cleanup
-func FindByFileID(ex db.Executor, id string) (*[]Chunk, error) {
-	var chunks []Chunk
+func FindByFileID(ex db.Executor, id string) ([]*Chunk, error) {
+	var chunks []*Chunk
 	var err error
 	var rows *sql.Rows
 
 	if rows, err = ex.Query(findByFileIDSQL, id); err != nil {
-		return &chunks, err
+		return chunks, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var c Chunk
+		c := &Chunk{}
 
 		if err = rows.Scan(&c.ID, &c.Size, &c.Hash, &c.Position); err != nil {
 			log.Fatal(err)
@@ -92,12 +100,23 @@ func FindByFileID(ex db.Executor, id string) (*[]Chunk, error) {
 		log.Fatal(err)
 	}
 
-	return &chunks, err
+	return chunks, err
 }
 
 func HaveChunkForFile(ex db.Executor, fileID string, position int) bool {
 	var exists bool
 	err := ex.QueryRow(haveChunkForFileSQL, fileID, position).Scan(&exists)
+
+	if err != nil {
+		return false
+	}
+	return exists
+}
+
+func HaveChunkWithHashAndFileID(ex db.Executor, hash string, fid string) bool {
+	var exists bool
+
+	err := ex.QueryRow(haveChunkWithHashAndFileIDSQL, hash, fid).Scan(&exists)
 
 	if err != nil {
 		return false

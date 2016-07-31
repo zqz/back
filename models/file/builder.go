@@ -11,7 +11,7 @@ import (
 
 type Builder struct {
 	file   *File
-	chunks *[]chunk.Chunk
+	chunks []*chunk.Chunk
 	ex     db.Executor
 }
 
@@ -31,7 +31,7 @@ func NewBuilder(ex db.Executor, f *File) *Builder {
 func (f *Builder) Copy(w io.Writer, after func()) (int, error) {
 	var bytesRead int
 
-	for _, c := range *f.chunks {
+	for _, c := range f.chunks {
 		f, err := chunkReadCloser(c.Hash)
 		defer f.Close()
 		n, err := io.Copy(w, f)

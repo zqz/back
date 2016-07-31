@@ -7,18 +7,23 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 
-	"github.com/zqzca/echo"
 	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models/chunk"
 	"github.com/zqzca/back/models/file"
+	"github.com/zqzca/echo"
 )
 
 func Write(c echo.Context) error {
 	req := c.Request()
 	length := req.ContentLength()
+
+	if length == 0 {
+		return c.NoContent(http.StatusLengthRequired)
+	}
 
 	if length > 5*1024*1024 {
 		return c.NoContent(http.StatusRequestEntityTooLarge)
@@ -43,16 +48,23 @@ func Write(c echo.Context) error {
 	}
 
 	// Actually read file.
-	buf, _ := ioutil.ReadAll(req.Body())
+	buf, err := ioutil.ReadAll(req.Body())
+
+	if err != nil {
+		return c.NoContent(http.StatusBadRequest)
+	}
+
 	b := bytes.NewReader(buf)
 	hash, _ := lib.Hash(b)
+
+	_, err := b.Seek(0, io.SET_SEEK)
 
 	fmt.Println("Length: ", length)
 	fmt.Println("Size:", b.Size())
 	fmt.Println("Hash:", hash)
 
 	// Destination file
-	dstPath := fmt.Sprintf("files/chunks/%s", hash)
+	dstPath := filepath.Join("files", "chunks", hash)
 
 	var size int
 	if size, err = storeChunk(b, dstPath); err != nil {
@@ -67,7 +79,10 @@ func Write(c echo.Context) error {
 		Hash:     hash,
 	}
 
-	chnk.Create(tx)
+	err = chnk.Create(tx)
+	if err != nil {
+		return c.NoContent(http.StatusInternalServerError)
+	}
 
 	tx.Commit()
 
