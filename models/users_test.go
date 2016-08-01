@@ -21,21 +21,21 @@ func TestUsers(t *testing.T) {
 
 	// insert two random objects to test DeleteAll
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert User:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
 	// Delete all rows to give a clean slate
-	err = Users().DeleteAll()
+	err = UsersG().DeleteAll()
 	if err != nil {
 		t.Errorf("Unable to delete all from Users: %s", err)
 	}
 
 	// Check number of rows in table to ensure DeleteAll was successful
 	var c int64
-	c, err = Users().Count()
+	c, err = UsersG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected users table to be empty, but got %d rows", c)
@@ -47,20 +47,20 @@ func TestUsers(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert User:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
 	// Ensure Count is valid
-	c, err = Users().Count()
+	c, err = UsersG().Count()
 	if c != 3 {
 		t.Errorf("Expected users table to have 3 rows, but got %d", c)
 	}
 
 	// Attempt to retrieve all objects
-	res, err := Users().All()
+	res, err := UsersG().All()
 	if err != nil {
 		t.Errorf("Unable to retrieve all Users, err: %s", err)
 	}
@@ -74,7 +74,7 @@ func TestUsers(t *testing.T) {
 
 func usersDeleteAllRows(t *testing.T) {
 	// Delete all rows to give a clean slate
-	err := Users().DeleteAll()
+	err := UsersG().DeleteAll()
 	if err != nil {
 		t.Errorf("Unable to delete all from Users: %s", err)
 	}
@@ -88,7 +88,7 @@ func TestUsersQueryDeleteAll(t *testing.T) {
 	usersDeleteAllRows(t)
 
 	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = Users().Count()
+	c, err = UsersG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected 0 rows after ObjDeleteAllRows() call, but got %d rows", c)
@@ -101,20 +101,20 @@ func TestUsersQueryDeleteAll(t *testing.T) {
 
 	// insert random columns to test DeleteAll
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert User:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
 	// Test DeleteAll() query function
-	err = Users().DeleteAll()
+	err = UsersG().DeleteAll()
 	if err != nil {
 		t.Errorf("Unable to delete all from Users: %s", err)
 	}
 
 	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = Users().Count()
+	c, err = UsersG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected 0 rows after Obj().DeleteAll() call, but got %d rows", c)
@@ -132,19 +132,19 @@ func TestUsersSliceDeleteAll(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert User:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
 	// test DeleteAll slice function
-	if err = o.DeleteAll(); err != nil {
+	if err = o.DeleteAllG(); err != nil {
 		t.Errorf("Unable to objSlice.DeleteAll(): %s", err)
 	}
 
 	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = Users().Count()
+	c, err = UsersG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected 0 rows after objSlice.DeleteAll() call, but got %d rows", c)
@@ -162,26 +162,26 @@ func TestUsersDelete(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert User:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
-	o[0].Delete()
+	o[0].DeleteG()
 
 	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = Users().Count()
+	c, err = UsersG().Count()
 
 	if c != 2 {
 		t.Errorf("Expected 2 rows after obj.Delete() call, but got %d rows", c)
 	}
 
-	o[1].Delete()
-	o[2].Delete()
+	o[1].DeleteG()
+	o[2].DeleteG()
 
 	// Check number of rows in table to ensure Delete worked for all rows
-	c, err = Users().Count()
+	c, err = UsersG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected 0 rows after all obj.Delete() calls, but got %d rows", c)
@@ -197,7 +197,7 @@ func TestUsersFind(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		if err = o[i].Insert(); err != nil {
+		if err = o[i].InsertG(); err != nil {
 			t.Errorf("Unable to insert User:\n%#v\nErr: %s", o[i], err)
 		}
 	}
@@ -205,11 +205,11 @@ func TestUsersFind(t *testing.T) {
 	j := make(UserSlice, 3)
 	// Perform all Find queries and assign result objects to slice for comparison
 	for i := 0; i < len(j); i++ {
-		j[i], err = UserFind(o[i].ID)
+		j[i], err = UserFindG(o[i].ID)
 		userCompareVals(o[i], j[i], t)
 	}
 
-	f, err := UserFind(o[0].ID, userPrimaryKeyColumns...)
+	f, err := UserFindG(o[0].ID, userPrimaryKeyColumns...)
 
 	if o[0].ID != f.ID {
 		t.Errorf("Expected primary key values to match, ID did not match")
@@ -235,13 +235,13 @@ func TestUsersBind(t *testing.T) {
 		t.Errorf("Unable to randomize User struct: %s", err)
 	}
 
-	if err = o.Insert(); err != nil {
+	if err = o.InsertG(); err != nil {
 		t.Errorf("Unable to insert User:\n%#v\nErr: %s", o, err)
 	}
 
 	j := User{}
 
-	err = Users(qm.Where(`"id"=$1`, o.ID)).Bind(&j)
+	err = UsersG(qm.Where(`"id"=$1`, o.ID)).Bind(&j)
 	if err != nil {
 		t.Errorf("Unable to call Bind on User single object: %s", err)
 	}
@@ -258,14 +258,14 @@ func TestUsersBind(t *testing.T) {
 
 	// insert random columns to test DeleteAll
 	for i := 0; i < len(y); i++ {
-		err = y[i].Insert()
+		err = y[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert User:\n%#v\nErr: %s", y[i], err)
 		}
 	}
 
 	k := UserSlice{}
-	err = Users().Bind(&k)
+	err = UsersG().Bind(&k)
 	if err != nil {
 		t.Errorf("Unable to call Bind on User slice of objects: %s", err)
 	}
@@ -289,11 +289,11 @@ func TestUsersOne(t *testing.T) {
 		t.Errorf("Unable to randomize User struct: %s", err)
 	}
 
-	if err = o.Insert(); err != nil {
+	if err = o.InsertG(); err != nil {
 		t.Errorf("Unable to insert User:\n%#v\nErr: %s", o, err)
 	}
 
-	j, err := Users().One()
+	j, err := UsersG().One()
 	if err != nil {
 		t.Errorf("Unable to fetch One User result:\n#%v\nErr: %s", j, err)
 	}
@@ -313,13 +313,13 @@ func TestUsersAll(t *testing.T) {
 
 	// insert random columns to test DeleteAll
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert User:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
-	j, err := Users().All()
+	j, err := UsersG().All()
 	if err != nil {
 		t.Errorf("Unable to fetch All User results: %s", err)
 	}
@@ -345,13 +345,13 @@ func TestUsersCount(t *testing.T) {
 
 	// insert random columns to test Count
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert User:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
-	c, err := Users().Count()
+	c, err := UsersG().Count()
 	if err != nil {
 		t.Errorf("Unable to count query User: %s", err)
 	}
@@ -363,7 +363,7 @@ func TestUsersCount(t *testing.T) {
 	usersDeleteAllRows(t)
 }
 
-var userDBTypes = map[string]string{"FirstName": "character varying", "Phone": "character varying", "Hash": "character varying", "CreatedAt": "timestamp without time zone", "Banned": "boolean", "ID": "uuid", "LastName": "character varying", "Username": "character varying", "Email": "character varying", "UpdatedAt": "timestamp without time zone"}
+var userDBTypes = map[string]string{"LastName": "character varying", "Email": "character varying", "CreatedAt": "timestamp without time zone", "Banned": "boolean", "ID": "uuid", "Username": "character varying", "Phone": "character varying", "UpdatedAt": "timestamp without time zone", "FirstName": "character varying"}
 
 func userCompareVals(o *User, j *User, t *testing.T) {
 	if j.ID != o.ID {
@@ -388,10 +388,6 @@ func userCompareVals(o *User, j *User, t *testing.T) {
 
 	if j.Email != o.Email {
 		t.Errorf("Expected email columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Email, j.Email)
-	}
-
-	if j.Hash != o.Hash {
-		t.Errorf("Expected hash columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Hash, j.Hash)
 	}
 
 	if o.CreatedAt.Format("02/01/2006") != j.CreatedAt.Format("02/01/2006") {
@@ -509,7 +505,7 @@ func TestUsersInsert(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		if err = o[i].Insert(); err != nil {
+		if err = o[i].InsertG(); err != nil {
 			t.Errorf("Unable to insert User:\n%#v\nErr: %s", o[i], err)
 		}
 	}
@@ -517,14 +513,14 @@ func TestUsersInsert(t *testing.T) {
 	j := make(UserSlice, 3)
 	// Perform all Find queries and assign result objects to slice for comparison
 	for i := 0; i < len(j); i++ {
-		j[i], err = UserFind(o[i].ID)
+		j[i], err = UserFindG(o[i].ID)
 		userCompareVals(o[i], j[i], t)
 	}
 
 	usersDeleteAllRows(t)
 
 	item := &User{}
-	if err = item.Insert(); err != nil {
+	if err = item.InsertG(); err != nil {
 		t.Errorf("Unable to insert zero-value item User:\n%#v\nErr: %s", item, err)
 	}
 
@@ -537,7 +533,7 @@ func TestUsersInsert(t *testing.T) {
 		}
 	}
 
-	defaultValues := []interface{}{null.NewBool(false, true)}
+	defaultValues := []interface{}{false}
 
 	// Ensure the simple default column values are returned correctly.
 	if len(userColumnsWithSimpleDefault) > 0 && len(defaultValues) > 0 {
@@ -552,7 +548,7 @@ func TestUsersInsert(t *testing.T) {
 		}
 	}
 
-	regularCols := []string{"first_name", "last_name", "username", "phone", "email", "hash", "created_at", "updated_at"}
+	regularCols := []string{"first_name", "last_name", "username", "phone", "email", "created_at", "updated_at"}
 
 	// Ensure the non-defaultvalue columns and non-autoincrement columns are stored correctly as zero or null values.
 	for _, c := range regularCols {
@@ -614,11 +610,11 @@ func TestUsersSelect(t *testing.T) {
 		t.Errorf("Unable to randomize User struct: %s", err)
 	}
 
-	if err = item.Insert(); err != nil {
+	if err = item.InsertG(); err != nil {
 		t.Errorf("Unable to insert item User:\n%#v\nErr: %s", item, err)
 	}
 
-	err = Users(qm.Select(userAutoIncrementColumns...), qm.Where(`"id"=$1`, item.ID)).Bind(x)
+	err = UsersG(qm.Select(userAutoIncrementColumns...), qm.Where(`"id"=$1`, item.ID)).Bind(x)
 	if err != nil {
 		t.Errorf("Unable to select insert results with bind: %s", err)
 	}
@@ -630,7 +626,7 @@ func TestUsersUpdate(t *testing.T) {
 	var err error
 
 	item := User{}
-	if err = item.Insert(); err != nil {
+	if err = item.InsertG(); err != nil {
 		t.Errorf("Unable to insert zero-value item User:\n%#v\nErr: %s", item, err)
 	}
 
@@ -640,12 +636,12 @@ func TestUsersUpdate(t *testing.T) {
 	}
 
 	whitelist := boil.SetComplement(userColumns, userAutoIncrementColumns)
-	if err = item.Update(whitelist...); err != nil {
+	if err = item.UpdateG(whitelist...); err != nil {
 		t.Errorf("Unable to update User: %s", err)
 	}
 
 	var j *User
-	j, err = UserFind(item.ID)
+	j, err = UserFindG(item.ID)
 	if err != nil {
 		t.Errorf("Unable to find User row: %s", err)
 	}

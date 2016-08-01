@@ -180,33 +180,33 @@ func (q thumbnailQuery) CountP() int64 {
 }
 
 
+// FileG pointed to by the foreign key.
+func (t *Thumbnail) FileG(selectCols ...string) (*File, error) {
+	return t.File(boil.GetDB(), selectCols...)
+}
+
+// FileGP pointed to by the foreign key. Panics on error.
+func (t *Thumbnail) FileGP(selectCols ...string) *File {
+	o, err := t.File(boil.GetDB(), selectCols...)
+	if err != nil {
+		panic(boil.WrapErr(err))
+	}
+
+	return o
+}
+
+// FileP pointed to by the foreign key with exeuctor. Panics on error.
+func (t *Thumbnail) FileP(exec boil.Executor, selectCols ...string) *File {
+	o, err := t.File(exec, selectCols...)
+	if err != nil {
+		panic(boil.WrapErr(err))
+	}
+
+	return o
+}
+
 // File pointed to by the foreign key.
-func (t *Thumbnail) File(selectCols ...string) (*File, error) {
-	return t.FileX(boil.GetDB(), selectCols...)
-}
-
-// FileP pointed to by the foreign key. Panics on error.
-func (t *Thumbnail) FileP(selectCols ...string) *File {
-	o, err := t.FileX(boil.GetDB(), selectCols...)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return o
-}
-
-// FileXP pointed to by the foreign key with exeuctor. Panics on error.
-func (t *Thumbnail) FileXP(exec boil.Executor, selectCols ...string) *File {
-	o, err := t.FileX(exec, selectCols...)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return o
-}
-
-// FileX pointed to by the foreign key.
-func (t *Thumbnail) FileX(exec boil.Executor, selectCols ...string) (*File, error) {
+func (t *Thumbnail) File(exec boil.Executor, selectCols ...string) (*File, error) {
 	file := &File{}
 
 	selectColumns := `*`
@@ -225,26 +225,26 @@ func (t *Thumbnail) FileX(exec boil.Executor, selectCols ...string) (*File, erro
 
 
 
-// ThumbnailsAll retrieves all records.
-func Thumbnails(mods ...qm.QueryMod) thumbnailQuery {
-	return ThumbnailsX(boil.GetDB(), mods...)
+// ThumbnailsG retrieves all records.
+func ThumbnailsG(mods ...qm.QueryMod) thumbnailQuery {
+	return Thumbnails(boil.GetDB(), mods...)
 }
 
-// ThumbnailsX retrieves all the records using an executor.
-func ThumbnailsX(exec boil.Executor, mods ...qm.QueryMod) thumbnailQuery {
+// Thumbnails retrieves all the records using an executor.
+func Thumbnails(exec boil.Executor, mods ...qm.QueryMod) thumbnailQuery {
 	mods = append(mods, qm.From("thumbnails"))
-	return thumbnailQuery{NewQueryX(exec, mods...)}
+	return thumbnailQuery{NewQuery(exec, mods...)}
 }
 
 
-// ThumbnailFind retrieves a single record by ID.
-func ThumbnailFind(id string, selectCols ...string) (*Thumbnail, error) {
-	return ThumbnailFindX(boil.GetDB(), id, selectCols...)
+// ThumbnailFindG retrieves a single record by ID.
+func ThumbnailFindG(id string, selectCols ...string) (*Thumbnail, error) {
+	return ThumbnailFind(boil.GetDB(), id, selectCols...)
 }
 
-// ThumbnailFindP retrieves a single record by ID, and panics on error.
-func ThumbnailFindP(id string, selectCols ...string) *Thumbnail {
-	o, err := ThumbnailFindX(boil.GetDB(), id, selectCols...)
+// ThumbnailFindGP retrieves a single record by ID, and panics on error.
+func ThumbnailFindGP(id string, selectCols ...string) *Thumbnail {
+	o, err := ThumbnailFind(boil.GetDB(), id, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -252,8 +252,8 @@ func ThumbnailFindP(id string, selectCols ...string) *Thumbnail {
 	return o
 }
 
-// ThumbnailFindX retrieves a single record by ID with an executor.
-func ThumbnailFindX(exec boil.Executor, id string, selectCols ...string) (*Thumbnail, error) {
+// ThumbnailFind retrieves a single record by ID with an executor.
+func ThumbnailFind(exec boil.Executor, id string, selectCols ...string) (*Thumbnail, error) {
 	thumbnail := &Thumbnail{}
 
 	mods := []qm.QueryMod{
@@ -262,7 +262,7 @@ func ThumbnailFindX(exec boil.Executor, id string, selectCols ...string) (*Thumb
 		qm.Where(`"id"=$1`, id),
 	}
 
-	q := NewQueryX(exec, mods...)
+	q := NewQuery(exec, mods...)
 
 	err := boil.ExecQueryOne(q).Scan(boil.GetStructPointers(thumbnail, selectCols...)...)
 
@@ -273,9 +273,9 @@ func ThumbnailFindX(exec boil.Executor, id string, selectCols ...string) (*Thumb
 	return thumbnail, nil
 }
 
-// ThumbnailFindXP retrieves a single record by ID with an executor, and panics on error.
-func ThumbnailFindXP(exec boil.Executor, id string, selectCols ...string) *Thumbnail {
-	o, err := ThumbnailFindX(exec, id, selectCols...)
+// ThumbnailFindP retrieves a single record by ID with an executor, and panics on error.
+func ThumbnailFindP(exec boil.Executor, id string, selectCols ...string) *Thumbnail {
+	o, err := ThumbnailFind(exec, id, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -283,20 +283,20 @@ func ThumbnailFindXP(exec boil.Executor, id string, selectCols ...string) *Thumb
 	return o
 }
 
-// Insert a single record.
-func (o *Thumbnail) Insert(whitelist ...string) error {
-	return o.InsertX(boil.GetDB(), whitelist...)
+// InsertG a single record.
+func (o *Thumbnail) InsertG(whitelist ...string) error {
+	return o.Insert(boil.GetDB(), whitelist...)
 }
 
-// InsertP a single record, and panics on error.
-func (o *Thumbnail) InsertP(whitelist ...string) {
-	if err := o.InsertX(boil.GetDB(), whitelist...); err != nil {
+// InsertGP a single record, and panics on error.
+func (o *Thumbnail) InsertGP(whitelist ...string) {
+	if err := o.Insert(boil.GetDB(), whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// InsertX a single record using an executor.
-func (o *Thumbnail) InsertX(exec boil.Executor, whitelist ...string) error {
+// Insert a single record using an executor.
+func (o *Thumbnail) Insert(exec boil.Executor, whitelist ...string) error {
 	if o == nil {
 		return errors.New("models: no thumbnails provided for insertion")
 	}
@@ -332,9 +332,9 @@ func (o *Thumbnail) InsertX(exec boil.Executor, whitelist ...string) error {
 	return nil
 }
 
-// InsertXP a single record using an executor, and panics on error.
-func (o *Thumbnail) InsertXP(exec boil.Executor, whitelist ...string) {
-	if err := o.InsertX(exec, whitelist...); err != nil {
+// InsertP a single record using an executor, and panics on error.
+func (o *Thumbnail) InsertP(exec boil.Executor, whitelist ...string) {
+	if err := o.Insert(exec, whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
@@ -358,50 +358,50 @@ func (o *Thumbnail) generateInsertColumns(whitelist ...string) ([]string, []stri
 }
 
 
-// Update a single Thumbnail record.
-// Update takes a whitelist of column names that should be updated.
+// UpdateG a single Thumbnail record.
+// UpdateG takes a whitelist of column names that should be updated.
 // The primary key will be used to find the record to update.
-func (o *Thumbnail) Update(whitelist ...string) error {
-	return o.UpdateX(boil.GetDB(), whitelist...)
+func (o *Thumbnail) UpdateG(whitelist ...string) error {
+	return o.Update(boil.GetDB(), whitelist...)
 }
 
-// Update a single Thumbnail record.
-// UpdateP takes a whitelist of column names that should be updated.
+// UpdateGP a single Thumbnail record.
+// UpdateGP takes a whitelist of column names that should be updated.
 // The primary key will be used to find the record to update.
 // Panics on error.
-func (o *Thumbnail) UpdateP(whitelist ...string) {
-	if err := o.UpdateX(boil.GetDB(), whitelist...); err != nil {
+func (o *Thumbnail) UpdateGP(whitelist ...string) {
+	if err := o.Update(boil.GetDB(), whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// UpdateX uses an executor to update the Thumbnail.
-func (o *Thumbnail) UpdateX(exec boil.Executor, whitelist ...string) error {
-	return o.UpdateAtX(exec, o.ID, whitelist...)
+// Update uses an executor to update the Thumbnail.
+func (o *Thumbnail) Update(exec boil.Executor, whitelist ...string) error {
+	return o.UpdateAt(exec, o.ID, whitelist...)
 }
 
-// UpdateXP uses an executor to update the Thumbnail, and panics on error.
-func (o *Thumbnail) UpdateXP(exec boil.Executor, whitelist ...string) {
-	err := o.UpdateAtX(exec, o.ID, whitelist...)
+// UpdateP uses an executor to update the Thumbnail, and panics on error.
+func (o *Thumbnail) UpdateP(exec boil.Executor, whitelist ...string) {
+	err := o.UpdateAt(exec, o.ID, whitelist...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// UpdateAt updates the Thumbnail using the primary key to find the row to update.
-func (o *Thumbnail) UpdateAt(id string, whitelist ...string) error {
-	return o.UpdateAtX(boil.GetDB(), id, whitelist...)
+// UpdateAtG updates the Thumbnail using the primary key to find the row to update.
+func (o *Thumbnail) UpdateAtG(id string, whitelist ...string) error {
+	return o.UpdateAt(boil.GetDB(), id, whitelist...)
 }
 
-// UpdateAtP updates the Thumbnail using the primary key to find the row to update. Panics on error.
-func (o *Thumbnail) UpdateAtP(id string, whitelist ...string) {
-	if err := o.UpdateAtX(boil.GetDB(), id, whitelist...); err != nil {
+// UpdateAtGP updates the Thumbnail using the primary key to find the row to update. Panics on error.
+func (o *Thumbnail) UpdateAtGP(id string, whitelist ...string) {
+	if err := o.UpdateAt(boil.GetDB(), id, whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// UpdateAtX uses an executor to update the Thumbnail using the primary key to find the row to update.
-func (o *Thumbnail) UpdateAtX(exec boil.Executor, id string, whitelist ...string) error {
+// UpdateAt uses an executor to update the Thumbnail using the primary key to find the row to update.
+func (o *Thumbnail) UpdateAt(exec boil.Executor, id string, whitelist ...string) error {
 	if err := o.doBeforeUpdateHooks(); err != nil {
 		return err
 	}
@@ -437,10 +437,10 @@ func (o *Thumbnail) UpdateAtX(exec boil.Executor, id string, whitelist ...string
 	return nil
 }
 
-// UpdateAtXP uses an executor to update the Thumbnail using the primary key to find the row to update.
+// UpdateAtP uses an executor to update the Thumbnail using the primary key to find the row to update.
 // Panics on error.
-func (o *Thumbnail) UpdateAtXP(exec boil.Executor, id string, whitelist ...string) {
-	if err := o.UpdateAtX(exec, id, whitelist...); err != nil {
+func (o *Thumbnail) UpdateAtP(exec boil.Executor, id string, whitelist ...string) {
+	if err := o.UpdateAt(exec, id, whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
@@ -483,28 +483,28 @@ func (o *Thumbnail) generateUpdateColumns(whitelist ...string) []string {
 	return wl
 }
 
-// Delete deletes a single Thumbnail record.
-// Delete will match against the primary key column to find the record to delete.
-func (o *Thumbnail) Delete() error {
+// DeleteG deletes a single Thumbnail record.
+// DeleteG will match against the primary key column to find the record to delete.
+func (o *Thumbnail) DeleteG() error {
 	if o == nil {
 		return errors.New("models: no Thumbnail provided for deletion")
 	}
 
-	return o.DeleteX(boil.GetDB())
+	return o.Delete(boil.GetDB())
 }
 
-// DeleteP deletes a single Thumbnail record.
-// DeleteP will match against the primary key column to find the record to delete.
+// DeleteGP deletes a single Thumbnail record.
+// DeleteGP will match against the primary key column to find the record to delete.
 // Panics on error.
-func (o *Thumbnail) DeleteP() {
-	if err := o.Delete(); err != nil {
+func (o *Thumbnail) DeleteGP() {
+	if err := o.DeleteG(); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// DeleteX deletes a single Thumbnail record with an executor.
-// DeleteX will match against the primary key column to find the record to delete.
-func (o *Thumbnail) DeleteX(exec boil.Executor) error {
+// Delete deletes a single Thumbnail record with an executor.
+// Delete will match against the primary key column to find the record to delete.
+func (o *Thumbnail) Delete(exec boil.Executor) error {
 	if o == nil {
 		return errors.New("models: no Thumbnail provided for deletion")
 	}
@@ -516,7 +516,7 @@ func (o *Thumbnail) DeleteX(exec boil.Executor) error {
 		qm.Where(`"id"=$1`, o.ID),
 	)
 
-	query := NewQueryX(exec, mods...)
+	query := NewQuery(exec, mods...)
 	boil.SetDelete(query)
 
 	_, err := boil.ExecQuery(query)
@@ -527,11 +527,11 @@ func (o *Thumbnail) DeleteX(exec boil.Executor) error {
 	return nil
 }
 
-// DeleteXP deletes a single Thumbnail record with an executor.
-// DeleteXP will match against the primary key column to find the record to delete.
+// DeleteP deletes a single Thumbnail record with an executor.
+// DeleteP will match against the primary key column to find the record to delete.
 // Panics on error.
-func (o *Thumbnail) DeleteXP(exec boil.Executor) {
-	if err := o.DeleteX(exec); err != nil {
+func (o *Thumbnail) DeleteP(exec boil.Executor) {
+	if err := o.Delete(exec); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
@@ -559,23 +559,23 @@ func (o thumbnailQuery) DeleteAllP() {
 	}
 }
 
-// DeleteAll deletes all rows in the slice.
-func (o ThumbnailSlice) DeleteAll() error {
-	if o == nil {
-		return errors.New("models: no Thumbnail slice provided for delete all")
-	}
-	return o.DeleteAllX(boil.GetDB())
-}
-
-// DeleteAll deletes all rows in the slice.
-func (o ThumbnailSlice) DeleteAllP() {
-	if err := o.DeleteAll(); err != nil {
+// DeleteAll deletes all rows in the slice, and panics on error.
+func (o ThumbnailSlice) DeleteAllGP() {
+	if err := o.DeleteAllG(); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// DeleteAllX deletes all rows in the slice with an executor.
-func (o ThumbnailSlice) DeleteAllX(exec boil.Executor) error {
+// DeleteAllG deletes all rows in the slice.
+func (o ThumbnailSlice) DeleteAllG() error {
+	if o == nil {
+		return errors.New("models: no Thumbnail slice provided for delete all")
+	}
+	return o.DeleteAll(boil.GetDB())
+}
+
+// DeleteAll deletes all rows in the slice with an executor.
+func (o ThumbnailSlice) DeleteAll(exec boil.Executor) error {
 	if o == nil {
 		return errors.New("models: no Thumbnail slice provided for delete all")
 	}
@@ -590,7 +590,7 @@ func (o ThumbnailSlice) DeleteAllX(exec boil.Executor) error {
 		qm.Where(in, args...),
 	)
 
-	query := NewQueryX(exec, mods...)
+	query := NewQuery(exec, mods...)
 	boil.SetDelete(query)
 
 	_, err := boil.ExecQuery(query)
@@ -604,9 +604,9 @@ func (o ThumbnailSlice) DeleteAllX(exec boil.Executor) error {
 	return nil
 }
 
-// DeleteAllXP deletes all rows in the slice with an executor, and panics on error.
-func (o ThumbnailSlice) DeleteAllXP(exec boil.Executor) {
-	if err := o.DeleteAllX(exec); err != nil {
+// DeleteAllP deletes all rows in the slice with an executor, and panics on error.
+func (o ThumbnailSlice) DeleteAllP(exec boil.Executor) {
+	if err := o.DeleteAll(exec); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }

@@ -8,21 +8,20 @@ import (
 
 	"github.com/nullbio/sqlboiler/boil"
 	"github.com/nullbio/sqlboiler/boil/qm"
-	"gopkg.in/nullbio/null.v4"
 )
 
 // File is an object representing the database table.
 type File struct {
-	ID        string      `db:"file_id" json:"id"`
-	Size      null.Int32  `db:"file_size" json:"size"`
-	NumChunks null.Int32  `db:"file_num_chunks" json:"num_chunks"`
-	State     null.Int32  `db:"file_state" json:"state"`
-	Name      null.String `db:"file_name" json:"name"`
-	Hash      null.String `db:"file_hash" json:"hash"`
-	Type      null.String `db:"file_type" json:"type"`
-	CreatedAt time.Time   `db:"file_created_at" json:"created_at"`
-	UpdatedAt time.Time   `db:"file_updated_at" json:"updated_at"`
-	Slug      null.String `db:"file_slug" json:"slug"`
+	ID        string    `db:"file_id" json:"id"`
+	Size      int32     `db:"file_size" json:"size"`
+	NumChunks int32     `db:"file_num_chunks" json:"num_chunks"`
+	State     int32     `db:"file_state" json:"state"`
+	Name      string    `db:"file_name" json:"name"`
+	Hash      string    `db:"file_hash" json:"hash"`
+	Type      string    `db:"file_type" json:"type"`
+	CreatedAt time.Time `db:"file_created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"file_updated_at" json:"updated_at"`
+	Slug      string    `db:"file_slug" json:"slug"`
 }
 
 var (
@@ -184,14 +183,14 @@ func (q fileQuery) CountP() int64 {
 }
 
 
-// Chunks retrieves all the file's chunks.
-func (f *File) Chunks(selectCols ...string) (ChunkSlice, error) {
-	return f.ChunksX(boil.GetDB(), selectCols...)
+// ChunksG retrieves all the file's chunks.
+func (f *File) ChunksG(selectCols ...string) (ChunkSlice, error) {
+	return f.Chunks(boil.GetDB(), selectCols...)
 }
 
-// ChunksP panics on error. Retrieves all the file's chunks.
-func (f *File) ChunksP(selectCols ...string) ChunkSlice {
-	o, err := f.ChunksX(boil.GetDB(), selectCols...)
+// ChunksGP panics on error. Retrieves all the file's chunks.
+func (f *File) ChunksGP(selectCols ...string) ChunkSlice {
+	o, err := f.Chunks(boil.GetDB(), selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -199,9 +198,9 @@ func (f *File) ChunksP(selectCols ...string) ChunkSlice {
 	return o
 }
 
-// ChunksXP panics on error. Retrieves all the file's chunks with an executor.
-func (f *File) ChunksXP(exec boil.Executor, selectCols ...string) ChunkSlice {
-	o, err := f.ChunksX(exec, selectCols...)
+// ChunksP panics on error. Retrieves all the file's chunks with an executor.
+func (f *File) ChunksP(exec boil.Executor, selectCols ...string) ChunkSlice {
+	o, err := f.Chunks(exec, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -209,8 +208,8 @@ func (f *File) ChunksXP(exec boil.Executor, selectCols ...string) ChunkSlice {
 	return o
 }
 
-// ChunksX retrieves all the file's chunks with an executor.
-func (f *File) ChunksX(exec boil.Executor, selectCols ...string) (ChunkSlice, error) {
+// Chunks retrieves all the file's chunks with an executor.
+func (f *File) Chunks(exec boil.Executor, selectCols ...string) (ChunkSlice, error) {
 	var ret ChunkSlice
 
 	selectColumns := `"a".*`
@@ -243,14 +242,14 @@ func (f *File) ChunksX(exec boil.Executor, selectCols ...string) (ChunkSlice, er
 	return ret, nil
 }
 
-// Thumbnails retrieves all the file's thumbnails.
-func (f *File) Thumbnails(selectCols ...string) (ThumbnailSlice, error) {
-	return f.ThumbnailsX(boil.GetDB(), selectCols...)
+// ThumbnailsG retrieves all the file's thumbnails.
+func (f *File) ThumbnailsG(selectCols ...string) (ThumbnailSlice, error) {
+	return f.Thumbnails(boil.GetDB(), selectCols...)
 }
 
-// ThumbnailsP panics on error. Retrieves all the file's thumbnails.
-func (f *File) ThumbnailsP(selectCols ...string) ThumbnailSlice {
-	o, err := f.ThumbnailsX(boil.GetDB(), selectCols...)
+// ThumbnailsGP panics on error. Retrieves all the file's thumbnails.
+func (f *File) ThumbnailsGP(selectCols ...string) ThumbnailSlice {
+	o, err := f.Thumbnails(boil.GetDB(), selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -258,9 +257,9 @@ func (f *File) ThumbnailsP(selectCols ...string) ThumbnailSlice {
 	return o
 }
 
-// ThumbnailsXP panics on error. Retrieves all the file's thumbnails with an executor.
-func (f *File) ThumbnailsXP(exec boil.Executor, selectCols ...string) ThumbnailSlice {
-	o, err := f.ThumbnailsX(exec, selectCols...)
+// ThumbnailsP panics on error. Retrieves all the file's thumbnails with an executor.
+func (f *File) ThumbnailsP(exec boil.Executor, selectCols ...string) ThumbnailSlice {
+	o, err := f.Thumbnails(exec, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -268,8 +267,8 @@ func (f *File) ThumbnailsXP(exec boil.Executor, selectCols ...string) ThumbnailS
 	return o
 }
 
-// ThumbnailsX retrieves all the file's thumbnails with an executor.
-func (f *File) ThumbnailsX(exec boil.Executor, selectCols ...string) (ThumbnailSlice, error) {
+// Thumbnails retrieves all the file's thumbnails with an executor.
+func (f *File) Thumbnails(exec boil.Executor, selectCols ...string) (ThumbnailSlice, error) {
 	var ret ThumbnailSlice
 
 	selectColumns := `"a".*`
@@ -303,26 +302,26 @@ func (f *File) ThumbnailsX(exec boil.Executor, selectCols ...string) (ThumbnailS
 }
 
 
-// FilesAll retrieves all records.
-func Files(mods ...qm.QueryMod) fileQuery {
-	return FilesX(boil.GetDB(), mods...)
+// FilesG retrieves all records.
+func FilesG(mods ...qm.QueryMod) fileQuery {
+	return Files(boil.GetDB(), mods...)
 }
 
-// FilesX retrieves all the records using an executor.
-func FilesX(exec boil.Executor, mods ...qm.QueryMod) fileQuery {
+// Files retrieves all the records using an executor.
+func Files(exec boil.Executor, mods ...qm.QueryMod) fileQuery {
 	mods = append(mods, qm.From("files"))
-	return fileQuery{NewQueryX(exec, mods...)}
+	return fileQuery{NewQuery(exec, mods...)}
 }
 
 
-// FileFind retrieves a single record by ID.
-func FileFind(id string, selectCols ...string) (*File, error) {
-	return FileFindX(boil.GetDB(), id, selectCols...)
+// FileFindG retrieves a single record by ID.
+func FileFindG(id string, selectCols ...string) (*File, error) {
+	return FileFind(boil.GetDB(), id, selectCols...)
 }
 
-// FileFindP retrieves a single record by ID, and panics on error.
-func FileFindP(id string, selectCols ...string) *File {
-	o, err := FileFindX(boil.GetDB(), id, selectCols...)
+// FileFindGP retrieves a single record by ID, and panics on error.
+func FileFindGP(id string, selectCols ...string) *File {
+	o, err := FileFind(boil.GetDB(), id, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -330,8 +329,8 @@ func FileFindP(id string, selectCols ...string) *File {
 	return o
 }
 
-// FileFindX retrieves a single record by ID with an executor.
-func FileFindX(exec boil.Executor, id string, selectCols ...string) (*File, error) {
+// FileFind retrieves a single record by ID with an executor.
+func FileFind(exec boil.Executor, id string, selectCols ...string) (*File, error) {
 	file := &File{}
 
 	mods := []qm.QueryMod{
@@ -340,7 +339,7 @@ func FileFindX(exec boil.Executor, id string, selectCols ...string) (*File, erro
 		qm.Where(`"id"=$1`, id),
 	}
 
-	q := NewQueryX(exec, mods...)
+	q := NewQuery(exec, mods...)
 
 	err := boil.ExecQueryOne(q).Scan(boil.GetStructPointers(file, selectCols...)...)
 
@@ -351,9 +350,9 @@ func FileFindX(exec boil.Executor, id string, selectCols ...string) (*File, erro
 	return file, nil
 }
 
-// FileFindXP retrieves a single record by ID with an executor, and panics on error.
-func FileFindXP(exec boil.Executor, id string, selectCols ...string) *File {
-	o, err := FileFindX(exec, id, selectCols...)
+// FileFindP retrieves a single record by ID with an executor, and panics on error.
+func FileFindP(exec boil.Executor, id string, selectCols ...string) *File {
+	o, err := FileFind(exec, id, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -361,20 +360,20 @@ func FileFindXP(exec boil.Executor, id string, selectCols ...string) *File {
 	return o
 }
 
-// Insert a single record.
-func (o *File) Insert(whitelist ...string) error {
-	return o.InsertX(boil.GetDB(), whitelist...)
+// InsertG a single record.
+func (o *File) InsertG(whitelist ...string) error {
+	return o.Insert(boil.GetDB(), whitelist...)
 }
 
-// InsertP a single record, and panics on error.
-func (o *File) InsertP(whitelist ...string) {
-	if err := o.InsertX(boil.GetDB(), whitelist...); err != nil {
+// InsertGP a single record, and panics on error.
+func (o *File) InsertGP(whitelist ...string) {
+	if err := o.Insert(boil.GetDB(), whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// InsertX a single record using an executor.
-func (o *File) InsertX(exec boil.Executor, whitelist ...string) error {
+// Insert a single record using an executor.
+func (o *File) Insert(exec boil.Executor, whitelist ...string) error {
 	if o == nil {
 		return errors.New("models: no files provided for insertion")
 	}
@@ -410,9 +409,9 @@ func (o *File) InsertX(exec boil.Executor, whitelist ...string) error {
 	return nil
 }
 
-// InsertXP a single record using an executor, and panics on error.
-func (o *File) InsertXP(exec boil.Executor, whitelist ...string) {
-	if err := o.InsertX(exec, whitelist...); err != nil {
+// InsertP a single record using an executor, and panics on error.
+func (o *File) InsertP(exec boil.Executor, whitelist ...string) {
+	if err := o.Insert(exec, whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
@@ -436,50 +435,50 @@ func (o *File) generateInsertColumns(whitelist ...string) ([]string, []string) {
 }
 
 
-// Update a single File record.
-// Update takes a whitelist of column names that should be updated.
+// UpdateG a single File record.
+// UpdateG takes a whitelist of column names that should be updated.
 // The primary key will be used to find the record to update.
-func (o *File) Update(whitelist ...string) error {
-	return o.UpdateX(boil.GetDB(), whitelist...)
+func (o *File) UpdateG(whitelist ...string) error {
+	return o.Update(boil.GetDB(), whitelist...)
 }
 
-// Update a single File record.
-// UpdateP takes a whitelist of column names that should be updated.
+// UpdateGP a single File record.
+// UpdateGP takes a whitelist of column names that should be updated.
 // The primary key will be used to find the record to update.
 // Panics on error.
-func (o *File) UpdateP(whitelist ...string) {
-	if err := o.UpdateX(boil.GetDB(), whitelist...); err != nil {
+func (o *File) UpdateGP(whitelist ...string) {
+	if err := o.Update(boil.GetDB(), whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// UpdateX uses an executor to update the File.
-func (o *File) UpdateX(exec boil.Executor, whitelist ...string) error {
-	return o.UpdateAtX(exec, o.ID, whitelist...)
+// Update uses an executor to update the File.
+func (o *File) Update(exec boil.Executor, whitelist ...string) error {
+	return o.UpdateAt(exec, o.ID, whitelist...)
 }
 
-// UpdateXP uses an executor to update the File, and panics on error.
-func (o *File) UpdateXP(exec boil.Executor, whitelist ...string) {
-	err := o.UpdateAtX(exec, o.ID, whitelist...)
+// UpdateP uses an executor to update the File, and panics on error.
+func (o *File) UpdateP(exec boil.Executor, whitelist ...string) {
+	err := o.UpdateAt(exec, o.ID, whitelist...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// UpdateAt updates the File using the primary key to find the row to update.
-func (o *File) UpdateAt(id string, whitelist ...string) error {
-	return o.UpdateAtX(boil.GetDB(), id, whitelist...)
+// UpdateAtG updates the File using the primary key to find the row to update.
+func (o *File) UpdateAtG(id string, whitelist ...string) error {
+	return o.UpdateAt(boil.GetDB(), id, whitelist...)
 }
 
-// UpdateAtP updates the File using the primary key to find the row to update. Panics on error.
-func (o *File) UpdateAtP(id string, whitelist ...string) {
-	if err := o.UpdateAtX(boil.GetDB(), id, whitelist...); err != nil {
+// UpdateAtGP updates the File using the primary key to find the row to update. Panics on error.
+func (o *File) UpdateAtGP(id string, whitelist ...string) {
+	if err := o.UpdateAt(boil.GetDB(), id, whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// UpdateAtX uses an executor to update the File using the primary key to find the row to update.
-func (o *File) UpdateAtX(exec boil.Executor, id string, whitelist ...string) error {
+// UpdateAt uses an executor to update the File using the primary key to find the row to update.
+func (o *File) UpdateAt(exec boil.Executor, id string, whitelist ...string) error {
 	if err := o.doBeforeUpdateHooks(); err != nil {
 		return err
 	}
@@ -515,10 +514,10 @@ func (o *File) UpdateAtX(exec boil.Executor, id string, whitelist ...string) err
 	return nil
 }
 
-// UpdateAtXP uses an executor to update the File using the primary key to find the row to update.
+// UpdateAtP uses an executor to update the File using the primary key to find the row to update.
 // Panics on error.
-func (o *File) UpdateAtXP(exec boil.Executor, id string, whitelist ...string) {
-	if err := o.UpdateAtX(exec, id, whitelist...); err != nil {
+func (o *File) UpdateAtP(exec boil.Executor, id string, whitelist ...string) {
+	if err := o.UpdateAt(exec, id, whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
@@ -561,28 +560,28 @@ func (o *File) generateUpdateColumns(whitelist ...string) []string {
 	return wl
 }
 
-// Delete deletes a single File record.
-// Delete will match against the primary key column to find the record to delete.
-func (o *File) Delete() error {
+// DeleteG deletes a single File record.
+// DeleteG will match against the primary key column to find the record to delete.
+func (o *File) DeleteG() error {
 	if o == nil {
 		return errors.New("models: no File provided for deletion")
 	}
 
-	return o.DeleteX(boil.GetDB())
+	return o.Delete(boil.GetDB())
 }
 
-// DeleteP deletes a single File record.
-// DeleteP will match against the primary key column to find the record to delete.
+// DeleteGP deletes a single File record.
+// DeleteGP will match against the primary key column to find the record to delete.
 // Panics on error.
-func (o *File) DeleteP() {
-	if err := o.Delete(); err != nil {
+func (o *File) DeleteGP() {
+	if err := o.DeleteG(); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// DeleteX deletes a single File record with an executor.
-// DeleteX will match against the primary key column to find the record to delete.
-func (o *File) DeleteX(exec boil.Executor) error {
+// Delete deletes a single File record with an executor.
+// Delete will match against the primary key column to find the record to delete.
+func (o *File) Delete(exec boil.Executor) error {
 	if o == nil {
 		return errors.New("models: no File provided for deletion")
 	}
@@ -594,7 +593,7 @@ func (o *File) DeleteX(exec boil.Executor) error {
 		qm.Where(`"id"=$1`, o.ID),
 	)
 
-	query := NewQueryX(exec, mods...)
+	query := NewQuery(exec, mods...)
 	boil.SetDelete(query)
 
 	_, err := boil.ExecQuery(query)
@@ -605,11 +604,11 @@ func (o *File) DeleteX(exec boil.Executor) error {
 	return nil
 }
 
-// DeleteXP deletes a single File record with an executor.
-// DeleteXP will match against the primary key column to find the record to delete.
+// DeleteP deletes a single File record with an executor.
+// DeleteP will match against the primary key column to find the record to delete.
 // Panics on error.
-func (o *File) DeleteXP(exec boil.Executor) {
-	if err := o.DeleteX(exec); err != nil {
+func (o *File) DeleteP(exec boil.Executor) {
+	if err := o.Delete(exec); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
@@ -637,23 +636,23 @@ func (o fileQuery) DeleteAllP() {
 	}
 }
 
-// DeleteAll deletes all rows in the slice.
-func (o FileSlice) DeleteAll() error {
-	if o == nil {
-		return errors.New("models: no File slice provided for delete all")
-	}
-	return o.DeleteAllX(boil.GetDB())
-}
-
-// DeleteAll deletes all rows in the slice.
-func (o FileSlice) DeleteAllP() {
-	if err := o.DeleteAll(); err != nil {
+// DeleteAll deletes all rows in the slice, and panics on error.
+func (o FileSlice) DeleteAllGP() {
+	if err := o.DeleteAllG(); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// DeleteAllX deletes all rows in the slice with an executor.
-func (o FileSlice) DeleteAllX(exec boil.Executor) error {
+// DeleteAllG deletes all rows in the slice.
+func (o FileSlice) DeleteAllG() error {
+	if o == nil {
+		return errors.New("models: no File slice provided for delete all")
+	}
+	return o.DeleteAll(boil.GetDB())
+}
+
+// DeleteAll deletes all rows in the slice with an executor.
+func (o FileSlice) DeleteAll(exec boil.Executor) error {
 	if o == nil {
 		return errors.New("models: no File slice provided for delete all")
 	}
@@ -668,7 +667,7 @@ func (o FileSlice) DeleteAllX(exec boil.Executor) error {
 		qm.Where(in, args...),
 	)
 
-	query := NewQueryX(exec, mods...)
+	query := NewQuery(exec, mods...)
 	boil.SetDelete(query)
 
 	_, err := boil.ExecQuery(query)
@@ -682,9 +681,9 @@ func (o FileSlice) DeleteAllX(exec boil.Executor) error {
 	return nil
 }
 
-// DeleteAllXP deletes all rows in the slice with an executor, and panics on error.
-func (o FileSlice) DeleteAllXP(exec boil.Executor) {
-	if err := o.DeleteAllX(exec); err != nil {
+// DeleteAllP deletes all rows in the slice with an executor, and panics on error.
+func (o FileSlice) DeleteAllP(exec boil.Executor) {
+	if err := o.DeleteAll(exec); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }

@@ -8,26 +8,24 @@ import (
 
 	"github.com/nullbio/sqlboiler/boil"
 	"github.com/nullbio/sqlboiler/boil/qm"
-	"gopkg.in/nullbio/null.v4"
 )
 
 // User is an object representing the database table.
 type User struct {
-	ID        string      `db:"user_id" json:"id"`
-	FirstName null.String `db:"user_first_name" json:"first_name"`
-	LastName  null.String `db:"user_last_name" json:"last_name"`
-	Username  string      `db:"user_username" json:"username"`
-	Phone     null.String `db:"user_phone" json:"phone"`
-	Email     null.String `db:"user_email" json:"email"`
-	Hash      null.String `db:"user_hash" json:"hash"`
-	CreatedAt time.Time   `db:"user_created_at" json:"created_at"`
-	UpdatedAt time.Time   `db:"user_updated_at" json:"updated_at"`
-	Banned    null.Bool   `db:"user_banned" json:"banned"`
+	ID        string    `db:"user_id" json:"id"`
+	FirstName string    `db:"user_first_name" json:"first_name"`
+	LastName  string    `db:"user_last_name" json:"last_name"`
+	Username  string    `db:"user_username" json:"username"`
+	Phone     string    `db:"user_phone" json:"phone"`
+	Email     string    `db:"user_email" json:"email"`
+	CreatedAt time.Time `db:"user_created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"user_updated_at" json:"updated_at"`
+	Banned    bool      `db:"user_banned" json:"banned"`
 }
 
 var (
-	userColumns                  = []string{"id", "first_name", "last_name", "username", "phone", "email", "hash", "created_at", "updated_at", "banned"}
-	userColumnsWithoutDefault    = []string{"first_name", "last_name", "username", "phone", "email", "hash", "created_at", "updated_at"}
+	userColumns                  = []string{"id", "first_name", "last_name", "username", "phone", "email", "created_at", "updated_at", "banned"}
+	userColumnsWithoutDefault    = []string{"first_name", "last_name", "username", "phone", "email", "created_at", "updated_at"}
 	userColumnsWithDefault       = []string{"id", "banned"}
 	userColumnsWithSimpleDefault = []string{"banned"}
 	userPrimaryKeyColumns        = []string{"id"}
@@ -185,26 +183,26 @@ func (q userQuery) CountP() int64 {
 
 
 
-// UsersAll retrieves all records.
-func Users(mods ...qm.QueryMod) userQuery {
-	return UsersX(boil.GetDB(), mods...)
+// UsersG retrieves all records.
+func UsersG(mods ...qm.QueryMod) userQuery {
+	return Users(boil.GetDB(), mods...)
 }
 
-// UsersX retrieves all the records using an executor.
-func UsersX(exec boil.Executor, mods ...qm.QueryMod) userQuery {
+// Users retrieves all the records using an executor.
+func Users(exec boil.Executor, mods ...qm.QueryMod) userQuery {
 	mods = append(mods, qm.From("users"))
-	return userQuery{NewQueryX(exec, mods...)}
+	return userQuery{NewQuery(exec, mods...)}
 }
 
 
-// UserFind retrieves a single record by ID.
-func UserFind(id string, selectCols ...string) (*User, error) {
-	return UserFindX(boil.GetDB(), id, selectCols...)
+// UserFindG retrieves a single record by ID.
+func UserFindG(id string, selectCols ...string) (*User, error) {
+	return UserFind(boil.GetDB(), id, selectCols...)
 }
 
-// UserFindP retrieves a single record by ID, and panics on error.
-func UserFindP(id string, selectCols ...string) *User {
-	o, err := UserFindX(boil.GetDB(), id, selectCols...)
+// UserFindGP retrieves a single record by ID, and panics on error.
+func UserFindGP(id string, selectCols ...string) *User {
+	o, err := UserFind(boil.GetDB(), id, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -212,8 +210,8 @@ func UserFindP(id string, selectCols ...string) *User {
 	return o
 }
 
-// UserFindX retrieves a single record by ID with an executor.
-func UserFindX(exec boil.Executor, id string, selectCols ...string) (*User, error) {
+// UserFind retrieves a single record by ID with an executor.
+func UserFind(exec boil.Executor, id string, selectCols ...string) (*User, error) {
 	user := &User{}
 
 	mods := []qm.QueryMod{
@@ -222,7 +220,7 @@ func UserFindX(exec boil.Executor, id string, selectCols ...string) (*User, erro
 		qm.Where(`"id"=$1`, id),
 	}
 
-	q := NewQueryX(exec, mods...)
+	q := NewQuery(exec, mods...)
 
 	err := boil.ExecQueryOne(q).Scan(boil.GetStructPointers(user, selectCols...)...)
 
@@ -233,9 +231,9 @@ func UserFindX(exec boil.Executor, id string, selectCols ...string) (*User, erro
 	return user, nil
 }
 
-// UserFindXP retrieves a single record by ID with an executor, and panics on error.
-func UserFindXP(exec boil.Executor, id string, selectCols ...string) *User {
-	o, err := UserFindX(exec, id, selectCols...)
+// UserFindP retrieves a single record by ID with an executor, and panics on error.
+func UserFindP(exec boil.Executor, id string, selectCols ...string) *User {
+	o, err := UserFind(exec, id, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -243,20 +241,20 @@ func UserFindXP(exec boil.Executor, id string, selectCols ...string) *User {
 	return o
 }
 
-// Insert a single record.
-func (o *User) Insert(whitelist ...string) error {
-	return o.InsertX(boil.GetDB(), whitelist...)
+// InsertG a single record.
+func (o *User) InsertG(whitelist ...string) error {
+	return o.Insert(boil.GetDB(), whitelist...)
 }
 
-// InsertP a single record, and panics on error.
-func (o *User) InsertP(whitelist ...string) {
-	if err := o.InsertX(boil.GetDB(), whitelist...); err != nil {
+// InsertGP a single record, and panics on error.
+func (o *User) InsertGP(whitelist ...string) {
+	if err := o.Insert(boil.GetDB(), whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// InsertX a single record using an executor.
-func (o *User) InsertX(exec boil.Executor, whitelist ...string) error {
+// Insert a single record using an executor.
+func (o *User) Insert(exec boil.Executor, whitelist ...string) error {
 	if o == nil {
 		return errors.New("models: no users provided for insertion")
 	}
@@ -274,7 +272,7 @@ func (o *User) InsertX(exec boil.Executor, whitelist ...string) error {
 		ins = ins + fmt.Sprintf(` RETURNING %s`, strings.Join(returnColumns, ","))
 		err = exec.QueryRow(ins, boil.GetStructValues(o, wl...)...).Scan(boil.GetStructPointers(o, returnColumns...)...)
 	} else {
-		_, err = exec.Exec(ins, o.ID, o.FirstName, o.LastName, o.Username, o.Phone, o.Email, o.Hash, o.CreatedAt, o.UpdatedAt, o.Banned)
+		_, err = exec.Exec(ins, o.ID, o.FirstName, o.LastName, o.Username, o.Phone, o.Email, o.CreatedAt, o.UpdatedAt, o.Banned)
 	}
 
 	if boil.DebugMode {
@@ -292,9 +290,9 @@ func (o *User) InsertX(exec boil.Executor, whitelist ...string) error {
 	return nil
 }
 
-// InsertXP a single record using an executor, and panics on error.
-func (o *User) InsertXP(exec boil.Executor, whitelist ...string) {
-	if err := o.InsertX(exec, whitelist...); err != nil {
+// InsertP a single record using an executor, and panics on error.
+func (o *User) InsertP(exec boil.Executor, whitelist ...string) {
+	if err := o.Insert(exec, whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
@@ -318,50 +316,50 @@ func (o *User) generateInsertColumns(whitelist ...string) ([]string, []string) {
 }
 
 
-// Update a single User record.
-// Update takes a whitelist of column names that should be updated.
+// UpdateG a single User record.
+// UpdateG takes a whitelist of column names that should be updated.
 // The primary key will be used to find the record to update.
-func (o *User) Update(whitelist ...string) error {
-	return o.UpdateX(boil.GetDB(), whitelist...)
+func (o *User) UpdateG(whitelist ...string) error {
+	return o.Update(boil.GetDB(), whitelist...)
 }
 
-// Update a single User record.
-// UpdateP takes a whitelist of column names that should be updated.
+// UpdateGP a single User record.
+// UpdateGP takes a whitelist of column names that should be updated.
 // The primary key will be used to find the record to update.
 // Panics on error.
-func (o *User) UpdateP(whitelist ...string) {
-	if err := o.UpdateX(boil.GetDB(), whitelist...); err != nil {
+func (o *User) UpdateGP(whitelist ...string) {
+	if err := o.Update(boil.GetDB(), whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// UpdateX uses an executor to update the User.
-func (o *User) UpdateX(exec boil.Executor, whitelist ...string) error {
-	return o.UpdateAtX(exec, o.ID, whitelist...)
+// Update uses an executor to update the User.
+func (o *User) Update(exec boil.Executor, whitelist ...string) error {
+	return o.UpdateAt(exec, o.ID, whitelist...)
 }
 
-// UpdateXP uses an executor to update the User, and panics on error.
-func (o *User) UpdateXP(exec boil.Executor, whitelist ...string) {
-	err := o.UpdateAtX(exec, o.ID, whitelist...)
+// UpdateP uses an executor to update the User, and panics on error.
+func (o *User) UpdateP(exec boil.Executor, whitelist ...string) {
+	err := o.UpdateAt(exec, o.ID, whitelist...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// UpdateAt updates the User using the primary key to find the row to update.
-func (o *User) UpdateAt(id string, whitelist ...string) error {
-	return o.UpdateAtX(boil.GetDB(), id, whitelist...)
+// UpdateAtG updates the User using the primary key to find the row to update.
+func (o *User) UpdateAtG(id string, whitelist ...string) error {
+	return o.UpdateAt(boil.GetDB(), id, whitelist...)
 }
 
-// UpdateAtP updates the User using the primary key to find the row to update. Panics on error.
-func (o *User) UpdateAtP(id string, whitelist ...string) {
-	if err := o.UpdateAtX(boil.GetDB(), id, whitelist...); err != nil {
+// UpdateAtGP updates the User using the primary key to find the row to update. Panics on error.
+func (o *User) UpdateAtGP(id string, whitelist ...string) {
+	if err := o.UpdateAt(boil.GetDB(), id, whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// UpdateAtX uses an executor to update the User using the primary key to find the row to update.
-func (o *User) UpdateAtX(exec boil.Executor, id string, whitelist ...string) error {
+// UpdateAt uses an executor to update the User using the primary key to find the row to update.
+func (o *User) UpdateAt(exec boil.Executor, id string, whitelist ...string) error {
 	if err := o.doBeforeUpdateHooks(); err != nil {
 		return err
 	}
@@ -397,10 +395,10 @@ func (o *User) UpdateAtX(exec boil.Executor, id string, whitelist ...string) err
 	return nil
 }
 
-// UpdateAtXP uses an executor to update the User using the primary key to find the row to update.
+// UpdateAtP uses an executor to update the User using the primary key to find the row to update.
 // Panics on error.
-func (o *User) UpdateAtXP(exec boil.Executor, id string, whitelist ...string) {
-	if err := o.UpdateAtX(exec, id, whitelist...); err != nil {
+func (o *User) UpdateAtP(exec boil.Executor, id string, whitelist ...string) {
+	if err := o.UpdateAt(exec, id, whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
@@ -443,28 +441,28 @@ func (o *User) generateUpdateColumns(whitelist ...string) []string {
 	return wl
 }
 
-// Delete deletes a single User record.
-// Delete will match against the primary key column to find the record to delete.
-func (o *User) Delete() error {
+// DeleteG deletes a single User record.
+// DeleteG will match against the primary key column to find the record to delete.
+func (o *User) DeleteG() error {
 	if o == nil {
 		return errors.New("models: no User provided for deletion")
 	}
 
-	return o.DeleteX(boil.GetDB())
+	return o.Delete(boil.GetDB())
 }
 
-// DeleteP deletes a single User record.
-// DeleteP will match against the primary key column to find the record to delete.
+// DeleteGP deletes a single User record.
+// DeleteGP will match against the primary key column to find the record to delete.
 // Panics on error.
-func (o *User) DeleteP() {
-	if err := o.Delete(); err != nil {
+func (o *User) DeleteGP() {
+	if err := o.DeleteG(); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// DeleteX deletes a single User record with an executor.
-// DeleteX will match against the primary key column to find the record to delete.
-func (o *User) DeleteX(exec boil.Executor) error {
+// Delete deletes a single User record with an executor.
+// Delete will match against the primary key column to find the record to delete.
+func (o *User) Delete(exec boil.Executor) error {
 	if o == nil {
 		return errors.New("models: no User provided for deletion")
 	}
@@ -476,7 +474,7 @@ func (o *User) DeleteX(exec boil.Executor) error {
 		qm.Where(`"id"=$1`, o.ID),
 	)
 
-	query := NewQueryX(exec, mods...)
+	query := NewQuery(exec, mods...)
 	boil.SetDelete(query)
 
 	_, err := boil.ExecQuery(query)
@@ -487,11 +485,11 @@ func (o *User) DeleteX(exec boil.Executor) error {
 	return nil
 }
 
-// DeleteXP deletes a single User record with an executor.
-// DeleteXP will match against the primary key column to find the record to delete.
+// DeleteP deletes a single User record with an executor.
+// DeleteP will match against the primary key column to find the record to delete.
 // Panics on error.
-func (o *User) DeleteXP(exec boil.Executor) {
-	if err := o.DeleteX(exec); err != nil {
+func (o *User) DeleteP(exec boil.Executor) {
+	if err := o.Delete(exec); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
@@ -519,23 +517,23 @@ func (o userQuery) DeleteAllP() {
 	}
 }
 
-// DeleteAll deletes all rows in the slice.
-func (o UserSlice) DeleteAll() error {
-	if o == nil {
-		return errors.New("models: no User slice provided for delete all")
-	}
-	return o.DeleteAllX(boil.GetDB())
-}
-
-// DeleteAll deletes all rows in the slice.
-func (o UserSlice) DeleteAllP() {
-	if err := o.DeleteAll(); err != nil {
+// DeleteAll deletes all rows in the slice, and panics on error.
+func (o UserSlice) DeleteAllGP() {
+	if err := o.DeleteAllG(); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// DeleteAllX deletes all rows in the slice with an executor.
-func (o UserSlice) DeleteAllX(exec boil.Executor) error {
+// DeleteAllG deletes all rows in the slice.
+func (o UserSlice) DeleteAllG() error {
+	if o == nil {
+		return errors.New("models: no User slice provided for delete all")
+	}
+	return o.DeleteAll(boil.GetDB())
+}
+
+// DeleteAll deletes all rows in the slice with an executor.
+func (o UserSlice) DeleteAll(exec boil.Executor) error {
 	if o == nil {
 		return errors.New("models: no User slice provided for delete all")
 	}
@@ -550,7 +548,7 @@ func (o UserSlice) DeleteAllX(exec boil.Executor) error {
 		qm.Where(in, args...),
 	)
 
-	query := NewQueryX(exec, mods...)
+	query := NewQuery(exec, mods...)
 	boil.SetDelete(query)
 
 	_, err := boil.ExecQuery(query)
@@ -564,9 +562,9 @@ func (o UserSlice) DeleteAllX(exec boil.Executor) error {
 	return nil
 }
 
-// DeleteAllXP deletes all rows in the slice with an executor, and panics on error.
-func (o UserSlice) DeleteAllXP(exec boil.Executor) {
-	if err := o.DeleteAllX(exec); err != nil {
+// DeleteAllP deletes all rows in the slice with an executor, and panics on error.
+func (o UserSlice) DeleteAllP(exec boil.Executor) {
+	if err := o.DeleteAll(exec); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }

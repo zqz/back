@@ -8,18 +8,17 @@ import (
 
 	"github.com/nullbio/sqlboiler/boil"
 	"github.com/nullbio/sqlboiler/boil/qm"
-	"gopkg.in/nullbio/null.v4"
 )
 
 // Chunk is an object representing the database table.
 type Chunk struct {
-	ID        string      `db:"chunk_id" json:"id"`
-	FileID    null.String `db:"chunk_file_id" json:"file_id"`
-	Size      null.Int32  `db:"chunk_size" json:"size"`
-	Hash      null.String `db:"chunk_hash" json:"hash"`
-	Position  null.Int32  `db:"chunk_position" json:"position"`
-	CreatedAt time.Time   `db:"chunk_created_at" json:"created_at"`
-	UpdatedAt time.Time   `db:"chunk_updated_at" json:"updated_at"`
+	ID        string    `db:"chunk_id" json:"id"`
+	FileID    string    `db:"chunk_file_id" json:"file_id"`
+	Size      int32     `db:"chunk_size" json:"size"`
+	Hash      string    `db:"chunk_hash" json:"hash"`
+	Position  int32     `db:"chunk_position" json:"position"`
+	CreatedAt time.Time `db:"chunk_created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"chunk_updated_at" json:"updated_at"`
 }
 
 var (
@@ -181,33 +180,33 @@ func (q chunkQuery) CountP() int64 {
 }
 
 
+// FileG pointed to by the foreign key.
+func (c *Chunk) FileG(selectCols ...string) (*File, error) {
+	return c.File(boil.GetDB(), selectCols...)
+}
+
+// FileGP pointed to by the foreign key. Panics on error.
+func (c *Chunk) FileGP(selectCols ...string) *File {
+	o, err := c.File(boil.GetDB(), selectCols...)
+	if err != nil {
+		panic(boil.WrapErr(err))
+	}
+
+	return o
+}
+
+// FileP pointed to by the foreign key with exeuctor. Panics on error.
+func (c *Chunk) FileP(exec boil.Executor, selectCols ...string) *File {
+	o, err := c.File(exec, selectCols...)
+	if err != nil {
+		panic(boil.WrapErr(err))
+	}
+
+	return o
+}
+
 // File pointed to by the foreign key.
-func (c *Chunk) File(selectCols ...string) (*File, error) {
-	return c.FileX(boil.GetDB(), selectCols...)
-}
-
-// FileP pointed to by the foreign key. Panics on error.
-func (c *Chunk) FileP(selectCols ...string) *File {
-	o, err := c.FileX(boil.GetDB(), selectCols...)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return o
-}
-
-// FileXP pointed to by the foreign key with exeuctor. Panics on error.
-func (c *Chunk) FileXP(exec boil.Executor, selectCols ...string) *File {
-	o, err := c.FileX(exec, selectCols...)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return o
-}
-
-// FileX pointed to by the foreign key.
-func (c *Chunk) FileX(exec boil.Executor, selectCols ...string) (*File, error) {
+func (c *Chunk) File(exec boil.Executor, selectCols ...string) (*File, error) {
 	file := &File{}
 
 	selectColumns := `*`
@@ -226,26 +225,26 @@ func (c *Chunk) FileX(exec boil.Executor, selectCols ...string) (*File, error) {
 
 
 
-// ChunksAll retrieves all records.
-func Chunks(mods ...qm.QueryMod) chunkQuery {
-	return ChunksX(boil.GetDB(), mods...)
+// ChunksG retrieves all records.
+func ChunksG(mods ...qm.QueryMod) chunkQuery {
+	return Chunks(boil.GetDB(), mods...)
 }
 
-// ChunksX retrieves all the records using an executor.
-func ChunksX(exec boil.Executor, mods ...qm.QueryMod) chunkQuery {
+// Chunks retrieves all the records using an executor.
+func Chunks(exec boil.Executor, mods ...qm.QueryMod) chunkQuery {
 	mods = append(mods, qm.From("chunks"))
-	return chunkQuery{NewQueryX(exec, mods...)}
+	return chunkQuery{NewQuery(exec, mods...)}
 }
 
 
-// ChunkFind retrieves a single record by ID.
-func ChunkFind(id string, selectCols ...string) (*Chunk, error) {
-	return ChunkFindX(boil.GetDB(), id, selectCols...)
+// ChunkFindG retrieves a single record by ID.
+func ChunkFindG(id string, selectCols ...string) (*Chunk, error) {
+	return ChunkFind(boil.GetDB(), id, selectCols...)
 }
 
-// ChunkFindP retrieves a single record by ID, and panics on error.
-func ChunkFindP(id string, selectCols ...string) *Chunk {
-	o, err := ChunkFindX(boil.GetDB(), id, selectCols...)
+// ChunkFindGP retrieves a single record by ID, and panics on error.
+func ChunkFindGP(id string, selectCols ...string) *Chunk {
+	o, err := ChunkFind(boil.GetDB(), id, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -253,8 +252,8 @@ func ChunkFindP(id string, selectCols ...string) *Chunk {
 	return o
 }
 
-// ChunkFindX retrieves a single record by ID with an executor.
-func ChunkFindX(exec boil.Executor, id string, selectCols ...string) (*Chunk, error) {
+// ChunkFind retrieves a single record by ID with an executor.
+func ChunkFind(exec boil.Executor, id string, selectCols ...string) (*Chunk, error) {
 	chunk := &Chunk{}
 
 	mods := []qm.QueryMod{
@@ -263,7 +262,7 @@ func ChunkFindX(exec boil.Executor, id string, selectCols ...string) (*Chunk, er
 		qm.Where(`"id"=$1`, id),
 	}
 
-	q := NewQueryX(exec, mods...)
+	q := NewQuery(exec, mods...)
 
 	err := boil.ExecQueryOne(q).Scan(boil.GetStructPointers(chunk, selectCols...)...)
 
@@ -274,9 +273,9 @@ func ChunkFindX(exec boil.Executor, id string, selectCols ...string) (*Chunk, er
 	return chunk, nil
 }
 
-// ChunkFindXP retrieves a single record by ID with an executor, and panics on error.
-func ChunkFindXP(exec boil.Executor, id string, selectCols ...string) *Chunk {
-	o, err := ChunkFindX(exec, id, selectCols...)
+// ChunkFindP retrieves a single record by ID with an executor, and panics on error.
+func ChunkFindP(exec boil.Executor, id string, selectCols ...string) *Chunk {
+	o, err := ChunkFind(exec, id, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -284,20 +283,20 @@ func ChunkFindXP(exec boil.Executor, id string, selectCols ...string) *Chunk {
 	return o
 }
 
-// Insert a single record.
-func (o *Chunk) Insert(whitelist ...string) error {
-	return o.InsertX(boil.GetDB(), whitelist...)
+// InsertG a single record.
+func (o *Chunk) InsertG(whitelist ...string) error {
+	return o.Insert(boil.GetDB(), whitelist...)
 }
 
-// InsertP a single record, and panics on error.
-func (o *Chunk) InsertP(whitelist ...string) {
-	if err := o.InsertX(boil.GetDB(), whitelist...); err != nil {
+// InsertGP a single record, and panics on error.
+func (o *Chunk) InsertGP(whitelist ...string) {
+	if err := o.Insert(boil.GetDB(), whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// InsertX a single record using an executor.
-func (o *Chunk) InsertX(exec boil.Executor, whitelist ...string) error {
+// Insert a single record using an executor.
+func (o *Chunk) Insert(exec boil.Executor, whitelist ...string) error {
 	if o == nil {
 		return errors.New("models: no chunks provided for insertion")
 	}
@@ -333,9 +332,9 @@ func (o *Chunk) InsertX(exec boil.Executor, whitelist ...string) error {
 	return nil
 }
 
-// InsertXP a single record using an executor, and panics on error.
-func (o *Chunk) InsertXP(exec boil.Executor, whitelist ...string) {
-	if err := o.InsertX(exec, whitelist...); err != nil {
+// InsertP a single record using an executor, and panics on error.
+func (o *Chunk) InsertP(exec boil.Executor, whitelist ...string) {
+	if err := o.Insert(exec, whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
@@ -359,50 +358,50 @@ func (o *Chunk) generateInsertColumns(whitelist ...string) ([]string, []string) 
 }
 
 
-// Update a single Chunk record.
-// Update takes a whitelist of column names that should be updated.
+// UpdateG a single Chunk record.
+// UpdateG takes a whitelist of column names that should be updated.
 // The primary key will be used to find the record to update.
-func (o *Chunk) Update(whitelist ...string) error {
-	return o.UpdateX(boil.GetDB(), whitelist...)
+func (o *Chunk) UpdateG(whitelist ...string) error {
+	return o.Update(boil.GetDB(), whitelist...)
 }
 
-// Update a single Chunk record.
-// UpdateP takes a whitelist of column names that should be updated.
+// UpdateGP a single Chunk record.
+// UpdateGP takes a whitelist of column names that should be updated.
 // The primary key will be used to find the record to update.
 // Panics on error.
-func (o *Chunk) UpdateP(whitelist ...string) {
-	if err := o.UpdateX(boil.GetDB(), whitelist...); err != nil {
+func (o *Chunk) UpdateGP(whitelist ...string) {
+	if err := o.Update(boil.GetDB(), whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// UpdateX uses an executor to update the Chunk.
-func (o *Chunk) UpdateX(exec boil.Executor, whitelist ...string) error {
-	return o.UpdateAtX(exec, o.ID, whitelist...)
+// Update uses an executor to update the Chunk.
+func (o *Chunk) Update(exec boil.Executor, whitelist ...string) error {
+	return o.UpdateAt(exec, o.ID, whitelist...)
 }
 
-// UpdateXP uses an executor to update the Chunk, and panics on error.
-func (o *Chunk) UpdateXP(exec boil.Executor, whitelist ...string) {
-	err := o.UpdateAtX(exec, o.ID, whitelist...)
+// UpdateP uses an executor to update the Chunk, and panics on error.
+func (o *Chunk) UpdateP(exec boil.Executor, whitelist ...string) {
+	err := o.UpdateAt(exec, o.ID, whitelist...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// UpdateAt updates the Chunk using the primary key to find the row to update.
-func (o *Chunk) UpdateAt(id string, whitelist ...string) error {
-	return o.UpdateAtX(boil.GetDB(), id, whitelist...)
+// UpdateAtG updates the Chunk using the primary key to find the row to update.
+func (o *Chunk) UpdateAtG(id string, whitelist ...string) error {
+	return o.UpdateAt(boil.GetDB(), id, whitelist...)
 }
 
-// UpdateAtP updates the Chunk using the primary key to find the row to update. Panics on error.
-func (o *Chunk) UpdateAtP(id string, whitelist ...string) {
-	if err := o.UpdateAtX(boil.GetDB(), id, whitelist...); err != nil {
+// UpdateAtGP updates the Chunk using the primary key to find the row to update. Panics on error.
+func (o *Chunk) UpdateAtGP(id string, whitelist ...string) {
+	if err := o.UpdateAt(boil.GetDB(), id, whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// UpdateAtX uses an executor to update the Chunk using the primary key to find the row to update.
-func (o *Chunk) UpdateAtX(exec boil.Executor, id string, whitelist ...string) error {
+// UpdateAt uses an executor to update the Chunk using the primary key to find the row to update.
+func (o *Chunk) UpdateAt(exec boil.Executor, id string, whitelist ...string) error {
 	if err := o.doBeforeUpdateHooks(); err != nil {
 		return err
 	}
@@ -438,10 +437,10 @@ func (o *Chunk) UpdateAtX(exec boil.Executor, id string, whitelist ...string) er
 	return nil
 }
 
-// UpdateAtXP uses an executor to update the Chunk using the primary key to find the row to update.
+// UpdateAtP uses an executor to update the Chunk using the primary key to find the row to update.
 // Panics on error.
-func (o *Chunk) UpdateAtXP(exec boil.Executor, id string, whitelist ...string) {
-	if err := o.UpdateAtX(exec, id, whitelist...); err != nil {
+func (o *Chunk) UpdateAtP(exec boil.Executor, id string, whitelist ...string) {
+	if err := o.UpdateAt(exec, id, whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
@@ -484,28 +483,28 @@ func (o *Chunk) generateUpdateColumns(whitelist ...string) []string {
 	return wl
 }
 
-// Delete deletes a single Chunk record.
-// Delete will match against the primary key column to find the record to delete.
-func (o *Chunk) Delete() error {
+// DeleteG deletes a single Chunk record.
+// DeleteG will match against the primary key column to find the record to delete.
+func (o *Chunk) DeleteG() error {
 	if o == nil {
 		return errors.New("models: no Chunk provided for deletion")
 	}
 
-	return o.DeleteX(boil.GetDB())
+	return o.Delete(boil.GetDB())
 }
 
-// DeleteP deletes a single Chunk record.
-// DeleteP will match against the primary key column to find the record to delete.
+// DeleteGP deletes a single Chunk record.
+// DeleteGP will match against the primary key column to find the record to delete.
 // Panics on error.
-func (o *Chunk) DeleteP() {
-	if err := o.Delete(); err != nil {
+func (o *Chunk) DeleteGP() {
+	if err := o.DeleteG(); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// DeleteX deletes a single Chunk record with an executor.
-// DeleteX will match against the primary key column to find the record to delete.
-func (o *Chunk) DeleteX(exec boil.Executor) error {
+// Delete deletes a single Chunk record with an executor.
+// Delete will match against the primary key column to find the record to delete.
+func (o *Chunk) Delete(exec boil.Executor) error {
 	if o == nil {
 		return errors.New("models: no Chunk provided for deletion")
 	}
@@ -517,7 +516,7 @@ func (o *Chunk) DeleteX(exec boil.Executor) error {
 		qm.Where(`"id"=$1`, o.ID),
 	)
 
-	query := NewQueryX(exec, mods...)
+	query := NewQuery(exec, mods...)
 	boil.SetDelete(query)
 
 	_, err := boil.ExecQuery(query)
@@ -528,11 +527,11 @@ func (o *Chunk) DeleteX(exec boil.Executor) error {
 	return nil
 }
 
-// DeleteXP deletes a single Chunk record with an executor.
-// DeleteXP will match against the primary key column to find the record to delete.
+// DeleteP deletes a single Chunk record with an executor.
+// DeleteP will match against the primary key column to find the record to delete.
 // Panics on error.
-func (o *Chunk) DeleteXP(exec boil.Executor) {
-	if err := o.DeleteX(exec); err != nil {
+func (o *Chunk) DeleteP(exec boil.Executor) {
+	if err := o.Delete(exec); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
@@ -560,23 +559,23 @@ func (o chunkQuery) DeleteAllP() {
 	}
 }
 
-// DeleteAll deletes all rows in the slice.
-func (o ChunkSlice) DeleteAll() error {
-	if o == nil {
-		return errors.New("models: no Chunk slice provided for delete all")
-	}
-	return o.DeleteAllX(boil.GetDB())
-}
-
-// DeleteAll deletes all rows in the slice.
-func (o ChunkSlice) DeleteAllP() {
-	if err := o.DeleteAll(); err != nil {
+// DeleteAll deletes all rows in the slice, and panics on error.
+func (o ChunkSlice) DeleteAllGP() {
+	if err := o.DeleteAllG(); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// DeleteAllX deletes all rows in the slice with an executor.
-func (o ChunkSlice) DeleteAllX(exec boil.Executor) error {
+// DeleteAllG deletes all rows in the slice.
+func (o ChunkSlice) DeleteAllG() error {
+	if o == nil {
+		return errors.New("models: no Chunk slice provided for delete all")
+	}
+	return o.DeleteAll(boil.GetDB())
+}
+
+// DeleteAll deletes all rows in the slice with an executor.
+func (o ChunkSlice) DeleteAll(exec boil.Executor) error {
 	if o == nil {
 		return errors.New("models: no Chunk slice provided for delete all")
 	}
@@ -591,7 +590,7 @@ func (o ChunkSlice) DeleteAllX(exec boil.Executor) error {
 		qm.Where(in, args...),
 	)
 
-	query := NewQueryX(exec, mods...)
+	query := NewQuery(exec, mods...)
 	boil.SetDelete(query)
 
 	_, err := boil.ExecQuery(query)
@@ -605,9 +604,9 @@ func (o ChunkSlice) DeleteAllX(exec boil.Executor) error {
 	return nil
 }
 
-// DeleteAllXP deletes all rows in the slice with an executor, and panics on error.
-func (o ChunkSlice) DeleteAllXP(exec boil.Executor) {
-	if err := o.DeleteAllX(exec); err != nil {
+// DeleteAllP deletes all rows in the slice with an executor, and panics on error.
+func (o ChunkSlice) DeleteAllP(exec boil.Executor) {
+	if err := o.DeleteAll(exec); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }

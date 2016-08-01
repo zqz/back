@@ -21,21 +21,21 @@ func TestThumbnails(t *testing.T) {
 
 	// insert two random objects to test DeleteAll
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert Thumbnail:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
 	// Delete all rows to give a clean slate
-	err = Thumbnails().DeleteAll()
+	err = ThumbnailsG().DeleteAll()
 	if err != nil {
 		t.Errorf("Unable to delete all from Thumbnails: %s", err)
 	}
 
 	// Check number of rows in table to ensure DeleteAll was successful
 	var c int64
-	c, err = Thumbnails().Count()
+	c, err = ThumbnailsG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected thumbnails table to be empty, but got %d rows", c)
@@ -47,20 +47,20 @@ func TestThumbnails(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert Thumbnail:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
 	// Ensure Count is valid
-	c, err = Thumbnails().Count()
+	c, err = ThumbnailsG().Count()
 	if c != 3 {
 		t.Errorf("Expected thumbnails table to have 3 rows, but got %d", c)
 	}
 
 	// Attempt to retrieve all objects
-	res, err := Thumbnails().All()
+	res, err := ThumbnailsG().All()
 	if err != nil {
 		t.Errorf("Unable to retrieve all Thumbnails, err: %s", err)
 	}
@@ -74,7 +74,7 @@ func TestThumbnails(t *testing.T) {
 
 func thumbnailsDeleteAllRows(t *testing.T) {
 	// Delete all rows to give a clean slate
-	err := Thumbnails().DeleteAll()
+	err := ThumbnailsG().DeleteAll()
 	if err != nil {
 		t.Errorf("Unable to delete all from Thumbnails: %s", err)
 	}
@@ -88,7 +88,7 @@ func TestThumbnailsQueryDeleteAll(t *testing.T) {
 	thumbnailsDeleteAllRows(t)
 
 	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = Thumbnails().Count()
+	c, err = ThumbnailsG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected 0 rows after ObjDeleteAllRows() call, but got %d rows", c)
@@ -101,20 +101,20 @@ func TestThumbnailsQueryDeleteAll(t *testing.T) {
 
 	// insert random columns to test DeleteAll
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert Thumbnail:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
 	// Test DeleteAll() query function
-	err = Thumbnails().DeleteAll()
+	err = ThumbnailsG().DeleteAll()
 	if err != nil {
 		t.Errorf("Unable to delete all from Thumbnails: %s", err)
 	}
 
 	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = Thumbnails().Count()
+	c, err = ThumbnailsG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected 0 rows after Obj().DeleteAll() call, but got %d rows", c)
@@ -132,19 +132,19 @@ func TestThumbnailsSliceDeleteAll(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert Thumbnail:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
 	// test DeleteAll slice function
-	if err = o.DeleteAll(); err != nil {
+	if err = o.DeleteAllG(); err != nil {
 		t.Errorf("Unable to objSlice.DeleteAll(): %s", err)
 	}
 
 	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = Thumbnails().Count()
+	c, err = ThumbnailsG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected 0 rows after objSlice.DeleteAll() call, but got %d rows", c)
@@ -162,26 +162,26 @@ func TestThumbnailsDelete(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert Thumbnail:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
-	o[0].Delete()
+	o[0].DeleteG()
 
 	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = Thumbnails().Count()
+	c, err = ThumbnailsG().Count()
 
 	if c != 2 {
 		t.Errorf("Expected 2 rows after obj.Delete() call, but got %d rows", c)
 	}
 
-	o[1].Delete()
-	o[2].Delete()
+	o[1].DeleteG()
+	o[2].DeleteG()
 
 	// Check number of rows in table to ensure Delete worked for all rows
-	c, err = Thumbnails().Count()
+	c, err = ThumbnailsG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected 0 rows after all obj.Delete() calls, but got %d rows", c)
@@ -197,7 +197,7 @@ func TestThumbnailsFind(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		if err = o[i].Insert(); err != nil {
+		if err = o[i].InsertG(); err != nil {
 			t.Errorf("Unable to insert Thumbnail:\n%#v\nErr: %s", o[i], err)
 		}
 	}
@@ -205,11 +205,11 @@ func TestThumbnailsFind(t *testing.T) {
 	j := make(ThumbnailSlice, 3)
 	// Perform all Find queries and assign result objects to slice for comparison
 	for i := 0; i < len(j); i++ {
-		j[i], err = ThumbnailFind(o[i].ID)
+		j[i], err = ThumbnailFindG(o[i].ID)
 		thumbnailCompareVals(o[i], j[i], t)
 	}
 
-	f, err := ThumbnailFind(o[0].ID, thumbnailPrimaryKeyColumns...)
+	f, err := ThumbnailFindG(o[0].ID, thumbnailPrimaryKeyColumns...)
 
 	if o[0].ID != f.ID {
 		t.Errorf("Expected primary key values to match, ID did not match")
@@ -235,13 +235,13 @@ func TestThumbnailsBind(t *testing.T) {
 		t.Errorf("Unable to randomize Thumbnail struct: %s", err)
 	}
 
-	if err = o.Insert(); err != nil {
+	if err = o.InsertG(); err != nil {
 		t.Errorf("Unable to insert Thumbnail:\n%#v\nErr: %s", o, err)
 	}
 
 	j := Thumbnail{}
 
-	err = Thumbnails(qm.Where(`"id"=$1`, o.ID)).Bind(&j)
+	err = ThumbnailsG(qm.Where(`"id"=$1`, o.ID)).Bind(&j)
 	if err != nil {
 		t.Errorf("Unable to call Bind on Thumbnail single object: %s", err)
 	}
@@ -258,14 +258,14 @@ func TestThumbnailsBind(t *testing.T) {
 
 	// insert random columns to test DeleteAll
 	for i := 0; i < len(y); i++ {
-		err = y[i].Insert()
+		err = y[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert Thumbnail:\n%#v\nErr: %s", y[i], err)
 		}
 	}
 
 	k := ThumbnailSlice{}
-	err = Thumbnails().Bind(&k)
+	err = ThumbnailsG().Bind(&k)
 	if err != nil {
 		t.Errorf("Unable to call Bind on Thumbnail slice of objects: %s", err)
 	}
@@ -289,11 +289,11 @@ func TestThumbnailsOne(t *testing.T) {
 		t.Errorf("Unable to randomize Thumbnail struct: %s", err)
 	}
 
-	if err = o.Insert(); err != nil {
+	if err = o.InsertG(); err != nil {
 		t.Errorf("Unable to insert Thumbnail:\n%#v\nErr: %s", o, err)
 	}
 
-	j, err := Thumbnails().One()
+	j, err := ThumbnailsG().One()
 	if err != nil {
 		t.Errorf("Unable to fetch One Thumbnail result:\n#%v\nErr: %s", j, err)
 	}
@@ -313,13 +313,13 @@ func TestThumbnailsAll(t *testing.T) {
 
 	// insert random columns to test DeleteAll
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert Thumbnail:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
-	j, err := Thumbnails().All()
+	j, err := ThumbnailsG().All()
 	if err != nil {
 		t.Errorf("Unable to fetch All Thumbnail results: %s", err)
 	}
@@ -345,13 +345,13 @@ func TestThumbnailsCount(t *testing.T) {
 
 	// insert random columns to test Count
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert Thumbnail:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
-	c, err := Thumbnails().Count()
+	c, err := ThumbnailsG().Count()
 	if err != nil {
 		t.Errorf("Unable to count query Thumbnail: %s", err)
 	}
@@ -363,7 +363,7 @@ func TestThumbnailsCount(t *testing.T) {
 	thumbnailsDeleteAllRows(t)
 }
 
-var thumbnailDBTypes = map[string]string{"UpdatedAt": "timestamp without time zone", "ID": "uuid", "FileID": "uuid", "Size": "integer", "Hash": "text", "CreatedAt": "timestamp without time zone"}
+var thumbnailDBTypes = map[string]string{"ID": "uuid", "FileID": "uuid", "Size": "integer", "Hash": "text", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone"}
 
 func thumbnailCompareVals(o *Thumbnail, j *Thumbnail, t *testing.T) {
 	if j.ID != o.ID {
@@ -493,7 +493,7 @@ func TestThumbnailsInsert(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		if err = o[i].Insert(); err != nil {
+		if err = o[i].InsertG(); err != nil {
 			t.Errorf("Unable to insert Thumbnail:\n%#v\nErr: %s", o[i], err)
 		}
 	}
@@ -501,14 +501,14 @@ func TestThumbnailsInsert(t *testing.T) {
 	j := make(ThumbnailSlice, 3)
 	// Perform all Find queries and assign result objects to slice for comparison
 	for i := 0; i < len(j); i++ {
-		j[i], err = ThumbnailFind(o[i].ID)
+		j[i], err = ThumbnailFindG(o[i].ID)
 		thumbnailCompareVals(o[i], j[i], t)
 	}
 
 	thumbnailsDeleteAllRows(t)
 
 	item := &Thumbnail{}
-	if err = item.Insert(); err != nil {
+	if err = item.InsertG(); err != nil {
 		t.Errorf("Unable to insert zero-value item Thumbnail:\n%#v\nErr: %s", item, err)
 	}
 
@@ -588,15 +588,15 @@ func TestThumbnailToOneFile_File(t *testing.T) {
 	var local Thumbnail
 	local.FileID.Valid = true
 
-	if err := foreign.InsertX(tx); err != nil {
+	if err := foreign.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
 
 	local.FileID.String = foreign.ID
-	if err := local.InsertX(tx); err != nil {
+	if err := local.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
-	check, err := local.FileX(tx)
+	check, err := local.File(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -625,11 +625,11 @@ func TestThumbnailsSelect(t *testing.T) {
 		t.Errorf("Unable to randomize Thumbnail struct: %s", err)
 	}
 
-	if err = item.Insert(); err != nil {
+	if err = item.InsertG(); err != nil {
 		t.Errorf("Unable to insert item Thumbnail:\n%#v\nErr: %s", item, err)
 	}
 
-	err = Thumbnails(qm.Select(thumbnailAutoIncrementColumns...), qm.Where(`"id"=$1`, item.ID)).Bind(x)
+	err = ThumbnailsG(qm.Select(thumbnailAutoIncrementColumns...), qm.Where(`"id"=$1`, item.ID)).Bind(x)
 	if err != nil {
 		t.Errorf("Unable to select insert results with bind: %s", err)
 	}
@@ -641,7 +641,7 @@ func TestThumbnailsUpdate(t *testing.T) {
 	var err error
 
 	item := Thumbnail{}
-	if err = item.Insert(); err != nil {
+	if err = item.InsertG(); err != nil {
 		t.Errorf("Unable to insert zero-value item Thumbnail:\n%#v\nErr: %s", item, err)
 	}
 
@@ -651,12 +651,12 @@ func TestThumbnailsUpdate(t *testing.T) {
 	}
 
 	whitelist := boil.SetComplement(thumbnailColumns, thumbnailAutoIncrementColumns)
-	if err = item.Update(whitelist...); err != nil {
+	if err = item.UpdateG(whitelist...); err != nil {
 		t.Errorf("Unable to update Thumbnail: %s", err)
 	}
 
 	var j *Thumbnail
-	j, err = ThumbnailFind(item.ID)
+	j, err = ThumbnailFindG(item.ID)
 	if err != nil {
 		t.Errorf("Unable to find Thumbnail row: %s", err)
 	}

@@ -21,21 +21,21 @@ func TestFiles(t *testing.T) {
 
 	// insert two random objects to test DeleteAll
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
 	// Delete all rows to give a clean slate
-	err = Files().DeleteAll()
+	err = FilesG().DeleteAll()
 	if err != nil {
 		t.Errorf("Unable to delete all from Files: %s", err)
 	}
 
 	// Check number of rows in table to ensure DeleteAll was successful
 	var c int64
-	c, err = Files().Count()
+	c, err = FilesG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected files table to be empty, but got %d rows", c)
@@ -47,20 +47,20 @@ func TestFiles(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
 	// Ensure Count is valid
-	c, err = Files().Count()
+	c, err = FilesG().Count()
 	if c != 3 {
 		t.Errorf("Expected files table to have 3 rows, but got %d", c)
 	}
 
 	// Attempt to retrieve all objects
-	res, err := Files().All()
+	res, err := FilesG().All()
 	if err != nil {
 		t.Errorf("Unable to retrieve all Files, err: %s", err)
 	}
@@ -74,7 +74,7 @@ func TestFiles(t *testing.T) {
 
 func filesDeleteAllRows(t *testing.T) {
 	// Delete all rows to give a clean slate
-	err := Files().DeleteAll()
+	err := FilesG().DeleteAll()
 	if err != nil {
 		t.Errorf("Unable to delete all from Files: %s", err)
 	}
@@ -88,7 +88,7 @@ func TestFilesQueryDeleteAll(t *testing.T) {
 	filesDeleteAllRows(t)
 
 	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = Files().Count()
+	c, err = FilesG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected 0 rows after ObjDeleteAllRows() call, but got %d rows", c)
@@ -101,20 +101,20 @@ func TestFilesQueryDeleteAll(t *testing.T) {
 
 	// insert random columns to test DeleteAll
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
 	// Test DeleteAll() query function
-	err = Files().DeleteAll()
+	err = FilesG().DeleteAll()
 	if err != nil {
 		t.Errorf("Unable to delete all from Files: %s", err)
 	}
 
 	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = Files().Count()
+	c, err = FilesG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected 0 rows after Obj().DeleteAll() call, but got %d rows", c)
@@ -132,19 +132,19 @@ func TestFilesSliceDeleteAll(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
 	// test DeleteAll slice function
-	if err = o.DeleteAll(); err != nil {
+	if err = o.DeleteAllG(); err != nil {
 		t.Errorf("Unable to objSlice.DeleteAll(): %s", err)
 	}
 
 	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = Files().Count()
+	c, err = FilesG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected 0 rows after objSlice.DeleteAll() call, but got %d rows", c)
@@ -162,26 +162,26 @@ func TestFilesDelete(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
-	o[0].Delete()
+	o[0].DeleteG()
 
 	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = Files().Count()
+	c, err = FilesG().Count()
 
 	if c != 2 {
 		t.Errorf("Expected 2 rows after obj.Delete() call, but got %d rows", c)
 	}
 
-	o[1].Delete()
-	o[2].Delete()
+	o[1].DeleteG()
+	o[2].DeleteG()
 
 	// Check number of rows in table to ensure Delete worked for all rows
-	c, err = Files().Count()
+	c, err = FilesG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected 0 rows after all obj.Delete() calls, but got %d rows", c)
@@ -197,7 +197,7 @@ func TestFilesFind(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		if err = o[i].Insert(); err != nil {
+		if err = o[i].InsertG(); err != nil {
 			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
 		}
 	}
@@ -205,11 +205,11 @@ func TestFilesFind(t *testing.T) {
 	j := make(FileSlice, 3)
 	// Perform all Find queries and assign result objects to slice for comparison
 	for i := 0; i < len(j); i++ {
-		j[i], err = FileFind(o[i].ID)
+		j[i], err = FileFindG(o[i].ID)
 		fileCompareVals(o[i], j[i], t)
 	}
 
-	f, err := FileFind(o[0].ID, filePrimaryKeyColumns...)
+	f, err := FileFindG(o[0].ID, filePrimaryKeyColumns...)
 
 	if o[0].ID != f.ID {
 		t.Errorf("Expected primary key values to match, ID did not match")
@@ -235,13 +235,13 @@ func TestFilesBind(t *testing.T) {
 		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	if err = o.Insert(); err != nil {
+	if err = o.InsertG(); err != nil {
 		t.Errorf("Unable to insert File:\n%#v\nErr: %s", o, err)
 	}
 
 	j := File{}
 
-	err = Files(qm.Where(`"id"=$1`, o.ID)).Bind(&j)
+	err = FilesG(qm.Where(`"id"=$1`, o.ID)).Bind(&j)
 	if err != nil {
 		t.Errorf("Unable to call Bind on File single object: %s", err)
 	}
@@ -258,14 +258,14 @@ func TestFilesBind(t *testing.T) {
 
 	// insert random columns to test DeleteAll
 	for i := 0; i < len(y); i++ {
-		err = y[i].Insert()
+		err = y[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert File:\n%#v\nErr: %s", y[i], err)
 		}
 	}
 
 	k := FileSlice{}
-	err = Files().Bind(&k)
+	err = FilesG().Bind(&k)
 	if err != nil {
 		t.Errorf("Unable to call Bind on File slice of objects: %s", err)
 	}
@@ -289,11 +289,11 @@ func TestFilesOne(t *testing.T) {
 		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	if err = o.Insert(); err != nil {
+	if err = o.InsertG(); err != nil {
 		t.Errorf("Unable to insert File:\n%#v\nErr: %s", o, err)
 	}
 
-	j, err := Files().One()
+	j, err := FilesG().One()
 	if err != nil {
 		t.Errorf("Unable to fetch One File result:\n#%v\nErr: %s", j, err)
 	}
@@ -313,13 +313,13 @@ func TestFilesAll(t *testing.T) {
 
 	// insert random columns to test DeleteAll
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
-	j, err := Files().All()
+	j, err := FilesG().All()
 	if err != nil {
 		t.Errorf("Unable to fetch All File results: %s", err)
 	}
@@ -345,13 +345,13 @@ func TestFilesCount(t *testing.T) {
 
 	// insert random columns to test Count
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
-	c, err := Files().Count()
+	c, err := FilesG().Count()
 	if err != nil {
 		t.Errorf("Unable to count query File: %s", err)
 	}
@@ -363,7 +363,7 @@ func TestFilesCount(t *testing.T) {
 	filesDeleteAllRows(t)
 }
 
-var fileDBTypes = map[string]string{"NumChunks": "integer", "State": "integer", "Type": "text", "UpdatedAt": "timestamp without time zone", "CreatedAt": "timestamp without time zone", "Slug": "text", "ID": "uuid", "Size": "integer", "Name": "text", "Hash": "text"}
+var fileDBTypes = map[string]string{"Slug": "text", "ID": "uuid", "Size": "integer", "NumChunks": "integer", "State": "integer", "Hash": "text", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "Name": "text", "Type": "text"}
 
 func fileCompareVals(o *File, j *File, t *testing.T) {
 	if j.ID != o.ID {
@@ -509,7 +509,7 @@ func TestFilesInsert(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		if err = o[i].Insert(); err != nil {
+		if err = o[i].InsertG(); err != nil {
 			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
 		}
 	}
@@ -517,14 +517,14 @@ func TestFilesInsert(t *testing.T) {
 	j := make(FileSlice, 3)
 	// Perform all Find queries and assign result objects to slice for comparison
 	for i := 0; i < len(j); i++ {
-		j[i], err = FileFind(o[i].ID)
+		j[i], err = FileFindG(o[i].ID)
 		fileCompareVals(o[i], j[i], t)
 	}
 
 	filesDeleteAllRows(t)
 
 	item := &File{}
-	if err = item.Insert(); err != nil {
+	if err = item.InsertG(); err != nil {
 		t.Errorf("Unable to insert zero-value item File:\n%#v\nErr: %s", item, err)
 	}
 
@@ -602,34 +602,33 @@ func TestFileToManyChunks(t *testing.T) {
 	var a File
 	var b, c Chunk
 
-	if err := a.InsertX(tx); err != nil {
+	if err := a.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
 
 	boil.RandomizeStruct(&b, chunkDBTypes, true, "file_id")
 	boil.RandomizeStruct(&c, chunkDBTypes, true, "file_id")
-	b.FileID.Valid = true
-	c.FileID.Valid = true
-	b.FileID.String = a.ID
-	c.FileID.String = a.ID
-	if err = b.InsertX(tx); err != nil {
+
+	b.FileID = a.ID
+	c.FileID = a.ID
+	if err = b.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
-	if err = c.InsertX(tx); err != nil {
+	if err = c.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
 
-	chunks, err := a.ChunksX(tx)
+	chunks, err := a.Chunks(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	bFound, cFound := false, false
 	for _, v := range chunks {
-		if v.FileID.String == b.FileID.String {
+		if v.FileID == b.FileID {
 			bFound = true
 		}
-		if v.FileID.String == c.FileID.String {
+		if v.FileID == c.FileID {
 			cFound = true
 		}
 	}
@@ -654,7 +653,7 @@ func TestFileToManyThumbnails(t *testing.T) {
 	var a File
 	var b, c Thumbnail
 
-	if err := a.InsertX(tx); err != nil {
+	if err := a.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -664,14 +663,14 @@ func TestFileToManyThumbnails(t *testing.T) {
 	c.FileID.Valid = true
 	b.FileID.String = a.ID
 	c.FileID.String = a.ID
-	if err = b.InsertX(tx); err != nil {
+	if err = b.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
-	if err = c.InsertX(tx); err != nil {
+	if err = c.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
 
-	thumbnails, err := a.ThumbnailsX(tx)
+	thumbnails, err := a.Thumbnails(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -718,11 +717,11 @@ func TestFilesSelect(t *testing.T) {
 		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	if err = item.Insert(); err != nil {
+	if err = item.InsertG(); err != nil {
 		t.Errorf("Unable to insert item File:\n%#v\nErr: %s", item, err)
 	}
 
-	err = Files(qm.Select(fileAutoIncrementColumns...), qm.Where(`"id"=$1`, item.ID)).Bind(x)
+	err = FilesG(qm.Select(fileAutoIncrementColumns...), qm.Where(`"id"=$1`, item.ID)).Bind(x)
 	if err != nil {
 		t.Errorf("Unable to select insert results with bind: %s", err)
 	}
@@ -734,7 +733,7 @@ func TestFilesUpdate(t *testing.T) {
 	var err error
 
 	item := File{}
-	if err = item.Insert(); err != nil {
+	if err = item.InsertG(); err != nil {
 		t.Errorf("Unable to insert zero-value item File:\n%#v\nErr: %s", item, err)
 	}
 
@@ -744,12 +743,12 @@ func TestFilesUpdate(t *testing.T) {
 	}
 
 	whitelist := boil.SetComplement(fileColumns, fileAutoIncrementColumns)
-	if err = item.Update(whitelist...); err != nil {
+	if err = item.UpdateG(whitelist...); err != nil {
 		t.Errorf("Unable to update File: %s", err)
 	}
 
 	var j *File
-	j, err = FileFind(item.ID)
+	j, err = FileFindG(item.ID)
 	if err != nil {
 		t.Errorf("Unable to find File row: %s", err)
 	}

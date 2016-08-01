@@ -21,21 +21,21 @@ func TestChunks(t *testing.T) {
 
 	// insert two random objects to test DeleteAll
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert Chunk:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
 	// Delete all rows to give a clean slate
-	err = Chunks().DeleteAll()
+	err = ChunksG().DeleteAll()
 	if err != nil {
 		t.Errorf("Unable to delete all from Chunks: %s", err)
 	}
 
 	// Check number of rows in table to ensure DeleteAll was successful
 	var c int64
-	c, err = Chunks().Count()
+	c, err = ChunksG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected chunks table to be empty, but got %d rows", c)
@@ -47,20 +47,20 @@ func TestChunks(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert Chunk:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
 	// Ensure Count is valid
-	c, err = Chunks().Count()
+	c, err = ChunksG().Count()
 	if c != 3 {
 		t.Errorf("Expected chunks table to have 3 rows, but got %d", c)
 	}
 
 	// Attempt to retrieve all objects
-	res, err := Chunks().All()
+	res, err := ChunksG().All()
 	if err != nil {
 		t.Errorf("Unable to retrieve all Chunks, err: %s", err)
 	}
@@ -74,7 +74,7 @@ func TestChunks(t *testing.T) {
 
 func chunksDeleteAllRows(t *testing.T) {
 	// Delete all rows to give a clean slate
-	err := Chunks().DeleteAll()
+	err := ChunksG().DeleteAll()
 	if err != nil {
 		t.Errorf("Unable to delete all from Chunks: %s", err)
 	}
@@ -88,7 +88,7 @@ func TestChunksQueryDeleteAll(t *testing.T) {
 	chunksDeleteAllRows(t)
 
 	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = Chunks().Count()
+	c, err = ChunksG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected 0 rows after ObjDeleteAllRows() call, but got %d rows", c)
@@ -101,20 +101,20 @@ func TestChunksQueryDeleteAll(t *testing.T) {
 
 	// insert random columns to test DeleteAll
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert Chunk:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
 	// Test DeleteAll() query function
-	err = Chunks().DeleteAll()
+	err = ChunksG().DeleteAll()
 	if err != nil {
 		t.Errorf("Unable to delete all from Chunks: %s", err)
 	}
 
 	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = Chunks().Count()
+	c, err = ChunksG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected 0 rows after Obj().DeleteAll() call, but got %d rows", c)
@@ -132,19 +132,19 @@ func TestChunksSliceDeleteAll(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert Chunk:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
 	// test DeleteAll slice function
-	if err = o.DeleteAll(); err != nil {
+	if err = o.DeleteAllG(); err != nil {
 		t.Errorf("Unable to objSlice.DeleteAll(): %s", err)
 	}
 
 	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = Chunks().Count()
+	c, err = ChunksG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected 0 rows after objSlice.DeleteAll() call, but got %d rows", c)
@@ -162,26 +162,26 @@ func TestChunksDelete(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert Chunk:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
-	o[0].Delete()
+	o[0].DeleteG()
 
 	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = Chunks().Count()
+	c, err = ChunksG().Count()
 
 	if c != 2 {
 		t.Errorf("Expected 2 rows after obj.Delete() call, but got %d rows", c)
 	}
 
-	o[1].Delete()
-	o[2].Delete()
+	o[1].DeleteG()
+	o[2].DeleteG()
 
 	// Check number of rows in table to ensure Delete worked for all rows
-	c, err = Chunks().Count()
+	c, err = ChunksG().Count()
 
 	if c != 0 {
 		t.Errorf("Expected 0 rows after all obj.Delete() calls, but got %d rows", c)
@@ -197,7 +197,7 @@ func TestChunksFind(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		if err = o[i].Insert(); err != nil {
+		if err = o[i].InsertG(); err != nil {
 			t.Errorf("Unable to insert Chunk:\n%#v\nErr: %s", o[i], err)
 		}
 	}
@@ -205,11 +205,11 @@ func TestChunksFind(t *testing.T) {
 	j := make(ChunkSlice, 3)
 	// Perform all Find queries and assign result objects to slice for comparison
 	for i := 0; i < len(j); i++ {
-		j[i], err = ChunkFind(o[i].ID)
+		j[i], err = ChunkFindG(o[i].ID)
 		chunkCompareVals(o[i], j[i], t)
 	}
 
-	f, err := ChunkFind(o[0].ID, chunkPrimaryKeyColumns...)
+	f, err := ChunkFindG(o[0].ID, chunkPrimaryKeyColumns...)
 
 	if o[0].ID != f.ID {
 		t.Errorf("Expected primary key values to match, ID did not match")
@@ -235,13 +235,13 @@ func TestChunksBind(t *testing.T) {
 		t.Errorf("Unable to randomize Chunk struct: %s", err)
 	}
 
-	if err = o.Insert(); err != nil {
+	if err = o.InsertG(); err != nil {
 		t.Errorf("Unable to insert Chunk:\n%#v\nErr: %s", o, err)
 	}
 
 	j := Chunk{}
 
-	err = Chunks(qm.Where(`"id"=$1`, o.ID)).Bind(&j)
+	err = ChunksG(qm.Where(`"id"=$1`, o.ID)).Bind(&j)
 	if err != nil {
 		t.Errorf("Unable to call Bind on Chunk single object: %s", err)
 	}
@@ -258,14 +258,14 @@ func TestChunksBind(t *testing.T) {
 
 	// insert random columns to test DeleteAll
 	for i := 0; i < len(y); i++ {
-		err = y[i].Insert()
+		err = y[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert Chunk:\n%#v\nErr: %s", y[i], err)
 		}
 	}
 
 	k := ChunkSlice{}
-	err = Chunks().Bind(&k)
+	err = ChunksG().Bind(&k)
 	if err != nil {
 		t.Errorf("Unable to call Bind on Chunk slice of objects: %s", err)
 	}
@@ -289,11 +289,11 @@ func TestChunksOne(t *testing.T) {
 		t.Errorf("Unable to randomize Chunk struct: %s", err)
 	}
 
-	if err = o.Insert(); err != nil {
+	if err = o.InsertG(); err != nil {
 		t.Errorf("Unable to insert Chunk:\n%#v\nErr: %s", o, err)
 	}
 
-	j, err := Chunks().One()
+	j, err := ChunksG().One()
 	if err != nil {
 		t.Errorf("Unable to fetch One Chunk result:\n#%v\nErr: %s", j, err)
 	}
@@ -313,13 +313,13 @@ func TestChunksAll(t *testing.T) {
 
 	// insert random columns to test DeleteAll
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert Chunk:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
-	j, err := Chunks().All()
+	j, err := ChunksG().All()
 	if err != nil {
 		t.Errorf("Unable to fetch All Chunk results: %s", err)
 	}
@@ -345,13 +345,13 @@ func TestChunksCount(t *testing.T) {
 
 	// insert random columns to test Count
 	for i := 0; i < len(o); i++ {
-		err = o[i].Insert()
+		err = o[i].InsertG()
 		if err != nil {
 			t.Errorf("Unable to insert Chunk:\n%#v\nErr: %s", o[i], err)
 		}
 	}
 
-	c, err := Chunks().Count()
+	c, err := ChunksG().Count()
 	if err != nil {
 		t.Errorf("Unable to count query Chunk: %s", err)
 	}
@@ -363,7 +363,7 @@ func TestChunksCount(t *testing.T) {
 	chunksDeleteAllRows(t)
 }
 
-var chunkDBTypes = map[string]string{"Size": "integer", "Hash": "text", "Position": "integer", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "ID": "uuid", "FileID": "uuid"}
+var chunkDBTypes = map[string]string{"CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "ID": "uuid", "FileID": "uuid", "Size": "integer", "Hash": "text", "Position": "integer"}
 
 func chunkCompareVals(o *Chunk, j *Chunk, t *testing.T) {
 	if j.ID != o.ID {
@@ -497,7 +497,7 @@ func TestChunksInsert(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		if err = o[i].Insert(); err != nil {
+		if err = o[i].InsertG(); err != nil {
 			t.Errorf("Unable to insert Chunk:\n%#v\nErr: %s", o[i], err)
 		}
 	}
@@ -505,14 +505,14 @@ func TestChunksInsert(t *testing.T) {
 	j := make(ChunkSlice, 3)
 	// Perform all Find queries and assign result objects to slice for comparison
 	for i := 0; i < len(j); i++ {
-		j[i], err = ChunkFind(o[i].ID)
+		j[i], err = ChunkFindG(o[i].ID)
 		chunkCompareVals(o[i], j[i], t)
 	}
 
 	chunksDeleteAllRows(t)
 
 	item := &Chunk{}
-	if err = item.Insert(); err != nil {
+	if err = item.InsertG(); err != nil {
 		t.Errorf("Unable to insert zero-value item Chunk:\n%#v\nErr: %s", item, err)
 	}
 
@@ -590,17 +590,16 @@ func TestChunkToOneFile_File(t *testing.T) {
 
 	var foreign File
 	var local Chunk
-	local.FileID.Valid = true
 
-	if err := foreign.InsertX(tx); err != nil {
+	if err := foreign.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
 
-	local.FileID.String = foreign.ID
-	if err := local.InsertX(tx); err != nil {
+	local.FileID = foreign.ID
+	if err := local.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
-	check, err := local.FileX(tx)
+	check, err := local.File(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -629,11 +628,11 @@ func TestChunksSelect(t *testing.T) {
 		t.Errorf("Unable to randomize Chunk struct: %s", err)
 	}
 
-	if err = item.Insert(); err != nil {
+	if err = item.InsertG(); err != nil {
 		t.Errorf("Unable to insert item Chunk:\n%#v\nErr: %s", item, err)
 	}
 
-	err = Chunks(qm.Select(chunkAutoIncrementColumns...), qm.Where(`"id"=$1`, item.ID)).Bind(x)
+	err = ChunksG(qm.Select(chunkAutoIncrementColumns...), qm.Where(`"id"=$1`, item.ID)).Bind(x)
 	if err != nil {
 		t.Errorf("Unable to select insert results with bind: %s", err)
 	}
@@ -645,7 +644,7 @@ func TestChunksUpdate(t *testing.T) {
 	var err error
 
 	item := Chunk{}
-	if err = item.Insert(); err != nil {
+	if err = item.InsertG(); err != nil {
 		t.Errorf("Unable to insert zero-value item Chunk:\n%#v\nErr: %s", item, err)
 	}
 
@@ -655,12 +654,12 @@ func TestChunksUpdate(t *testing.T) {
 	}
 
 	whitelist := boil.SetComplement(chunkColumns, chunkAutoIncrementColumns)
-	if err = item.Update(whitelist...); err != nil {
+	if err = item.UpdateG(whitelist...); err != nil {
 		t.Errorf("Unable to update Chunk: %s", err)
 	}
 
 	var j *Chunk
-	j, err = ChunkFind(item.ID)
+	j, err = ChunkFindG(item.ID)
 	if err != nil {
 		t.Errorf("Unable to find Chunk row: %s", err)
 	}
