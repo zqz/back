@@ -3,6 +3,7 @@ package controllers
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/jmoiron/sqlx"
+	"github.com/spf13/afero"
 )
 
 // Dependencies for each controller. This allows us to provide things like
@@ -10,6 +11,7 @@ import (
 type Dependencies struct {
 	*logrus.Logger
 	*sqlx.DB
+	fs afero.Fs
 }
 
 // Info provides log15 api over logrus
