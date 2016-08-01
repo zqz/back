@@ -1,40 +1,47 @@
 package files
 
 import (
-	"fmt"
 	"net/http"
 
+	"github.com/zqzca/back/lib"
+	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
-	"github.com/zqzca/back/db"
-	"github.com/zqzca/back/models/file"
+
+	"github.com/nullbio/sqlboiler/boil"
+	. "github.com/nullbio/sqlboiler/boil/qm"
 )
 
-func fileExistsWithHash(hash string) bool {
+func fileExistsWithHash(ex boil.Executor, hash string) (bool, error) {
 	// Todo write an exists? for this
-	existing, _ := file.FindByHash(db.Connection, hash)
+	count, err := models.Files(ex, Where("hash=$1", hash)).Count()
+	if err != nil {
+		return false, err
+	}
 
-	return len(existing.ID) > 0
+	return count > 0, nil
 }
 
 // Create creates a file container in the database.
-func Create(c echo.Context) error {
-	f := &file.File{}
+func (f FileController) Create(e echo.Context) error {
+	file := &models.File{}
 
-	if err := c.Bind(f); err != nil {
+	if err := e.Bind(file); err != nil {
 		return err
 	}
 
-	if fileExistsWithHash(f.Hash) {
-		fmt.Println("file exists with hash:", f.Hash)
-		return c.NoContent(http.StatusConflict)
+	if ok, err := fileExistsWithHash(f.DB, file.Hash); err != nil {
+		return err
+	} else if ok {
+		f.Debug("file exists with hash", "hash", file.Hash)
+		return e.NoContent(http.StatusConflict)
 	}
 
-	fmt.Println("file doesnt exists with hash:", f.Hash)
+	f.Debug("file doesnt exist with hash", "hash", file.Hash)
+	file.State = lib.FileIncomplete
 
-	tx := db.StartTransaction()
-	f.State = file.Incomplete
-	f.Create(tx)
-	tx.Commit()
+	if err := file.Insert(f.DB); err != nil {
+		return err
+	}
 
-	return c.JSON(http.StatusOK, f)
+	return e.JSON(http.StatusOK, file)
 }

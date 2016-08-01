@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/nullbio/sqlboiler/boil"
+	"github.com/zqzca/back/lib"
+	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
-	"github.com/zqzca/back/db"
-	"github.com/zqzca/back/models/chunk"
-	"github.com/zqzca/back/models/file"
+
+	. "github.com/nullbio/sqlboiler/boil/qm"
 )
 
 type fileStatus struct {
@@ -17,33 +19,32 @@ type fileStatus struct {
 	ChunksNeeded   int      `json:"chunks_needed,omitempty"`
 }
 
-func statusForFile(ex db.Executor, f *file.File) *fileStatus {
+func statusForFile(ex boil.Executor, f *models.File) *fileStatus {
 	var state string
 
 	switch f.State {
-	case file.Incomplete:
+	case lib.FileIncomplete:
 		state = "incomplete"
-	case file.Processing:
+	case lib.FileProcessing:
 		state = "processing"
-	case file.Finished:
+	case lib.FileFinished:
 		state = "finished"
 	}
 
 	chunksNeeded := 0
-	chunks, err := chunk.FindByFileID(ex, f.ID)
-
+	chunks, err := models.Chunks(ex, Where("file_id=$1", f.ID)).All()
 	if err != nil {
 		fmt.Println(err)
 		return nil
 	}
 
-	numChunks := len(*chunks)
+	numChunks := len(chunks)
 	chunksReceived := []string{}
 
-	if f.State == file.Incomplete {
-		chunksNeeded = f.Chunks - numChunks
+	if int(f.State) == lib.FileIncomplete {
+		chunksNeeded = f.NumChunks - numChunks
 
-		for _, c := range *chunks {
+		for _, c := range chunks {
 			chunksReceived = append(chunksReceived, c.Hash)
 		}
 	}
@@ -56,17 +57,15 @@ func statusForFile(ex db.Executor, f *file.File) *fileStatus {
 	}
 }
 
-func Status(c echo.Context) error {
-	hash := c.Param("hash")
-	tx := db.Connection
+func (f FileController) Status(e echo.Context) error {
+	hash := e.Param("hash")
 
-	f, err := file.FindByHash(tx, hash)
-
-	if err != nil || f == nil {
-		fmt.Println("Failed to find file with hash:", hash)
-		return c.NoContent(http.StatusNotFound)
+	file, err := models.Files(f.DB, Where("hash=$1", hash)).One()
+	if err != nil {
+		f.Debug("Failed to find file with hash", "hash", hash)
+		return e.NoContent(http.StatusNotFound)
 	}
 
-	fs := statusForFile(tx, f)
-	return c.JSON(http.StatusOK, fs)
+	fs := statusForFile(f.DB, file)
+	return e.JSON(http.StatusOK, fs)
 }

@@ -3,22 +3,20 @@ package files
 import (
 	"net/http"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
-	"github.com/zqzca/back/db"
-	"github.com/zqzca/back/models/file"
+
+	. "github.com/nullbio/sqlboiler/boil/qm"
 )
 
 // Read returns a JSON payload to the client
-func Read(c echo.Context) error {
-	slug := c.Param("slug")
-	f, err := file.FindBySlug(db.Connection, slug)
-
-	spew.Dump(f)
+func (f FileController) Read(e echo.Context) error {
+	slug := e.Param("slug")
+	file, err := models.Files(f.DB, Where("slug=$1", slug)).One()
 
 	if err != nil {
-		return c.NoContent(http.StatusNotFound)
+		return e.NoContent(http.StatusNotFound)
 	}
 
-	return c.JSON(http.StatusOK, f)
+	return e.JSON(http.StatusOK, file)
 }

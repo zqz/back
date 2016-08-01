@@ -1,39 +1,40 @@
 package files
 
 import (
-	"fmt"
 	"net/http"
 
-	"github.com/zqzca/back/db"
-	"github.com/zqzca/back/models/file"
-	"github.com/zqzca/back/models/thumbnail"
 	"github.com/zqzca/echo"
 )
 
 // Process builds thumbnails
-func Process(c echo.Context) error {
-	fmt.Println("processing")
-	go func() {
-		fmt.Println("inprocessing")
+func (f FileController) Process(e echo.Context) error {
+	f.Debug("processing")
 
-		fileID := c.Param("id")
-		f, err := file.FindByID(db.Connection, fileID)
+	//go func() {
+	//f.Debug("inprocessing")
 
-		if f.State == file.Processing {
-			fmt.Println("file already being processed")
-			return
-		}
+	//fileID := c.Param("id")
+	//file, err := file.FindByID(db.Connection, fileID)
 
-		if err != nil {
-			fmt.Println("failed to find file", err)
-			return
-		}
+	//if file.State == Processing {
+	//	f.Debug("file already being processed")
+	//	return
+	//}
 
-		tx := db.StartTransaction()
-		thumbnail.DeleteByFileID(tx, f.ID)
-		f.Process(tx)
-		tx.Commit()
-	}()
+	//if err != nil {
+	//	f.Debug("failed to find file", "err", err)
+	//	return
+	//}
 
-	return c.NoContent(http.StatusOK)
+	//tx, err := boil.Begin()
+	//if err != nil {
+	//	f.Debug("couldn't open transaction", "err", err)
+	//	return
+	//}
+	//err := models.Thumbnails(Where("file_id=$1", f.ID)).DeleteAll()
+	//// f.Process(tx) TODO(dylanj): Models derp derp derp
+	//tx.Commit()
+	//}()
+
+	return e.NoContent(http.StatusOK)
 }
