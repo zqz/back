@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pkg/errors"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
@@ -130,6 +131,11 @@ func checkFinished(fid string) {
 	required_chunks := f.Chunks
 
 	if completed_chunks == required_chunks {
+		err = FileCompleter(f)
+
+		if err != nil {
+			return errors.Wrap(err, "Failed to complete file")
+		}
 		// fmt.Println("processing")
 		// tx := Begin()
 		// // f.Process(tx)
