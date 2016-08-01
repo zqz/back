@@ -89,8 +89,7 @@ func main() {
 	v1.Get("/thumbnails/:id", thumbnails.Download)
 
 	// Chunks
-	v1.Post("/files/:file_id/chunks/:chunk_id", chunks.Write)
-	v1.Get("/files/:file_id/chunks/:chunk_id", chunks.Read)
+	v1.Post("/files/:file_id/chunks/:chunk_id/:hash", chunks.Write)
 
 	// Users
 	v1.Post("/users", users.Create)

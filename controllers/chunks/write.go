@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/lib"
@@ -29,21 +28,13 @@ func Write(c echo.Context) error {
 		return c.NoContent(http.StatusRequestEntityTooLarge)
 	}
 
-	tx := db.StartTransaction()
-
 	fileID := c.Param("file_id")
-	chunkID, err := strconv.ParseInt(c.Param("chunk_id"), 10, 16)
-
-	if err != nil {
-		fmt.Println("Can not parse chunk id", c.Param("chunk_id"))
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
 	if !fileExists(tx, fileID) {
 		return c.NoContent(http.StatusNotFound)
 	}
 
-	if chunkExists(tx, fileID, int(chunkID)) {
+	clientHash := c.Param("hash")
+	if chunkExists(tx, fileID, clientHash) {
 		return c.NoContent(http.StatusConflict)
 	}
 
@@ -63,6 +54,11 @@ func Write(c echo.Context) error {
 	fmt.Println("Size:", b.Size())
 	fmt.Println("Hash:", hash)
 
+	if hash != clientHash {
+		return c.NoContent(422) // Unprocessable Entity
+	}
+
+	tx := db.StartTransaction()
 	// Destination file
 	dstPath := filepath.Join("files", "chunks", hash)
 
@@ -97,8 +93,8 @@ func fileExists(ex db.Executor, fid string) bool {
 	return err == nil
 }
 
-func chunkExists(ex db.Executor, fid string, cid int) bool {
-	return chunk.HaveChunkForFile(ex, fid, cid)
+func chunkExists(ex db.Executor, fid string, hash string) bool {
+	return chunk.HaveChunkForFileWithHash(ex, fid, hash)
 }
 
 func storeChunk(src io.Reader, path string) (int, error) {
