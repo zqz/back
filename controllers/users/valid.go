@@ -3,23 +3,25 @@ package users
 import (
 	"net/http"
 
+	"github.com/labstack/gommon/log"
+	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
-	"github.com/zqzca/back/db"
-	"github.com/zqzca/back/models/user"
+
+	. "github.com/nullbio/sqlboiler/boil/qm"
 )
 
-type UserError struct {
-	Msg string `json:"error"`
-}
+func (u UsersController) ValidateUsername(e echo.Context) error {
+	name := e.Param("name")
 
-func Valid(c echo.Context) error {
-	tx := db.StartTransaction()
-	defer tx.Rollback()
-	name := c.Param("name")
-
-	if user.UsernameFree(tx, name) {
-		return c.NoContent(http.StatusOK)
-	} else {
-		return c.NoContent(http.StatusNotAcceptable)
+	count, err := models.Users(u.DB, Where("username=$1", name)).Count()
+	if err != nil {
+		log.Error("failed to get user from db", "err", err)
+		return e.NoContent(http.StatusInternalServerError)
 	}
+
+	if count > 0 {
+		return e.NoContent(http.StatusNotAcceptable)
+	}
+
+	return e.NoContent(http.StatusOK)
 }

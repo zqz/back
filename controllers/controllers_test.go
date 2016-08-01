@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 
+	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
-	"github.com/zqzca/back/models/user"
 )
 
 func request(method string, path string, jsonRequest string) (*httptest.ResponseRecorder, *echo.Context) {
@@ -32,8 +32,8 @@ func post(r string) (*httptest.ResponseRecorder, *echo.Context) {
 	return request("POST", "/", r)
 }
 
-func CreateUser(tx *sql.Tx, username string, password string) *user.User {
-	u := &user.User{
+func CreateUser(tx *sql.Tx, username string, password string) *models.User {
+	u := &models.User{
 		FirstName: "Tester",
 		LastName:  "McTesterson",
 		Email:     "foo@bar.com",

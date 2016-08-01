@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/zqzca/back/models"
-	"github.com/zqzca/back/models/user"
 )
 
 func CreateSessionRequest(username string, password string) string {
@@ -20,7 +19,7 @@ func TestSessionCreateValid(t *testing.T) {
 	db, err := models.Connection()
 	a := assert.New(t)
 
-	u := &user.User{
+	u := &models.User{
 		Username: "foo",
 		Password: "bar",
 	}
@@ -36,7 +35,7 @@ func TestSessionCreateValid(t *testing.T) {
 
 	a.Equal(http.StatusCreated, res.Code)
 
-	u = &user.User{}
+	u = &models.User{}
 	json.NewDecoder(res.Body).Decode(u)
 
 	// Should return User struct

@@ -9,7 +9,6 @@ import (
 	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
-	"github.com/zqzca/back/models/user"
 )
 
 func TestUserCreateValid(t *testing.T) {
@@ -17,7 +16,7 @@ func TestUserCreateValid(t *testing.T) {
 	db.TxWrapper(func(tx *sql.Tx) {
 		a := assert.New(t)
 
-		u := &user.User{
+		u := &models.User{
 			Username:  "foo",
 			Password:  "bar",
 			Email:     "foo@bar.com",

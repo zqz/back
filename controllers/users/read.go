@@ -1,18 +1,19 @@
 package users
 
-import "github.com/zqzca/echo"
+import (
+	"net/http"
 
-func Read(c echo.Context) error {
-	// tx := StartTransaction()
-	// defer tx.Rollback()
-	// id := GetParam(c, "id")
+	"github.com/zqzca/back/models"
+	"github.com/zqzca/echo"
+)
 
-	// if u, err := user.FindByID(tx, id); err != nil {
-	// 	errors := &UserError{err.Error()}
-	// 	return c.JSON(http.StatusOK, u)
-	// 	return c.JSON(http.StatusNotFound, errors)
-	// } else {
-	// 	return c.JSON(http.StatusOK, u)
-	// }
-	return nil
+func (u UsersController) Read(e echo.Context) error {
+	id := e.Param("id")
+
+	user, err := models.UserFind(u.DB, id)
+	if err != nil {
+		return err
+	}
+
+	return e.JSON(http.StatusOK, user)
 }
