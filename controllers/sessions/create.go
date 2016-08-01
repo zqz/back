@@ -3,32 +3,43 @@ package sessions
 import (
 	"net/http"
 
+	"golang.org/x/crypto/bcrypt"
+
+	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
-	"github.com/zqzca/back/db"
-	"github.com/zqzca/back/models/user"
+
+	. "github.com/nullbio/sqlboiler/boil/qm"
 )
 
-type session struct {
+const (
+	bcryptCost = bcrypt.MinCost
+)
+
+var (
+	errInvalidCredentials = []byte(`{"err":"invalid credentials"}`)
+)
+
+type userSession struct {
 	Username string
 	Password string
 }
 
-type sessionError struct {
-	Msg string `json:"error"`
-}
+func (s SessionsController) Create(e echo.Context) error {
+	session := &userSession{}
 
-func Create(c echo.Context) error {
-	s := &session{}
-
-	if err := c.Bind(s); err != nil {
+	if err := e.Bind(s); err != nil {
 		return err
 	}
 
-	if user.ValidCredentials(db.Connection, s.Username, s.Password) {
-		u, _ := user.FindByUsername(db.Connection, s.Username)
-		return c.JSON(http.StatusCreated, u)
-	} else {
-		errors := &sessionError{"Invalid Credentials"}
-		return c.JSON(http.StatusUnauthorized, errors)
+	user, err := models.Users(s.DB, Select("hash"), Where("username=$1", session.Username)).One()
+	if err != nil {
+		s.Error("failed to fetch user", "err", err)
+		return e.NoContent(http.StatusInternalServerError)
 	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Hash), []byte(session.Password)); err != nil {
+		return e.JSONBlob(http.StatusUnauthorized, errInvalidCredentials)
+	}
+
+	return e.NoContent(http.StatusOK)
 }
