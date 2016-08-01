@@ -233,7 +233,7 @@ func Chunks(mods ...qm.QueryMod) chunkQuery {
 
 // ChunksX retrieves all the records using an executor.
 func ChunksX(exec boil.Executor, mods ...qm.QueryMod) chunkQuery {
-	mods = append(mods, qm.Table("chunks"))
+	mods = append(mods, qm.From("chunks"))
 	return chunkQuery{NewQueryX(exec, mods...)}
 }
 
@@ -259,7 +259,7 @@ func ChunkFindX(exec boil.Executor, id string, selectCols ...string) (*Chunk, er
 
 	mods := []qm.QueryMod{
 		qm.Select(selectCols...),
-		qm.Table("chunks"),
+		qm.From("chunks"),
 		qm.Where(`"id"=$1`, id),
 	}
 
@@ -513,7 +513,7 @@ func (o *Chunk) DeleteX(exec boil.Executor) error {
 	var mods []qm.QueryMod
 
 	mods = append(mods,
-		qm.Table("chunks"),
+		qm.From("chunks"),
 		qm.Where(`"id"=$1`, o.ID),
 	)
 
@@ -587,7 +587,7 @@ func (o ChunkSlice) DeleteAllX(exec boil.Executor) error {
 	in := boil.WherePrimaryKeyIn(len(o), "id")
 
 	mods = append(mods,
-		qm.Table("chunks"),
+		qm.From("chunks"),
 		qm.Where(in, args...),
 	)
 

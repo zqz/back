@@ -13,7 +13,7 @@ import (
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
 
-	. "github.com/nullbio/sqlboiler/boil"
+	. "github.com/nullbio/sqlboiler/boil/qm"
 )
 
 func Write(e echo.Context) error {
@@ -130,9 +130,9 @@ func checkFinished(fid string) {
 	required_chunks := f.Chunks
 
 	if completed_chunks == required_chunks {
-		fmt.Println("processing")
-		tx := Begin()
-		f.Process(tx)
-		tx.Commit()
+		// fmt.Println("processing")
+		// tx := Begin()
+		// // f.Process(tx)
+		// tx.Commit()
 	}
 }

@@ -192,7 +192,7 @@ func Users(mods ...qm.QueryMod) userQuery {
 
 // UsersX retrieves all the records using an executor.
 func UsersX(exec boil.Executor, mods ...qm.QueryMod) userQuery {
-	mods = append(mods, qm.Table("users"))
+	mods = append(mods, qm.From("users"))
 	return userQuery{NewQueryX(exec, mods...)}
 }
 
@@ -218,7 +218,7 @@ func UserFindX(exec boil.Executor, id string, selectCols ...string) (*User, erro
 
 	mods := []qm.QueryMod{
 		qm.Select(selectCols...),
-		qm.Table("users"),
+		qm.From("users"),
 		qm.Where(`"id"=$1`, id),
 	}
 
@@ -472,7 +472,7 @@ func (o *User) DeleteX(exec boil.Executor) error {
 	var mods []qm.QueryMod
 
 	mods = append(mods,
-		qm.Table("users"),
+		qm.From("users"),
 		qm.Where(`"id"=$1`, o.ID),
 	)
 
@@ -546,7 +546,7 @@ func (o UserSlice) DeleteAllX(exec boil.Executor) error {
 	in := boil.WherePrimaryKeyIn(len(o), "id")
 
 	mods = append(mods,
-		qm.Table("users"),
+		qm.From("users"),
 		qm.Where(in, args...),
 	)
 

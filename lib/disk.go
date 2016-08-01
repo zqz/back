@@ -2,11 +2,11 @@ package lib
 
 import (
 	"os"
-	"path"
+	"path/filepath"
 )
 
 func LocalPath(hash string) string {
-	return path.Join("files", hash)
+	return filepath.Join("files", hash)
 }
 
 func ExistsOnDisk(hash string) bool {

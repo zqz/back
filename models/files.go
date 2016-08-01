@@ -310,7 +310,7 @@ func Files(mods ...qm.QueryMod) fileQuery {
 
 // FilesX retrieves all the records using an executor.
 func FilesX(exec boil.Executor, mods ...qm.QueryMod) fileQuery {
-	mods = append(mods, qm.Table("files"))
+	mods = append(mods, qm.From("files"))
 	return fileQuery{NewQueryX(exec, mods...)}
 }
 
@@ -336,7 +336,7 @@ func FileFindX(exec boil.Executor, id string, selectCols ...string) (*File, erro
 
 	mods := []qm.QueryMod{
 		qm.Select(selectCols...),
-		qm.Table("files"),
+		qm.From("files"),
 		qm.Where(`"id"=$1`, id),
 	}
 
@@ -590,7 +590,7 @@ func (o *File) DeleteX(exec boil.Executor) error {
 	var mods []qm.QueryMod
 
 	mods = append(mods,
-		qm.Table("files"),
+		qm.From("files"),
 		qm.Where(`"id"=$1`, o.ID),
 	)
 
@@ -664,7 +664,7 @@ func (o FileSlice) DeleteAllX(exec boil.Executor) error {
 	in := boil.WherePrimaryKeyIn(len(o), "id")
 
 	mods = append(mods,
-		qm.Table("files"),
+		qm.From("files"),
 		qm.Where(in, args...),
 	)
 

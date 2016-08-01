@@ -363,7 +363,7 @@ func TestThumbnailsCount(t *testing.T) {
 	thumbnailsDeleteAllRows(t)
 }
 
-var thumbnailDBTypes = map[string]string{"ID": "uuid", "FileID": "uuid", "Size": "integer", "Hash": "text", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone"}
+var thumbnailDBTypes = map[string]string{"UpdatedAt": "timestamp without time zone", "ID": "uuid", "FileID": "uuid", "Size": "integer", "Hash": "text", "CreatedAt": "timestamp without time zone"}
 
 func thumbnailCompareVals(o *Thumbnail, j *Thumbnail, t *testing.T) {
 	if j.ID != o.ID {

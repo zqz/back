@@ -232,7 +232,7 @@ func Thumbnails(mods ...qm.QueryMod) thumbnailQuery {
 
 // ThumbnailsX retrieves all the records using an executor.
 func ThumbnailsX(exec boil.Executor, mods ...qm.QueryMod) thumbnailQuery {
-	mods = append(mods, qm.Table("thumbnails"))
+	mods = append(mods, qm.From("thumbnails"))
 	return thumbnailQuery{NewQueryX(exec, mods...)}
 }
 
@@ -258,7 +258,7 @@ func ThumbnailFindX(exec boil.Executor, id string, selectCols ...string) (*Thumb
 
 	mods := []qm.QueryMod{
 		qm.Select(selectCols...),
-		qm.Table("thumbnails"),
+		qm.From("thumbnails"),
 		qm.Where(`"id"=$1`, id),
 	}
 
@@ -512,7 +512,7 @@ func (o *Thumbnail) DeleteX(exec boil.Executor) error {
 	var mods []qm.QueryMod
 
 	mods = append(mods,
-		qm.Table("thumbnails"),
+		qm.From("thumbnails"),
 		qm.Where(`"id"=$1`, o.ID),
 	)
 
@@ -586,7 +586,7 @@ func (o ThumbnailSlice) DeleteAllX(exec boil.Executor) error {
 	in := boil.WherePrimaryKeyIn(len(o), "id")
 
 	mods = append(mods,
-		qm.Table("thumbnails"),
+		qm.From("thumbnails"),
 		qm.Where(in, args...),
 	)
 
