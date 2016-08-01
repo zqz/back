@@ -13,9 +13,9 @@ import (
 // File is an object representing the database table.
 type File struct {
 	ID        string    `db:"file_id" json:"id"`
-	Size      int32     `db:"file_size" json:"size"`
-	NumChunks int32     `db:"file_num_chunks" json:"num_chunks"`
-	State     int32     `db:"file_state" json:"state"`
+	Size      int       `db:"file_size" json:"size"`
+	NumChunks int       `db:"file_num_chunks" json:"num_chunks"`
+	State     int       `db:"file_state" json:"state"`
 	Name      string    `db:"file_name" json:"name"`
 	Hash      string    `db:"file_hash" json:"hash"`
 	Type      string    `db:"file_type" json:"type"`

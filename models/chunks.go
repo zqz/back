@@ -14,9 +14,9 @@ import (
 type Chunk struct {
 	ID        string    `db:"chunk_id" json:"id"`
 	FileID    string    `db:"chunk_file_id" json:"file_id"`
-	Size      int32     `db:"chunk_size" json:"size"`
+	Size      int       `db:"chunk_size" json:"size"`
 	Hash      string    `db:"chunk_hash" json:"hash"`
-	Position  int32     `db:"chunk_position" json:"position"`
+	Position  int       `db:"chunk_position" json:"position"`
 	CreatedAt time.Time `db:"chunk_created_at" json:"created_at"`
 	UpdatedAt time.Time `db:"chunk_updated_at" json:"updated_at"`
 }

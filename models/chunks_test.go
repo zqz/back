@@ -363,7 +363,7 @@ func TestChunksCount(t *testing.T) {
 	chunksDeleteAllRows(t)
 }
 
-var chunkDBTypes = map[string]string{"CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "ID": "uuid", "FileID": "uuid", "Size": "integer", "Hash": "text", "Position": "integer"}
+var chunkDBTypes = map[string]string{"ID": "uuid", "FileID": "uuid", "Size": "integer", "Hash": "text", "Position": "integer", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone"}
 
 func chunkCompareVals(o *Chunk, j *Chunk, t *testing.T) {
 	if j.ID != o.ID {

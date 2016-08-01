@@ -15,7 +15,7 @@ import (
 type Thumbnail struct {
 	ID        string      `db:"thumbnail_id" json:"id"`
 	FileID    null.String `db:"thumbnail_file_id" json:"file_id"`
-	Size      null.Int32  `db:"thumbnail_size" json:"size"`
+	Size      null.Int    `db:"thumbnail_size" json:"size"`
 	Hash      null.String `db:"thumbnail_hash" json:"hash"`
 	CreatedAt time.Time   `db:"thumbnail_created_at" json:"created_at"`
 	UpdatedAt time.Time   `db:"thumbnail_updated_at" json:"updated_at"`

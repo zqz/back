@@ -363,7 +363,7 @@ func TestUsersCount(t *testing.T) {
 	usersDeleteAllRows(t)
 }
 
-var userDBTypes = map[string]string{"LastName": "character varying", "Email": "character varying", "CreatedAt": "timestamp without time zone", "Banned": "boolean", "ID": "uuid", "Username": "character varying", "Phone": "character varying", "UpdatedAt": "timestamp without time zone", "FirstName": "character varying"}
+var userDBTypes = map[string]string{"LastName": "character varying", "Phone": "character varying", "Email": "character varying", "FirstName": "character varying", "Username": "character varying", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "Banned": "boolean", "ID": "uuid"}
 
 func userCompareVals(o *User, j *User, t *testing.T) {
 	if j.ID != o.ID {
