@@ -9,40 +9,40 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/lib"
-	"github.com/zqzca/back/models/chunk"
-	"github.com/zqzca/back/models/file"
+	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
+
+	. "github.com/nullbio/sqlboiler/boil"
 )
 
-func Write(c echo.Context) error {
-	req := c.Request()
+func Write(e echo.Context) error {
+	req := e.Request()
 	length := req.ContentLength()
 
 	if length == 0 {
-		return c.NoContent(http.StatusLengthRequired)
+		return e.NoContent(http.StatusLengthRequired)
 	}
 
 	if length > 5*1024*1024 {
-		return c.NoContent(http.StatusRequestEntityTooLarge)
+		return e.NoContent(http.StatusRequestEntityTooLarge)
 	}
 
-	fileID := c.Param("file_id")
-	if !fileExists(tx, fileID) {
-		return c.NoContent(http.StatusNotFound)
+	fileID := e.Param("file_id")
+	if !fileExists(fileID) {
+		return e.NoContent(http.StatusNotFound)
 	}
 
-	clientHash := c.Param("hash")
-	if chunkExists(tx, fileID, clientHash) {
-		return c.NoContent(http.StatusConflict)
+	clientHash := e.Param("hash")
+	if chunkExists(fileID, clientHash) {
+		return e.NoContent(http.StatusConflict)
 	}
 
 	// Actually read file.
 	buf, err := ioutil.ReadAll(req.Body())
 
 	if err != nil {
-		return c.NoContent(http.StatusBadRequest)
+		return e.NoContent(http.StatusBadRequest)
 	}
 
 	b := bytes.NewReader(buf)
@@ -55,46 +55,41 @@ func Write(c echo.Context) error {
 	fmt.Println("Hash:", hash)
 
 	if hash != clientHash {
-		return c.NoContent(422) // Unprocessable Entity
+		return e.NoContent(422) // Unprocessable Entity
 	}
 
-	tx := db.StartTransaction()
 	// Destination file
 	dstPath := filepath.Join("files", "chunks", hash)
 
 	var size int
 	if size, err = storeChunk(b, dstPath); err != nil {
 		fmt.Println("failed to store chunk:", err)
-		return c.NoContent(http.StatusInternalServerError)
+		return e.NoContent(http.StatusInternalServerError)
 	}
 
-	chnk := &chunk.Chunk{
+	c := &models.Chunk{
 		FileID:   fileID,
 		Position: int(chunkID),
 		Size:     size,
 		Hash:     hash,
 	}
 
-	err = chnk.Create(tx)
+	err = c.Insert()
 	if err != nil {
-		return c.NoContent(http.StatusInternalServerError)
+		return e.NoContent(http.StatusInternalServerError)
 	}
-
-	tx.Commit()
 
 	go checkFinished(fileID)
 
-	return c.NoContent(http.StatusCreated)
+	return e.NoContent(http.StatusCreated)
 }
 
-func fileExists(ex db.Executor, fid string) bool {
-	_, err := file.FindByID(ex, fid)
-
-	return err == nil
+func fileExists(fid string) bool {
+	return models.Files(Where("file_id=$1", fid)).Count() > 0
 }
 
-func chunkExists(ex db.Executor, fid string, hash string) bool {
-	return chunk.HaveChunkForFileWithHash(ex, fid, hash)
+func chunkExists(fid string, hash string) bool {
+	return models.Chunks(Where("file_id=$1 and hash=$2", fid, hash)).Count() > 0
 }
 
 func storeChunk(src io.Reader, path string) (int, error) {
@@ -117,26 +112,26 @@ func storeChunk(src io.Reader, path string) (int, error) {
 }
 
 func checkFinished(fid string) {
-	chunks, err := chunk.FindByFileID(db.Connection, fid)
+	chunks, err := models.Chunks(Where("file_id=$1", fid)).All()
 
 	if err != nil {
 		fmt.Println("Failed to query for all chunks with file id:", fid)
 		return
 	}
 
-	f, err := file.FindByID(db.Connection, fid)
+	f, err := models.FileFind(fid)
 
 	if err != nil {
 		fmt.Println("Failed to query for file", err)
 		return
 	}
 
-	completed_chunks := len(*chunks)
+	completed_chunks := len(chunks)
 	required_chunks := f.Chunks
 
 	if completed_chunks == required_chunks {
 		fmt.Println("processing")
-		tx := db.StartTransaction()
+		tx := Begin()
 		f.Process(tx)
 		tx.Commit()
 	}
