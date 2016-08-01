@@ -15,7 +15,7 @@ import (
 type File struct {
 	ID        string      `db:"file_id" json:"id"`
 	Size      null.Int32  `db:"file_size" json:"size"`
-	Chunks    null.Int32  `db:"file_chunks" json:"chunks"`
+	NumChunks null.Int32  `db:"file_num_chunks" json:"num_chunks"`
 	State     null.Int32  `db:"file_state" json:"state"`
 	Name      null.String `db:"file_name" json:"name"`
 	Hash      null.String `db:"file_hash" json:"hash"`
@@ -26,8 +26,8 @@ type File struct {
 }
 
 var (
-	fileColumns                  = []string{"id", "size", "chunks", "state", "name", "hash", "type", "created_at", "updated_at", "slug"}
-	fileColumnsWithoutDefault    = []string{"size", "chunks", "state", "name", "hash", "type", "created_at", "updated_at"}
+	fileColumns                  = []string{"id", "size", "num_chunks", "state", "name", "hash", "type", "created_at", "updated_at", "slug"}
+	fileColumnsWithoutDefault    = []string{"size", "num_chunks", "state", "name", "hash", "type", "created_at", "updated_at"}
 	fileColumnsWithDefault       = []string{"id", "slug"}
 	fileColumnsWithSimpleDefault = []string{}
 	filePrimaryKeyColumns        = []string{"id"}
@@ -392,7 +392,7 @@ func (o *File) InsertX(exec boil.Executor, whitelist ...string) error {
 		ins = ins + fmt.Sprintf(` RETURNING %s`, strings.Join(returnColumns, ","))
 		err = exec.QueryRow(ins, boil.GetStructValues(o, wl...)...).Scan(boil.GetStructPointers(o, returnColumns...)...)
 	} else {
-		_, err = exec.Exec(ins, o.ID, o.Size, o.Chunks, o.State, o.Name, o.Hash, o.Type, o.CreatedAt, o.UpdatedAt, o.Slug)
+		_, err = exec.Exec(ins, o.ID, o.Size, o.NumChunks, o.State, o.Name, o.Hash, o.Type, o.CreatedAt, o.UpdatedAt, o.Slug)
 	}
 
 	if boil.DebugMode {

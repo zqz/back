@@ -363,7 +363,7 @@ func TestFilesCount(t *testing.T) {
 	filesDeleteAllRows(t)
 }
 
-var fileDBTypes = map[string]string{"Name": "text", "Hash": "text", "UpdatedAt": "timestamp without time zone", "Size": "integer", "State": "integer", "Type": "text", "CreatedAt": "timestamp without time zone", "Slug": "text", "ID": "uuid", "Chunks": "integer"}
+var fileDBTypes = map[string]string{"Hash": "text", "UpdatedAt": "timestamp without time zone", "Slug": "text", "Size": "integer", "NumChunks": "integer", "State": "integer", "Name": "text", "ID": "uuid", "Type": "text", "CreatedAt": "timestamp without time zone"}
 
 func fileCompareVals(o *File, j *File, t *testing.T) {
 	if j.ID != o.ID {
@@ -374,8 +374,8 @@ func fileCompareVals(o *File, j *File, t *testing.T) {
 		t.Errorf("Expected size columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Size, j.Size)
 	}
 
-	if j.Chunks != o.Chunks {
-		t.Errorf("Expected chunks columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Chunks, j.Chunks)
+	if j.NumChunks != o.NumChunks {
+		t.Errorf("Expected num_chunks columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.NumChunks, j.NumChunks)
 	}
 
 	if j.State != o.State {
@@ -552,7 +552,7 @@ func TestFilesInsert(t *testing.T) {
 		}
 	}
 
-	regularCols := []string{"size", "chunks", "state", "name", "hash", "type", "created_at", "updated_at"}
+	regularCols := []string{"size", "num_chunks", "state", "name", "hash", "type", "created_at", "updated_at"}
 
 	// Ensure the non-defaultvalue columns and non-autoincrement columns are stored correctly as zero or null values.
 	for _, c := range regularCols {

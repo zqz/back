@@ -67,8 +67,8 @@ func disableTriggers() error {
 	var stmts []string
 
 	stmts = append(stmts, `ALTER TABLE goose_db_version DISABLE TRIGGER ALL;`)
-	stmts = append(stmts, `ALTER TABLE users DISABLE TRIGGER ALL;`)
 	stmts = append(stmts, `ALTER TABLE files DISABLE TRIGGER ALL;`)
+	stmts = append(stmts, `ALTER TABLE users DISABLE TRIGGER ALL;`)
 	stmts = append(stmts, `ALTER TABLE chunks DISABLE TRIGGER ALL;`)
 	stmts = append(stmts, `ALTER TABLE thumbnails DISABLE TRIGGER ALL;`)
 
