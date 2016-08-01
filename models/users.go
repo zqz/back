@@ -18,14 +18,15 @@ type User struct {
 	Username  string    `db:"user_username" json:"username"`
 	Phone     string    `db:"user_phone" json:"phone"`
 	Email     string    `db:"user_email" json:"email"`
+	Hash      string    `db:"user_hash" json:"hash"`
 	CreatedAt time.Time `db:"user_created_at" json:"created_at"`
 	UpdatedAt time.Time `db:"user_updated_at" json:"updated_at"`
 	Banned    bool      `db:"user_banned" json:"banned"`
 }
 
 var (
-	userColumns                  = []string{"id", "first_name", "last_name", "username", "phone", "email", "created_at", "updated_at", "banned"}
-	userColumnsWithoutDefault    = []string{"first_name", "last_name", "username", "phone", "email", "created_at", "updated_at"}
+	userColumns                  = []string{"id", "first_name", "last_name", "username", "phone", "email", "hash", "created_at", "updated_at", "banned"}
+	userColumnsWithoutDefault    = []string{"first_name", "last_name", "username", "phone", "email", "hash", "created_at", "updated_at"}
 	userColumnsWithDefault       = []string{"id", "banned"}
 	userColumnsWithSimpleDefault = []string{"banned"}
 	userPrimaryKeyColumns        = []string{"id"}
@@ -272,7 +273,7 @@ func (o *User) Insert(exec boil.Executor, whitelist ...string) error {
 		ins = ins + fmt.Sprintf(` RETURNING %s`, strings.Join(returnColumns, ","))
 		err = exec.QueryRow(ins, boil.GetStructValues(o, wl...)...).Scan(boil.GetStructPointers(o, returnColumns...)...)
 	} else {
-		_, err = exec.Exec(ins, o.ID, o.FirstName, o.LastName, o.Username, o.Phone, o.Email, o.CreatedAt, o.UpdatedAt, o.Banned)
+		_, err = exec.Exec(ins, o.ID, o.FirstName, o.LastName, o.Username, o.Phone, o.Email, o.Hash, o.CreatedAt, o.UpdatedAt, o.Banned)
 	}
 
 	if boil.DebugMode {

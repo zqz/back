@@ -363,7 +363,7 @@ func TestFilesCount(t *testing.T) {
 	filesDeleteAllRows(t)
 }
 
-var fileDBTypes = map[string]string{"Size": "integer", "Type": "text", "CreatedAt": "timestamp without time zone", "Hash": "text", "UpdatedAt": "timestamp without time zone", "Slug": "text", "ID": "uuid", "NumChunks": "integer", "State": "integer", "Name": "text"}
+var fileDBTypes = map[string]string{"Hash": "text", "Type": "text", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "Slug": "text", "ID": "uuid", "Name": "text", "State": "integer", "Size": "integer", "NumChunks": "integer"}
 
 func fileCompareVals(o *File, j *File, t *testing.T) {
 	if j.ID != o.ID {

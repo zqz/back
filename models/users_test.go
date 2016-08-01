@@ -363,7 +363,7 @@ func TestUsersCount(t *testing.T) {
 	usersDeleteAllRows(t)
 }
 
-var userDBTypes = map[string]string{"LastName": "character varying", "Phone": "character varying", "Email": "character varying", "FirstName": "character varying", "Username": "character varying", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "Banned": "boolean", "ID": "uuid"}
+var userDBTypes = map[string]string{"Banned": "boolean", "Username": "character varying", "Email": "character varying", "Hash": "character varying", "Phone": "character varying", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "ID": "uuid", "FirstName": "character varying", "LastName": "character varying"}
 
 func userCompareVals(o *User, j *User, t *testing.T) {
 	if j.ID != o.ID {
@@ -388,6 +388,10 @@ func userCompareVals(o *User, j *User, t *testing.T) {
 
 	if j.Email != o.Email {
 		t.Errorf("Expected email columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Email, j.Email)
+	}
+
+	if j.Hash != o.Hash {
+		t.Errorf("Expected hash columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Hash, j.Hash)
 	}
 
 	if o.CreatedAt.Format("02/01/2006") != j.CreatedAt.Format("02/01/2006") {
@@ -548,7 +552,7 @@ func TestUsersInsert(t *testing.T) {
 		}
 	}
 
-	regularCols := []string{"first_name", "last_name", "username", "phone", "email", "created_at", "updated_at"}
+	regularCols := []string{"first_name", "last_name", "username", "phone", "email", "hash", "created_at", "updated_at"}
 
 	// Ensure the non-defaultvalue columns and non-autoincrement columns are stored correctly as zero or null values.
 	for _, c := range regularCols {
