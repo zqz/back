@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/nullbio/sqlboiler/boil"
+	"github.com/vattle/sqlboiler/boil"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
 
-	. "github.com/nullbio/sqlboiler/boil/qm"
+	. "github.com/vattle/sqlboiler/boil/qm"
 )
 
 type fileStatus struct {

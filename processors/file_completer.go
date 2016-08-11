@@ -2,17 +2,18 @@ package processors
 
 import (
 	"github.com/pkg/errors"
+	"github.com/zqzca/back/controllers"
 	"github.com/zqzca/back/models"
 )
 
 // CompleteFile builds the file from chunks and then generates thumbnails
-func CompleteFile(f *models.File) error {
-	reader, err := BuildFile(f)
+func CompleteFile(deps controllers.Dependencies, f *models.File) error {
+	reader, err := BuildFile(deps, f)
 	if err != nil {
 		return errors.Wrap(err, "Failed to complete building file")
 	}
 
-	thumbHash, thumbSize, err := CreateThumbnail(reader)
+	thumbHash, thumbSize, err := CreateThumbnail(deps, reader)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create thumbnail")
 	}
@@ -23,7 +24,7 @@ func CompleteFile(f *models.File) error {
 		FileID: f.ID,
 	}
 
-	t.Insert()
+	t.Insert(deps.DB)
 
 	return nil
 }

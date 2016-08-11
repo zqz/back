@@ -5,28 +5,29 @@ import (
 	"fmt"
 	"image"
 	"io"
-	"io/ioutil"
-	"os"
 
 	"github.com/disintegration/imaging"
+	"github.com/spf13/afero"
+	"github.com/zqzca/back/controllers"
 	"github.com/zqzca/back/lib"
 )
 
-func CreateThumbnail(r io.Reader) (*Thumbnail, int, error) {
+func CreateThumbnail(deps controllers.Dependencies, r io.Reader) (string, int, error) {
 	raw, format, err := image.Decode(r)
 
 	fmt.Println("format:", format)
 
 	if err != nil {
 		fmt.Println("failed to decode image", err)
-		return nil, 0, err
+		return "", 0, err
 	}
 
-	tmpFile, err := ioutil.TempFile("", "thumbnail")
+	fs := deps.Fs
+	tmpFile, err := afero.TempFile(fs, "", "thumbnail")
 
 	// Make sure we close.
 	closeTmpFile := func() {
-		if tmpFile {
+		if tmpFile != nil {
 			tmpFile.Close()
 			tmpFile = nil
 		}
@@ -36,48 +37,47 @@ func CreateThumbnail(r io.Reader) (*Thumbnail, int, error) {
 
 	if err != nil {
 		fmt.Println("Failed to create temp file", err)
-		return nil, 0, err
+		return "", 0, err
 	}
 
 	h := sha1.New()
-	wc := new(writeCounter)
+	var wc writeCounter
 	mw := io.MultiWriter(tmpFile, h, wc)
 
 	dst := imaging.Fill(raw, 200, 200, imaging.Center, imaging.Lanczos)
 	err = imaging.Encode(mw, dst, imaging.JPEG)
 	if err != nil {
 		fmt.Println("failed to encode data", err)
-		return nil, 0, err
+		return "", 0, err
 	}
-
-	// hash, err := lib.Hash(b)
-	// if hash != f.Hash {
-	// 	// return errors
-	// }
 
 	closeTmpFile()
-	hash := h.Sum(nil)
+	hash := fmt.Sprintf("%x", h.Sum(nil))
+
+	deps.Debug("Thumbnail hash", hash)
 	newPath := lib.LocalPath(hash)
 
-	err = os.Rename(tmpFile.Name(), newPath)
-
+	err = fs.Rename(tmpFile.Name(), newPath)
 	if err != nil {
 		fmt.Println("Failed to rename file!?", err)
-		return nil, 0, err
+		// Todo delete file
+		return hash, int(wc), err
 	}
 
-	err = os.Chmod(newPath, 0644)
+	err = fs.Chmod(newPath, 0644)
 	if err != nil {
 		fmt.Println("Failed to set permissions on", newPath, err)
+		// Todo delete file
+		return hash, int(wc), err
 	}
 
-	return hash, wc, nil
+	return hash, int(wc), nil
 }
 
 type writeCounter int64
 
-func (w *writeCounter) Write(b []byte) (int, error) {
-	*w += int64(len(b))
+func (w writeCounter) Write(b []byte) (int, error) {
+	w += writeCounter(len(b))
 
 	return len(b), nil
 }

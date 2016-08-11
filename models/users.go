@@ -6,29 +6,40 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nullbio/sqlboiler/boil"
-	"github.com/nullbio/sqlboiler/boil/qm"
+	"github.com/vattle/sqlboiler/boil"
+	"github.com/vattle/sqlboiler/boil/qm"
+	"github.com/vattle/sqlboiler/strmangle"
 )
 
 // User is an object representing the database table.
 type User struct {
-	ID        string    `db:"user_id" json:"id"`
-	FirstName string    `db:"user_first_name" json:"first_name"`
-	LastName  string    `db:"user_last_name" json:"last_name"`
-	Username  string    `db:"user_username" json:"username"`
-	Phone     string    `db:"user_phone" json:"phone"`
-	Email     string    `db:"user_email" json:"email"`
-	Hash      string    `db:"user_hash" json:"hash"`
-	CreatedAt time.Time `db:"user_created_at" json:"created_at"`
-	UpdatedAt time.Time `db:"user_updated_at" json:"updated_at"`
-	Banned    bool      `db:"user_banned" json:"banned"`
+	ID        string    `boil:"id" json:"id" toml:"id" yaml:"id"`
+	FirstName string    `boil:"first_name" json:"first_name" toml:"first_name" yaml:"first_name"`
+	LastName  string    `boil:"last_name" json:"last_name" toml:"last_name" yaml:"last_name"`
+	Username  string    `boil:"username" json:"username" toml:"username" yaml:"username"`
+	Phone     string    `boil:"phone" json:"phone" toml:"phone" yaml:"phone"`
+	Email     string    `boil:"email" json:"email" toml:"email" yaml:"email"`
+	Hash      string    `boil:"hash" json:"hash" toml:"hash" yaml:"hash"`
+	CreatedAt time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	Banned    bool      `boil:"banned" json:"banned" toml:"banned" yaml:"banned"`
+
+	//Relationships *UserRelationships `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
+
+// UserRelationships are where relationships are both cached
+// and eagerly loaded.
+type UserRelationships struct {
+}
+
 
 var (
 	userColumns                  = []string{"id", "first_name", "last_name", "username", "phone", "email", "hash", "created_at", "updated_at", "banned"}
 	userColumnsWithoutDefault    = []string{"first_name", "last_name", "username", "phone", "email", "hash", "created_at", "updated_at"}
 	userColumnsWithDefault       = []string{"id", "banned"}
 	userColumnsWithSimpleDefault = []string{"banned"}
+	userValidatedColumns         = []string{"id"}
+	userUniqueColumns            = []string{"username"}
 	userPrimaryKeyColumns        = []string{"id"}
 	userAutoIncrementColumns     = []string{}
 	userAutoIncPrimaryKey        = ""
@@ -45,8 +56,10 @@ type (
 
 var userBeforeCreateHooks []UserHook
 var userBeforeUpdateHooks []UserHook
+var userBeforeUpsertHooks []UserHook
 var userAfterCreateHooks []UserHook
 var userAfterUpdateHooks []UserHook
+var userAfterUpsertHooks []UserHook
 
 // doBeforeCreateHooks executes all "before create" hooks.
 func (o *User) doBeforeCreateHooks() (err error) {
@@ -62,6 +75,17 @@ func (o *User) doBeforeCreateHooks() (err error) {
 // doBeforeUpdateHooks executes all "before Update" hooks.
 func (o *User) doBeforeUpdateHooks() (err error) {
 	for _, hook := range userBeforeUpdateHooks {
+		if err := hook(o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doBeforeUpsertHooks executes all "before Upsert" hooks.
+func (o *User) doBeforeUpsertHooks() (err error) {
+	for _, hook := range userBeforeUpsertHooks {
 		if err := hook(o); err != nil {
 			return err
 		}
@@ -92,32 +116,32 @@ func (o *User) doAfterUpdateHooks() (err error) {
 	return nil
 }
 
+// doAfterUpsertHooks executes all "after Upsert" hooks.
+func (o *User) doAfterUpsertHooks() (err error) {
+	for _, hook := range userAfterUpsertHooks {
+		if err := hook(o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func UserAddHook(hookPoint boil.HookPoint, userHook UserHook) {
 	switch hookPoint {
 	case boil.HookBeforeCreate:
 		userBeforeCreateHooks = append(userBeforeCreateHooks, userHook)
 	case boil.HookBeforeUpdate:
 		userBeforeUpdateHooks = append(userBeforeUpdateHooks, userHook)
+	case boil.HookBeforeUpsert:
+		userBeforeUpsertHooks = append(userBeforeUpsertHooks, userHook)
 	case boil.HookAfterCreate:
 		userAfterCreateHooks = append(userAfterCreateHooks, userHook)
 	case boil.HookAfterUpdate:
 		userAfterUpdateHooks = append(userAfterUpdateHooks, userHook)
+	case boil.HookAfterUpsert:
+		userAfterUpsertHooks = append(userAfterUpsertHooks, userHook)
 	}
-}
-
-// One returns a single user record from the query.
-func (q userQuery) One() (*User, error) {
-	o := &User{}
-
-	boil.SetLimit(q.Query, 1)
-
-	res := boil.ExecQueryOne(q.Query)
-	err := boil.BindOne(res, boil.Select(q.Query), o)
-	if err != nil {
-		return nil, fmt.Errorf("models: failed to execute a one query for users: %s", err)
-	}
-
-	return o, nil
 }
 
 // OneP returns a single user record from the query, and panics on error.
@@ -130,19 +154,15 @@ func (q userQuery) OneP() *User {
 	return o
 }
 
-// All returns all User records from the query.
-func (q userQuery) All() (UserSlice, error) {
-	var o UserSlice
+// One returns a single user record from the query.
+func (q userQuery) One() (*User, error) {
+	o := &User{}
 
-	res, err := boil.ExecQueryAll(q.Query)
-	if err != nil {
-		return nil, fmt.Errorf("models: failed to execute an all query for users: %s", err)
-	}
-	defer res.Close()
+	boil.SetLimit(q.Query, 1)
 
-	err = boil.BindAll(res, boil.Select(q.Query), &o)
+	err := q.Bind(o)
 	if err != nil {
-		return nil, fmt.Errorf("models: failed to assign all query results to User slice: %s", err)
+		return nil, fmt.Errorf("models: failed to execute a one query for users: %s", err)
 	}
 
 	return o, nil
@@ -156,6 +176,28 @@ func (q userQuery) AllP() UserSlice {
 	}
 
 	return o
+}
+
+// All returns all User records from the query.
+func (q userQuery) All() (UserSlice, error) {
+	var o UserSlice
+
+	err := q.Bind(&o)
+	if err != nil {
+		return nil, fmt.Errorf("models: failed to assign all query results to User slice: %s", err)
+	}
+
+	return o, nil
+}
+
+// CountP returns the count of all User records in the query, and panics on error.
+func (q userQuery) CountP() int64 {
+	c, err := q.Count()
+	if err != nil {
+		panic(boil.WrapErr(err))
+	}
+
+	return c
 }
 
 // Count returns the count of all User records in the query.
@@ -172,14 +214,29 @@ func (q userQuery) Count() (int64, error) {
 	return count, nil
 }
 
-// CountP returns the count of all User records in the query, and panics on error.
-func (q userQuery) CountP() int64 {
-	c, err := q.Count()
+// Exists checks if the row exists in the table, and panics on error.
+func (q userQuery) ExistsP() bool {
+	e, err := q.Exists()
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
 
-	return c
+	return e
+}
+
+// Exists checks if the row exists in the table.
+func (q userQuery) Exists() (bool, error) {
+	var count int64
+
+	boil.SetCount(q.Query)
+	boil.SetLimit(q.Query, 1)
+
+	err := boil.ExecQueryOne(q.Query).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("models: failed to check if users exists: %s", err)
+	}
+
+	return count > 0, nil
 }
 
 
@@ -203,28 +260,30 @@ func UserFindG(id string, selectCols ...string) (*User, error) {
 
 // UserFindGP retrieves a single record by ID, and panics on error.
 func UserFindGP(id string, selectCols ...string) *User {
-	o, err := UserFind(boil.GetDB(), id, selectCols...)
+	retobj, err := UserFind(boil.GetDB(), id, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
 
-	return o
+	return retobj
 }
 
 // UserFind retrieves a single record by ID with an executor.
+// If selectCols is empty Find will return all columns.
 func UserFind(exec boil.Executor, id string, selectCols ...string) (*User, error) {
 	user := &User{}
 
-	mods := []qm.QueryMod{
-		qm.Select(selectCols...),
-		qm.From("users"),
-		qm.Where(`"id"=$1`, id),
+	sel := "*"
+	if len(selectCols) > 0 {
+		sel = strings.Join(strmangle.IdentQuoteSlice(selectCols), ",")
 	}
+	sql := fmt.Sprintf(
+		`select %s from "users" where "id"=$1`, sel,
+	)
+	q := boil.SQL(sql, id)
+	boil.SetExecutor(q, exec)
 
-	q := NewQuery(exec, mods...)
-
-	err := boil.ExecQueryOne(q).Scan(boil.GetStructPointers(user, selectCols...)...)
-
+	err := q.Bind(user)
 	if err != nil {
 		return nil, fmt.Errorf("models: unable to select from users: %v", err)
 	}
@@ -234,27 +293,40 @@ func UserFind(exec boil.Executor, id string, selectCols ...string) (*User, error
 
 // UserFindP retrieves a single record by ID with an executor, and panics on error.
 func UserFindP(exec boil.Executor, id string, selectCols ...string) *User {
-	o, err := UserFind(exec, id, selectCols...)
+	retobj, err := UserFind(exec, id, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
 
-	return o
+	return retobj
 }
 
-// InsertG a single record.
+// InsertG a single record. See Insert for whitelist behavior description.
 func (o *User) InsertG(whitelist ...string) error {
 	return o.Insert(boil.GetDB(), whitelist...)
 }
 
-// InsertGP a single record, and panics on error.
+// InsertGP a single record, and panics on error. See Insert for whitelist
+// behavior description.
 func (o *User) InsertGP(whitelist ...string) {
 	if err := o.Insert(boil.GetDB(), whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
+// InsertP a single record using an executor, and panics on error. See Insert
+// for whitelist behavior description.
+func (o *User) InsertP(exec boil.Executor, whitelist ...string) {
+	if err := o.Insert(exec, whitelist...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
 // Insert a single record using an executor.
+// Whitelist behavior: If a whitelist is provided, only those columns supplied are inserted
+// No whitelist behavior: Without a whitelist, columns are inferred by the following rules:
+// - All columns without a default value are inferred (i.e. name, age)
+// - All columns with a default, but non-zero are inferred (i.e. health = 75)
 func (o *User) Insert(exec boil.Executor, whitelist ...string) error {
 	if o == nil {
 		return errors.New("models: no users provided for insertion")
@@ -267,7 +339,7 @@ func (o *User) Insert(exec boil.Executor, whitelist ...string) error {
 		return err
 	}
 
-	ins := fmt.Sprintf(`INSERT INTO users ("%s") VALUES (%s)`, strings.Join(wl, `","`), boil.GenerateParamFlags(len(wl), 1))
+	ins := fmt.Sprintf(`INSERT INTO users ("%s") VALUES (%s)`, strings.Join(wl, `","`), strmangle.Placeholders(len(wl), 1, 1))
 
 	if len(returnColumns) != 0 {
 		ins = ins + fmt.Sprintf(` RETURNING %s`, strings.Join(returnColumns, ","))
@@ -277,7 +349,8 @@ func (o *User) Insert(exec boil.Executor, whitelist ...string) error {
 	}
 
 	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, ins, boil.GetStructValues(o, wl...))
+		fmt.Fprintln(boil.DebugWriter, ins)
+		fmt.Fprintln(boil.DebugWriter, boil.GetStructValues(o, wl...))
 	}
 
 	if err != nil {
@@ -291,23 +364,26 @@ func (o *User) Insert(exec boil.Executor, whitelist ...string) error {
 	return nil
 }
 
-// InsertP a single record using an executor, and panics on error.
-func (o *User) InsertP(exec boil.Executor, whitelist ...string) {
-	if err := o.Insert(exec, whitelist...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
 // generateInsertColumns generates the whitelist columns and return columns for an insert statement
+// the return columns are used to get values that are assigned within the database during the
+// insert to keep the struct in sync with what's in the db.
+// with a whitelist:
+// - the whitelist is used for the insert columns
+// - the return columns are the result of (columns with default values - the whitelist)
+// without a whitelist:
+// - start with columns without a default as these always need to be inserted
+// - add all columns that have a default in the database but that are non-zero in the struct
+// - the return columns are the result of (columns with default values - the previous set)
 func (o *User) generateInsertColumns(whitelist ...string) ([]string, []string) {
+	if len(whitelist) > 0 {
+		return whitelist, boil.SetComplement(userColumnsWithDefault, whitelist)
+	}
+
 	var wl []string
 
-	wl = append(wl, whitelist...)
-	if len(whitelist) == 0 {
-		wl = append(wl, userColumnsWithoutDefault...)
-	}
+	wl = append(wl, userColumnsWithoutDefault...)
 
-	wl = append(boil.NonZeroDefaultSet(userColumnsWithDefault, o), wl...)
+	wl = boil.SetMerge(boil.NonZeroDefaultSet(userColumnsWithDefault, o), wl)
 	wl = boil.SortByKeys(userColumns, wl)
 
 	// Only return the columns with default values that are not in the insert whitelist
@@ -317,50 +393,36 @@ func (o *User) generateInsertColumns(whitelist ...string) ([]string, []string) {
 }
 
 
-// UpdateG a single User record.
-// UpdateG takes a whitelist of column names that should be updated.
-// The primary key will be used to find the record to update.
+// UpdateG a single User record. See Update for
+// whitelist behavior description.
 func (o *User) UpdateG(whitelist ...string) error {
 	return o.Update(boil.GetDB(), whitelist...)
 }
 
 // UpdateGP a single User record.
 // UpdateGP takes a whitelist of column names that should be updated.
-// The primary key will be used to find the record to update.
-// Panics on error.
+// Panics on error. See Update for whitelist behavior description.
 func (o *User) UpdateGP(whitelist ...string) {
 	if err := o.Update(boil.GetDB(), whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// Update uses an executor to update the User.
-func (o *User) Update(exec boil.Executor, whitelist ...string) error {
-	return o.UpdateAt(exec, o.ID, whitelist...)
-}
-
 // UpdateP uses an executor to update the User, and panics on error.
+// See Update for whitelist behavior description.
 func (o *User) UpdateP(exec boil.Executor, whitelist ...string) {
-	err := o.UpdateAt(exec, o.ID, whitelist...)
+	err := o.Update(exec, whitelist...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// UpdateAtG updates the User using the primary key to find the row to update.
-func (o *User) UpdateAtG(id string, whitelist ...string) error {
-	return o.UpdateAt(boil.GetDB(), id, whitelist...)
-}
-
-// UpdateAtGP updates the User using the primary key to find the row to update. Panics on error.
-func (o *User) UpdateAtGP(id string, whitelist ...string) {
-	if err := o.UpdateAt(boil.GetDB(), id, whitelist...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// UpdateAt uses an executor to update the User using the primary key to find the row to update.
-func (o *User) UpdateAt(exec boil.Executor, id string, whitelist ...string) error {
+// Update uses an executor to update the User.
+// Whitelist behavior: If a whitelist is provided, only the columns given are updated.
+// No whitelist behavior: Without a whitelist, columns are inferred by the following rules:
+// - All columns are inferred to start with
+// - All primary keys are subtracted from this set
+func (o *User) Update(exec boil.Executor, whitelist ...string) error {
 	if err := o.doBeforeUpdateHooks(); err != nil {
 		return err
 	}
@@ -372,7 +434,7 @@ func (o *User) UpdateAt(exec boil.Executor, id string, whitelist ...string) erro
 	wl := o.generateUpdateColumns(whitelist...)
 
 	if len(wl) != 0 {
-		query = fmt.Sprintf(`UPDATE users SET %s WHERE %s`, boil.SetParamNames(wl), boil.WherePrimaryKey(len(wl)+1, "id"))
+		query = fmt.Sprintf(`UPDATE users SET %s WHERE %s`, strmangle.SetParamNames(wl), strmangle.WhereClause(len(wl)+1, userPrimaryKeyColumns))
 		values = boil.GetStructValues(o, wl...)
 		values = append(values, o.ID)
 		_, err = exec.Exec(query, values...)
@@ -396,15 +458,14 @@ func (o *User) UpdateAt(exec boil.Executor, id string, whitelist ...string) erro
 	return nil
 }
 
-// UpdateAtP uses an executor to update the User using the primary key to find the row to update.
-// Panics on error.
-func (o *User) UpdateAtP(exec boil.Executor, id string, whitelist ...string) {
-	if err := o.UpdateAt(exec, id, whitelist...); err != nil {
+// UpdateAllP updates all rows with matching column names, and panics on error.
+func (q userQuery) UpdateAllP(cols M) {
+	if err := q.UpdateAll(cols); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// UpdateAll updates all rows with matching column names.
+// UpdateAll updates all rows with the specified column values.
 func (q userQuery) UpdateAll(cols M) error {
 	boil.SetUpdate(q.Query, cols)
 
@@ -416,30 +477,208 @@ func (q userQuery) UpdateAll(cols M) error {
 	return nil
 }
 
-// UpdateAllP updates all rows with matching column names, and panics on error.
-func (q userQuery) UpdateAllP(cols M) {
-	if err := q.UpdateAll(cols); err != nil {
+// UpdateAllG updates all rows with the specified column values.
+func (o UserSlice) UpdateAllG(cols M) error {
+	return o.UpdateAll(boil.GetDB(), cols)
+}
+
+// UpdateAllGP updates all rows with the specified column values, and panics on error.
+func (o UserSlice) UpdateAllGP(cols M) {
+	if err := o.UpdateAll(boil.GetDB(), cols); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
+// UpdateAllP updates all rows with the specified column values, and panics on error.
+func (o UserSlice) UpdateAllP(exec boil.Executor, cols M) {
+	if err := o.UpdateAll(exec, cols); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// UpdateAll updates all rows with the specified column values, using an executor.
+func (o UserSlice) UpdateAll(exec boil.Executor, cols M) error {
+	if o == nil {
+		return errors.New("models: no User slice provided for update all")
+	}
+
+	if len(o) == 0 {
+		return nil
+	}
+
+	colNames := make([]string, len(cols))
+	var args []interface{}
+
+	count := 0
+	for name, value := range cols {
+		colNames[count] = strmangle.IdentQuote(name)
+		args = append(args, value)
+		count++
+	}
+
+	// Append all of the primary key values for each column
+	args = append(args, o.inPrimaryKeyArgs()...)
+
+	sql := fmt.Sprintf(
+		`UPDATE users SET (%s) = (%s) WHERE (%s) IN (%s)`,
+		strings.Join(colNames, ", "),
+		strmangle.Placeholders(len(colNames), 1, 1),
+		strings.Join(strmangle.IdentQuoteSlice(userPrimaryKeyColumns), ","),
+		strmangle.Placeholders(len(o)*len(userPrimaryKeyColumns), len(colNames)+1, len(userPrimaryKeyColumns)),
+	)
+
+	q := boil.SQL(sql, args...)
+	boil.SetExecutor(q, exec)
+
+	_, err := boil.ExecQuery(q)
+	if err != nil {
+		return fmt.Errorf("models: unable to update all in user slice: %s", err)
+	}
+
+	return nil
+}
+
 // generateUpdateColumns generates the whitelist columns for an update statement
+// if a whitelist is supplied, it's returned
+// if a whitelist is missing then we begin with all columns
+// then we remove the primary key columns
 func (o *User) generateUpdateColumns(whitelist ...string) []string {
 	if len(whitelist) != 0 {
 		return whitelist
 	}
 
-	var wl []string
-	cols := userColumnsWithoutDefault
-	cols = append(boil.NonZeroDefaultSet(userColumnsWithDefault, o), cols...)
-	// Subtract primary keys and autoincrement columns
-	cols = boil.SetComplement(cols, userPrimaryKeyColumns)
-	cols = boil.SetComplement(cols, userAutoIncrementColumns)
+	return boil.SetComplement(userColumns, userPrimaryKeyColumns)
+}
 
-	wl = make([]string, len(cols))
-	copy(wl, cols)
+// UpsertG attempts an insert, and does an update or ignore on conflict.
+func (o *User) UpsertG(update bool, conflictColumns []string, updateColumns []string, whitelist ...string) error {
+	return o.Upsert(boil.GetDB(), update, conflictColumns, updateColumns, whitelist...)
+}
 
-	return wl
+// UpsertGP attempts an insert, and does an update or ignore on conflict. Panics on error.
+func (o *User) UpsertGP(update bool, conflictColumns []string, updateColumns []string, whitelist ...string) {
+	if err := o.Upsert(boil.GetDB(), update, conflictColumns, updateColumns, whitelist...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// UpsertP attempts an insert using an executor, and does an update or ignore on conflict.
+// UpsertP panics on error.
+func (o *User) UpsertP(exec boil.Executor, update bool, conflictColumns []string, updateColumns []string, whitelist ...string) {
+	if err := o.Upsert(exec, update, conflictColumns, updateColumns, whitelist...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// Upsert attempts an insert using an executor, and does an update or ignore on conflict.
+func (o *User) Upsert(exec boil.Executor, update bool, conflictColumns []string, updateColumns []string, whitelist ...string) error {
+	if o == nil {
+		return errors.New("models: no users provided for upsert")
+	}
+
+	columns := o.generateUpsertColumns(conflictColumns, updateColumns, whitelist)
+	query := o.generateUpsertQuery(update, columns)
+
+	var err error
+	if err := o.doBeforeUpsertHooks(); err != nil {
+		return err
+	}
+
+	if len(columns.returning) != 0 {
+		err = exec.QueryRow(query, boil.GetStructValues(o, columns.whitelist...)...).Scan(boil.GetStructPointers(o, columns.returning...)...)
+	} else {
+		_, err = exec.Exec(query, o.ID, o.FirstName, o.LastName, o.Username, o.Phone, o.Email, o.Hash, o.CreatedAt, o.UpdatedAt, o.Banned)
+	}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, boil.GetStructValues(o, columns.whitelist...))
+	}
+
+	if err != nil {
+		return fmt.Errorf("models: unable to upsert for users: %s", err)
+	}
+
+	if err := o.doAfterUpsertHooks(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// generateUpsertColumns builds an upsertData object, using generated values when necessary.
+func (o *User) generateUpsertColumns(conflict []string, update []string, whitelist []string) upsertData {
+	var upsertCols upsertData
+
+	upsertCols.whitelist, upsertCols.returning = o.generateInsertColumns(whitelist...)
+
+	upsertCols.conflict = make([]string, len(conflict))
+	upsertCols.update = make([]string, len(update))
+
+	// generates the ON CONFLICT() columns if none are provided
+	upsertCols.conflict = o.generateConflictColumns(conflict...)
+
+	// generate the UPDATE SET columns if none are provided
+	upsertCols.update = o.generateUpdateColumns(update...)
+
+	return upsertCols
+}
+
+// generateConflictColumns returns the user provided columns.
+// If no columns are provided, it returns the primary key columns.
+func (o *User) generateConflictColumns(columns ...string) []string {
+	if len(columns) != 0 {
+		return columns
+	}
+
+	c := make([]string, len(userPrimaryKeyColumns))
+	copy(c, userPrimaryKeyColumns)
+
+	return c
+}
+
+// generateUpsertQuery builds a SQL statement string using the upsertData provided.
+func (o *User) generateUpsertQuery(update bool, columns upsertData) string {
+	var set, query string
+
+	conflict := strmangle.IdentQuoteSlice(columns.conflict)
+	whitelist := strmangle.IdentQuoteSlice(columns.whitelist)
+	returning := strmangle.IdentQuoteSlice(columns.returning)
+
+	var sets []string
+	// Generate the UPDATE SET clause
+	for _, v := range columns.update {
+		quoted := strmangle.IdentQuote(v)
+		sets = append(sets, fmt.Sprintf("%s = EXCLUDED.%s", quoted, quoted))
+	}
+	set = strings.Join(sets, ", ")
+
+	query = fmt.Sprintf(
+		"INSERT INTO users (%s) VALUES (%s) ON CONFLICT",
+		strings.Join(whitelist, ", "),
+		strmangle.Placeholders(len(whitelist), 1, 1),
+	)
+
+	if !update {
+		query = query + " DO NOTHING"
+	} else {
+		query = fmt.Sprintf("%s (%s) DO UPDATE SET %s", query, strings.Join(conflict, ", "), set)
+	}
+
+	if len(columns.returning) != 0 {
+		query = fmt.Sprintf("%s RETURNING %s", query, strings.Join(returning, ", "))
+	}
+
+	return query
+}
+
+// DeleteP deletes a single User record with an executor.
+// DeleteP will match against the primary key column to find the record to delete.
+// Panics on error.
+func (o *User) DeleteP(exec boil.Executor) {
+	if err := o.Delete(exec); err != nil {
+		panic(boil.WrapErr(err))
+	}
 }
 
 // DeleteG deletes a single User record.
@@ -486,36 +725,27 @@ func (o *User) Delete(exec boil.Executor) error {
 	return nil
 }
 
-// DeleteP deletes a single User record with an executor.
-// DeleteP will match against the primary key column to find the record to delete.
-// Panics on error.
-func (o *User) DeleteP(exec boil.Executor) {
-	if err := o.Delete(exec); err != nil {
+// DeleteAllP deletes all rows, and panics on error.
+func (q userQuery) DeleteAllP() {
+	if err := q.DeleteAll(); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// DeleteAll deletes all rows.
-func (o userQuery) DeleteAll() error {
-	if o.Query == nil {
+// DeleteAll deletes all matching rows.
+func (q userQuery) DeleteAll() error {
+	if q.Query == nil {
 		return errors.New("models: no userQuery provided for delete all")
 	}
 
-	boil.SetDelete(o.Query)
+	boil.SetDelete(q.Query)
 
-	_, err := boil.ExecQuery(o.Query)
+	_, err := boil.ExecQuery(q.Query)
 	if err != nil {
 		return fmt.Errorf("models: unable to delete all from users: %s", err)
 	}
 
 	return nil
-}
-
-// DeleteAllP deletes all rows, and panics on error.
-func (o userQuery) DeleteAllP() {
-	if err := o.DeleteAll(); err != nil {
-		panic(boil.WrapErr(err))
-	}
 }
 
 // DeleteAll deletes all rows in the slice, and panics on error.
@@ -533,41 +763,181 @@ func (o UserSlice) DeleteAllG() error {
 	return o.DeleteAll(boil.GetDB())
 }
 
-// DeleteAll deletes all rows in the slice with an executor.
+// DeleteAllP deletes all rows in the slice, using an executor, and panics on error.
+func (o UserSlice) DeleteAllP(exec boil.Executor) {
+	if err := o.DeleteAll(exec); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// DeleteAll deletes all rows in the slice, using an executor.
 func (o UserSlice) DeleteAll(exec boil.Executor) error {
 	if o == nil {
 		return errors.New("models: no User slice provided for delete all")
 	}
 
-	var mods []qm.QueryMod
+	if len(o) == 0 {
+		return nil
+	}
 
 	args := o.inPrimaryKeyArgs()
-	in := boil.WherePrimaryKeyIn(len(o), "id")
 
-	mods = append(mods,
-		qm.From("users"),
-		qm.Where(in, args...),
+	sql := fmt.Sprintf(
+		`DELETE FROM users WHERE (%s) IN (%s)`,
+		strings.Join(strmangle.IdentQuoteSlice(userPrimaryKeyColumns), ","),
+		strmangle.Placeholders(len(o)*len(userPrimaryKeyColumns), 1, len(userPrimaryKeyColumns)),
 	)
 
-	query := NewQuery(exec, mods...)
-	boil.SetDelete(query)
+	q := boil.SQL(sql, args...)
+	boil.SetExecutor(q, exec)
 
-	_, err := boil.ExecQuery(query)
+	_, err := boil.ExecQuery(q)
 	if err != nil {
 		return fmt.Errorf("models: unable to delete all from user slice: %s", err)
 	}
+
 	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, sql)
 		fmt.Fprintln(boil.DebugWriter, args)
 	}
 
 	return nil
 }
 
-// DeleteAllP deletes all rows in the slice with an executor, and panics on error.
-func (o UserSlice) DeleteAllP(exec boil.Executor) {
-	if err := o.DeleteAll(exec); err != nil {
+// ReloadGP refetches the object from the database and panics on error.
+func (o *User) ReloadGP() {
+	if err := o.ReloadG(); err != nil {
 		panic(boil.WrapErr(err))
 	}
+}
+
+// ReloadP refetches the object from the database with an executor. Panics on error.
+func (o *User) ReloadP(exec boil.Executor) {
+	if err := o.Reload(exec); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// ReloadG refetches the object from the database using the primary keys.
+func (o *User) ReloadG() error {
+	if o == nil {
+		return errors.New("models: no User provided for reload")
+	}
+
+	return o.Reload(boil.GetDB())
+}
+
+// Reload refetches the object from the database
+// using the primary keys with an executor.
+func (o *User) Reload(exec boil.Executor) error {
+	ret, err := UserFind(exec, o.ID)
+	if err != nil {
+		return err
+	}
+
+	*o = *ret
+	return nil
+}
+
+func (o *UserSlice) ReloadAllGP() {
+	if err := o.ReloadAllG(); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+func (o *UserSlice) ReloadAllP(exec boil.Executor) {
+	if err := o.ReloadAll(exec); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+func (o *UserSlice) ReloadAllG() error {
+	if o == nil {
+		return errors.New("models: empty UserSlice provided for reload all")
+	}
+
+	return o.ReloadAll(boil.GetDB())
+}
+
+// ReloadAll refetches every row with matching primary key column values
+// and overwrites the original object slice with the newly updated slice.
+func (o *UserSlice) ReloadAll(exec boil.Executor) error {
+	if o == nil {
+		return errors.New("models: no User slice provided for reload all")
+	}
+
+	if len(*o) == 0 {
+		return nil
+	}
+
+	users := UserSlice{}
+	args := o.inPrimaryKeyArgs()
+
+	sql := fmt.Sprintf(
+		`SELECT users.* FROM users WHERE (%s) IN (%s)`,
+		strings.Join(strmangle.IdentQuoteSlice(userPrimaryKeyColumns), ","),
+		strmangle.Placeholders(len(*o)*len(userPrimaryKeyColumns), 1, len(userPrimaryKeyColumns)),
+	)
+
+	q := boil.SQL(sql, args...)
+	boil.SetExecutor(q, exec)
+
+	err := q.Bind(&users)
+	if err != nil {
+		return fmt.Errorf("models: unable to reload all in UserSlice: %v", err)
+	}
+
+	*o = users
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, sql)
+		fmt.Fprintln(boil.DebugWriter, args)
+	}
+
+	return nil
+}
+
+
+// UserExists checks if the User row exists.
+func UserExists(exec boil.Executor, id string) (bool, error) {
+	var exists bool
+
+	row := exec.QueryRow(
+		`select exists(select 1 from "users" where "id"=$1 limit 1)`,
+		id,
+	)
+
+	err := row.Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("models: unable to check if users exists: %v", err)
+	}
+
+	return exists, nil
+}
+
+// UserExistsG checks if the User row exists.
+func UserExistsG(id string) (bool, error) {
+	return UserExists(boil.GetDB(), id)
+}
+
+// UserExistsGP checks if the User row exists. Panics on error.
+func UserExistsGP(id string) bool {
+	e, err := UserExists(boil.GetDB(), id)
+	if err != nil {
+		panic(boil.WrapErr(err))
+	}
+
+	return e
+}
+
+// UserExistsP checks if the User row exists. Panics on error.
+func UserExistsP(exec boil.Executor, id string) bool {
+	e, err := UserExists(exec, id)
+	if err != nil {
+		panic(boil.WrapErr(err))
+	}
+
+	return e
 }
 
 func (o User) inPrimaryKeyArgs() []interface{} {

@@ -39,10 +39,9 @@ func InitViper() error {
 		viper.AddConfigPath(p)
 	}
 
-	err = viper.ReadInConfig()
-	if err != nil {
-		return err
-	}
+	// Ignore errors here, fall back to defaults and validation to provide errs
+	_ = viper.ReadInConfig()
+	viper.AutomaticEnv()
 
 	return nil
 }

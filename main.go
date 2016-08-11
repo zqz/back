@@ -9,6 +9,9 @@ import (
 
 	"golang.org/x/net/http2"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/spf13/afero"
+	"github.com/zqzca/back/controllers"
 	"github.com/zqzca/back/controllers/chunks"
 	"github.com/zqzca/back/controllers/dashboard"
 	"github.com/zqzca/back/controllers/files"
@@ -49,7 +52,6 @@ func main() {
 
 	e := echo.New()
 
-	connect()
 	// Middleware
 	e.Use(middleware.Recover())
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
@@ -69,7 +71,6 @@ func main() {
 	// e.ServeDir("/assets", "assets")
 	// e.ServeFile("/", "assets/index.html")
 	// e.ServeFile("/favicon.ico", "assets/favicon.ico")
-	e.Get("/d/:slug", files.Download)
 
 	// api := e.Group("/api")
 	v1 := e.Group("/api/v1")
@@ -77,7 +78,22 @@ func main() {
 	// Route
 	// e.Get("/chunk/status", controllers.ChunkStatus)
 
+	db, err := lib.Connect()
+
+	if err != nil {
+		fmt.Printf("Failed to connect to db")
+		return
+	}
+
+	deps := controllers.Dependencies{
+		Fs:     afero.NewOsFs(),
+		Logger: logrus.New(),
+		DB:     db,
+	}
+
 	// Files
+	files := &files.FileController{deps}
+	e.Get("/d/:slug", files.Download)
 	v1.Get("/check/:hash", files.Status)
 	v1.Get("/files", files.Index)
 	v1.Get("/files/:slug", files.Read)
@@ -86,17 +102,21 @@ func main() {
 	v1.Post("/files/:id/process", files.Process)
 
 	// Thumbnail
-	v1.Get("/thumbnails/:id", thumbnails.Download)
+	thumbnails := thumbnails.ThumbnailsController{deps}
+	v1.Get("/thumbnails/:file_id", thumbnails.Download)
 
 	// Chunks
+	chunks := chunks.ChunkController{deps}
 	v1.Post("/files/:file_id/chunks/:chunk_id/:hash", chunks.Write)
 
 	// Users
+	users := users.UsersController{deps}
 	v1.Post("/users", users.Create)
-	v1.Get("/username/valid", users.Valid)
+	v1.Get("/username/valid", users.ValidateUsername)
 	v1.Get("/users/:id", users.Read)
 
 	// Sessions
+	sessions := sessions.SessionsController{deps}
 	v1.Post("/sessions", sessions.Create)
 
 	// P2P
@@ -154,8 +174,4 @@ func main() {
 
 	// Start server
 	e.Run(s)
-}
-
-func connect() error {
-	return lib.Connect()
 }

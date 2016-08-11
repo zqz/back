@@ -6,10 +6,9 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
-	"github.com/zqzca/back/db"
 )
 
-func Connect() error {
+func Connect() (*sqlx.DB, error) {
 	open := os.Getenv("DATABASE_URL")
 
 	if parsedURL, err := pq.ParseURL(open); err == nil && parsedURL != "" {
@@ -22,7 +21,5 @@ func Connect() error {
 		fmt.Println(err)
 	}
 
-	db.Connection = con
-
-	return err
+	return con, err
 }

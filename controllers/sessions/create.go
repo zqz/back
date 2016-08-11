@@ -8,7 +8,7 @@ import (
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
 
-	. "github.com/nullbio/sqlboiler/boil/qm"
+	. "github.com/vattle/sqlboiler/boil/qm"
 )
 
 const (
@@ -27,7 +27,7 @@ type userSession struct {
 func (s SessionsController) Create(e echo.Context) error {
 	session := &userSession{}
 
-	if err := e.Bind(s); err != nil {
+	if err := e.Bind(session); err != nil {
 		return err
 	}
 

@@ -4,15 +4,17 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 
+	. "github.com/vattle/sqlboiler/boil/qm"
+	"github.com/zqzca/back/controllers"
 	"github.com/zqzca/back/models"
 )
 
 // BuildFile builds a file from chunks.
-func BuildFile(f *models.File) (io.Reader, error) {
+func BuildFile(deps controllers.Dependencies, f *models.File) (io.Reader, error) {
 	chunks, err := models.Chunks(
+		deps.DB,
 		Where("file_id=$1", f.ID),
 		OrderBy("position asc"),
 	).All()
@@ -22,8 +24,9 @@ func BuildFile(f *models.File) (io.Reader, error) {
 		return nil, err
 	}
 
+	fs := deps.Fs
 	fullFilePath := filepath.Join("files", f.Hash)
-	fullFile, err = os.Create(fullFilePath)
+	fullFile, err := fs.Create(fullFilePath)
 	fullFileBuffer := &bytes.Buffer{}
 	defer fullFile.Close()
 
@@ -36,10 +39,10 @@ func BuildFile(f *models.File) (io.Reader, error) {
 
 	for _, c := range chunks {
 		path := filepath.Join("files", "chunks", c.Hash)
-		chunkData, err := os.Open(path)
+		chunkData, err := fs.Open(path)
 
-		n, err := io.Copy(mw, chunkData)
-		f.Close()
+		_, err = io.Copy(mw, chunkData)
+		chunkData.Close()
 
 		if err != nil {
 			fmt.Println("Failed to copy chunk to full file")
@@ -53,8 +56,8 @@ func BuildFile(f *models.File) (io.Reader, error) {
 		if err != nil {
 			fmt.Println("Failed to delete chunk entry:", c.ID)
 		}
-		os.Remove(path)
+		fs.Remove(path)
 	}
 
-	return fileDataBuffer, nil
+	return fullFileBuffer, nil
 }

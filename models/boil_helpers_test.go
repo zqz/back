@@ -8,7 +8,7 @@ import (
 	"math/rand"
 	"bytes"
 
-	"github.com/nullbio/sqlboiler/boil"
+	"github.com/vattle/sqlboiler/boil"
 )
 
 var dbNameRand *rand.Rand

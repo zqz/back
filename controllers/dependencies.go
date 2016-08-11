@@ -11,7 +11,7 @@ import (
 type Dependencies struct {
 	*logrus.Logger
 	*sqlx.DB
-	fs afero.Fs
+	afero.Fs
 }
 
 // Info provides log15 api over logrus

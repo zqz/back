@@ -4,11 +4,13 @@ import (
 	"testing"
 	"reflect"
 	"time"
+	"errors"
+	"fmt"
 
-	"gopkg.in/nullbio/null.v4"
-	"github.com/nullbio/sqlboiler/boil"
-	"github.com/nullbio/sqlboiler/boil/qm"
-	"github.com/nullbio/sqlboiler/strmangle"
+	"gopkg.in/vattle/null.v4"
+	"github.com/vattle/sqlboiler/boil"
+	"github.com/vattle/sqlboiler/boil/qm"
+	"github.com/vattle/sqlboiler/strmangle"
 )
 
 func TestThumbnails(t *testing.T) {
@@ -188,6 +190,57 @@ func TestThumbnailsDelete(t *testing.T) {
 	}
 }
 
+func TestThumbnailsExists(t *testing.T) {
+	var err error
+
+	o := Thumbnail{}
+	if err = boil.RandomizeStruct(&o, thumbnailDBTypes, true); err != nil {
+		t.Errorf("Unable to randomize Thumbnail struct: %s", err)
+	}
+
+	if err = o.InsertG(); err != nil {
+		t.Errorf("Unable to insert Thumbnail:\n%#v\nErr: %s", o, err)
+	}
+
+	// Check Exists finds existing rows
+	e, err := ThumbnailExistsG(o.ID)
+	if err != nil {
+		t.Errorf("Unable to check if Thumbnail exists: %s", err)
+	}
+	if e != true {
+		t.Errorf("Expected ThumbnailExistsG to return true, but got false.")
+	}
+
+	whereClause := strmangle.WhereClause(1, thumbnailPrimaryKeyColumns)
+	e, err = ThumbnailsG(qm.Where(whereClause, boil.GetStructValues(o, thumbnailPrimaryKeyColumns...)...)).Exists()
+	if err != nil {
+		t.Errorf("Unable to check if Thumbnail exists: %s", err)
+	}
+	if e != true {
+		t.Errorf("Expected ExistsG to return true, but got false.")
+	}
+
+	// Check Exists does not find non-existing rows
+	o = Thumbnail{}
+	e, err = ThumbnailExistsG(o.ID)
+	if err != nil {
+		t.Errorf("Unable to check if Thumbnail exists: %s", err)
+	}
+	if e != false {
+		t.Errorf("Expected ThumbnailExistsG to return false, but got true.")
+	}
+
+	e, err = ThumbnailsG(qm.Where(whereClause, boil.GetStructValues(o, thumbnailPrimaryKeyColumns...)...)).Exists()
+	if err != nil {
+		t.Errorf("Unable to check if Thumbnail exists: %s", err)
+	}
+	if e != false {
+		t.Errorf("Expected ExistsG to return false, but got true.")
+	}
+
+	thumbnailsDeleteAllRows(t)
+}
+
 func TestThumbnailsFind(t *testing.T) {
 	var err error
 
@@ -206,7 +259,10 @@ func TestThumbnailsFind(t *testing.T) {
 	// Perform all Find queries and assign result objects to slice for comparison
 	for i := 0; i < len(j); i++ {
 		j[i], err = ThumbnailFindG(o[i].ID)
-		thumbnailCompareVals(o[i], j[i], t)
+		err = thumbnailCompareVals(o[i], j[i], true)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 
 	f, err := ThumbnailFindG(o[0].ID, thumbnailPrimaryKeyColumns...)
@@ -246,7 +302,10 @@ func TestThumbnailsBind(t *testing.T) {
 		t.Errorf("Unable to call Bind on Thumbnail single object: %s", err)
 	}
 
-	thumbnailCompareVals(&o, &j, t)
+	err = thumbnailCompareVals(&o, &j, true)
+	if err != nil {
+		t.Error(err)
+	}
 
 	// insert 3 rows, attempt to bind into slice
 	thumbnailsDeleteAllRows(t)
@@ -275,7 +334,10 @@ func TestThumbnailsBind(t *testing.T) {
 	}
 
 	for i := 0; i < len(y); i++ {
-		thumbnailCompareVals(y[i], k[i], t)
+		err = thumbnailCompareVals(y[i], k[i], true)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 
 	thumbnailsDeleteAllRows(t)
@@ -298,7 +360,10 @@ func TestThumbnailsOne(t *testing.T) {
 		t.Errorf("Unable to fetch One Thumbnail result:\n#%v\nErr: %s", j, err)
 	}
 
-	thumbnailCompareVals(&o, j, t)
+	err = thumbnailCompareVals(&o, j, true)
+	if err != nil {
+		t.Error(err)
+	}
 
 	thumbnailsDeleteAllRows(t)
 }
@@ -329,7 +394,10 @@ func TestThumbnailsAll(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		thumbnailCompareVals(o[i], j[i], t)
+		err = thumbnailCompareVals(o[i], j[i], true)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 
 	thumbnailsDeleteAllRows(t)
@@ -363,32 +431,45 @@ func TestThumbnailsCount(t *testing.T) {
 	thumbnailsDeleteAllRows(t)
 }
 
-var thumbnailDBTypes = map[string]string{"Size": "integer", "Hash": "text", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "ID": "uuid", "FileID": "uuid"}
+var thumbnailDBTypes = map[string]string{"Hash": "text", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "ID": "uuid", "FileID": "uuid", "Size": "integer"}
 
-func thumbnailCompareVals(o *Thumbnail, j *Thumbnail, t *testing.T) {
-	if j.ID != o.ID {
-		t.Errorf("Expected id columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.ID, j.ID)
+func thumbnailCompareVals(o *Thumbnail, j *Thumbnail, equal bool, blacklist ...string) error {
+	if ((equal && j.ID != o.ID) ||
+		(!equal && j.ID == o.ID)) &&
+		!strmangle.HasElement("id", blacklist) {
+		return errors.New(fmt.Sprintf("Expected id columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.ID, j.ID))
 	}
 
-	if j.FileID != o.FileID {
-		t.Errorf("Expected file_id columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.FileID, j.FileID)
+	if ((equal && j.FileID != o.FileID) ||
+		(!equal && j.FileID == o.FileID)) &&
+		!strmangle.HasElement("file_id", blacklist) {
+		return errors.New(fmt.Sprintf("Expected file_id columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.FileID, j.FileID))
 	}
 
-	if j.Size != o.Size {
-		t.Errorf("Expected size columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Size, j.Size)
+	if ((equal && j.Size != o.Size) ||
+		(!equal && j.Size == o.Size)) &&
+		!strmangle.HasElement("size", blacklist) {
+		return errors.New(fmt.Sprintf("Expected size columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Size, j.Size))
 	}
 
-	if j.Hash != o.Hash {
-		t.Errorf("Expected hash columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Hash, j.Hash)
+	if ((equal && j.Hash != o.Hash) ||
+		(!equal && j.Hash == o.Hash)) &&
+		!strmangle.HasElement("hash", blacklist) {
+		return errors.New(fmt.Sprintf("Expected hash columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Hash, j.Hash))
 	}
 
-	if o.CreatedAt.Format("02/01/2006") != j.CreatedAt.Format("02/01/2006") {
-		t.Errorf("Expected Time created_at column string values to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.CreatedAt.Format("02/01/2006"), j.CreatedAt.Format("02/01/2006"))
+	if ((equal && o.CreatedAt.Format("02/01/2006") != j.CreatedAt.Format("02/01/2006")) ||
+		(!equal && o.CreatedAt.Format("02/01/2006") == j.CreatedAt.Format("02/01/2006"))) &&
+		!strmangle.HasElement("created_at", blacklist) {
+		return errors.New(fmt.Sprintf("Time created_at unexpected value, got:\nStruct: %#v\nResponse: %#v\n\n", o.CreatedAt.Format("02/01/2006"), j.CreatedAt.Format("02/01/2006")))
 	}
 
-	if o.UpdatedAt.Format("02/01/2006") != j.UpdatedAt.Format("02/01/2006") {
-		t.Errorf("Expected Time updated_at column string values to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.UpdatedAt.Format("02/01/2006"), j.UpdatedAt.Format("02/01/2006"))
+	if ((equal && o.UpdatedAt.Format("02/01/2006") != j.UpdatedAt.Format("02/01/2006")) ||
+		(!equal && o.UpdatedAt.Format("02/01/2006") == j.UpdatedAt.Format("02/01/2006"))) &&
+		!strmangle.HasElement("updated_at", blacklist) {
+		return errors.New(fmt.Sprintf("Time updated_at unexpected value, got:\nStruct: %#v\nResponse: %#v\n\n", o.UpdatedAt.Format("02/01/2006"), j.UpdatedAt.Format("02/01/2006")))
 	}
+	return nil
 }
 
 func TestThumbnailsInPrimaryKeyArgs(t *testing.T) {
@@ -500,14 +581,21 @@ func TestThumbnailsInsert(t *testing.T) {
 
 	j := make(ThumbnailSlice, 3)
 	// Perform all Find queries and assign result objects to slice for comparison
-	for i := 0; i < len(j); i++ {
+	for i := 0; i < len(o); i++ {
 		j[i], err = ThumbnailFindG(o[i].ID)
-		thumbnailCompareVals(o[i], j[i], t)
+		if err != nil {
+			t.Errorf("Unable to find Thumbnail row: %s", err)
+		}
+		err = thumbnailCompareVals(o[i], j[i], true)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 
 	thumbnailsDeleteAllRows(t)
 
 	item := &Thumbnail{}
+	boil.RandomizeValidatedStruct(item, thumbnailValidatedColumns, thumbnailDBTypes)
 	if err = item.InsertG(); err != nil {
 		t.Errorf("Unable to insert zero-value item Thumbnail:\n%#v\nErr: %s", item, err)
 	}
@@ -537,6 +625,9 @@ func TestThumbnailsInsert(t *testing.T) {
 	}
 
 	regularCols := []string{"file_id", "size", "hash", "created_at", "updated_at"}
+
+	// Remove the validated columns, they can never be zero values
+	regularCols = boil.SetComplement(regularCols, thumbnailValidatedColumns)
 
 	// Ensure the non-defaultvalue columns and non-autoincrement columns are stored correctly as zero or null values.
 	for _, c := range regularCols {
@@ -586,13 +677,12 @@ func TestThumbnailToOneFile_File(t *testing.T) {
 
 	var foreign File
 	var local Thumbnail
-	local.FileID.Valid = true
 
 	if err := foreign.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
 
-	local.FileID.String = foreign.ID
+	local.FileID = foreign.ID
 	if err := local.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
@@ -606,6 +696,101 @@ func TestThumbnailToOneFile_File(t *testing.T) {
 	}
 }
 
+
+func TestThumbnailsReload(t *testing.T) {
+	var err error
+
+	o := Thumbnail{}
+	if err = boil.RandomizeStruct(&o, thumbnailDBTypes, true); err != nil {
+		t.Errorf("Unable to randomize Thumbnail struct: %s", err)
+	}
+
+	if err = o.InsertG(); err != nil {
+		t.Errorf("Unable to insert Thumbnail:\n%#v\nErr: %s", o, err)
+	}
+
+	// Create another copy of the object
+	o1, err := ThumbnailFindG(o.ID)
+	if err != nil {
+		t.Errorf("Unable to find Thumbnail row.")
+	}
+
+	// Randomize the struct values again, except for the primary key values, so we can call update.
+	err = boil.RandomizeStruct(&o, thumbnailDBTypes, true, thumbnailPrimaryKeyColumns...)
+	if err != nil {
+		t.Errorf("Unable to randomize Thumbnail struct members excluding primary keys: %s", err)
+	}
+
+	colsWithoutPrimKeys := boil.SetComplement(thumbnailColumns, thumbnailPrimaryKeyColumns)
+
+	if err = o.UpdateG(colsWithoutPrimKeys...); err != nil {
+		t.Errorf("Unable to update the Thumbnail row: %s", err)
+	}
+
+	if err = o1.ReloadG(); err != nil {
+		t.Errorf("Unable to reload Thumbnail object: %s", err)
+	}
+	err = thumbnailCompareVals(&o, o1, true)
+	if err != nil {
+		t.Error(err)
+	}
+
+	thumbnailsDeleteAllRows(t)
+}
+
+func TestThumbnailsReloadAll(t *testing.T) {
+	var err error
+
+	o1 := make(ThumbnailSlice, 3)
+	o2 := make(ThumbnailSlice, 3)
+	if err = boil.RandomizeSlice(&o1, thumbnailDBTypes, false); err != nil {
+		t.Errorf("Unable to randomize Thumbnail slice: %s", err)
+	}
+
+	for i := 0; i < len(o1); i++ {
+		if err = o1[i].InsertG(); err != nil {
+			t.Errorf("Unable to insert Thumbnail:\n%#v\nErr: %s", o1[i], err)
+		}
+	}
+
+	for i := 0; i < len(o1); i++ {
+		o2[i], err = ThumbnailFindG(o1[i].ID)
+		if err != nil {
+			t.Errorf("Unable to find Thumbnail row.")
+		}
+		err = thumbnailCompareVals(o1[i], o2[i], true)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	// Randomize the struct values again, except for the primary key values, so we can call update.
+	err = boil.RandomizeSlice(&o1, thumbnailDBTypes, false, thumbnailPrimaryKeyColumns...)
+	if err != nil {
+		t.Errorf("Unable to randomize Thumbnail slice excluding primary keys: %s", err)
+	}
+
+	colsWithoutPrimKeys := boil.SetComplement(thumbnailColumns, thumbnailPrimaryKeyColumns)
+
+	for i := 0; i < len(o1); i++ {
+		if err = o1[i].UpdateG(colsWithoutPrimKeys...); err != nil {
+			t.Errorf("Unable to update the Thumbnail row: %s", err)
+		}
+	}
+
+	if err = o2.ReloadAllG(); err != nil {
+		t.Errorf("Unable to reload Thumbnail object: %s", err)
+	}
+
+	for i := 0; i < len(o1); i++ {
+		err = thumbnailCompareVals(o2[i], o1[i], true)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	thumbnailsDeleteAllRows(t)
+}
 
 func TestThumbnailsSelect(t *testing.T) {
 	// Only run this test if there are ample cols to test on
@@ -641,6 +826,7 @@ func TestThumbnailsUpdate(t *testing.T) {
 	var err error
 
 	item := Thumbnail{}
+	boil.RandomizeValidatedStruct(&item, thumbnailValidatedColumns, thumbnailDBTypes)
 	if err = item.InsertG(); err != nil {
 		t.Errorf("Unable to insert zero-value item Thumbnail:\n%#v\nErr: %s", item, err)
 	}
@@ -661,7 +847,10 @@ func TestThumbnailsUpdate(t *testing.T) {
 		t.Errorf("Unable to find Thumbnail row: %s", err)
 	}
 
-	thumbnailCompareVals(&item, j, t)
+	err = thumbnailCompareVals(&item, j, true)
+	if err != nil {
+		t.Error(err)
+	}
 
 	wl := item.generateUpdateColumns("test")
 	if len(wl) != 1 && wl[0] != "test" {
@@ -671,6 +860,167 @@ func TestThumbnailsUpdate(t *testing.T) {
 	wl = item.generateUpdateColumns()
 	if len(wl) == 0 && len(thumbnailColumnsWithoutDefault) > 0 {
 		t.Errorf("Expected generateUpdateColumns to build a whitelist for Thumbnail, but got 0 results")
+	}
+
+	thumbnailsDeleteAllRows(t)
+}
+
+func TestThumbnailsSliceUpdateAll(t *testing.T) {
+	var err error
+
+	// insert random columns to test UpdateAll
+	o := make(ThumbnailSlice, 3)
+	j := make(ThumbnailSlice, 3)
+
+	if err = boil.RandomizeSlice(&o, thumbnailDBTypes, false); err != nil {
+		t.Errorf("Unable to randomize Thumbnail slice: %s", err)
+	}
+
+	for i := 0; i < len(o); i++ {
+		if err = o[i].InsertG(); err != nil {
+			t.Errorf("Unable to insert Thumbnail:\n%#v\nErr: %s", o[i], err)
+		}
+	}
+
+	vals := M{}
+
+	tmp := Thumbnail{}
+	blacklist := boil.SetMerge(thumbnailPrimaryKeyColumns, thumbnailUniqueColumns)
+	if err = boil.RandomizeStruct(&tmp, thumbnailDBTypes, false, blacklist...); err != nil {
+		t.Errorf("Unable to randomize struct Thumbnail: %s", err)
+	}
+
+	// Build the columns and column values from the randomized struct
+	tmpVal := reflect.Indirect(reflect.ValueOf(tmp))
+	nonBlacklist := boil.SetComplement(thumbnailColumns, blacklist)
+	for _, col := range nonBlacklist {
+		vals[col] = tmpVal.FieldByName(strmangle.TitleCase(col)).Interface()
+	}
+
+	err = o.UpdateAllG(vals)
+	if err != nil {
+		t.Errorf("Failed to update all for Thumbnail: %s", err)
+	}
+
+	for i := 0; i < len(o); i++ {
+		j[i], err = ThumbnailFindG(o[i].ID)
+		if err != nil {
+			t.Errorf("Unable to find Thumbnail row: %s", err)
+		}
+
+		err = thumbnailCompareVals(j[i], &tmp, true, blacklist...)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	for i := 0; i < len(o); i++ {
+		// Ensure Find found the correct primary key ID's
+		orig := boil.GetStructValues(o[i], thumbnailPrimaryKeyColumns...)
+		new := boil.GetStructValues(j[i], thumbnailPrimaryKeyColumns...)
+
+		if !reflect.DeepEqual(orig, new) {
+			t.Errorf("object %d): primary keys do not match:\n\n%#v\n%#v", i, orig, new)
+		}
+	}
+
+	thumbnailsDeleteAllRows(t)
+}
+
+func TestThumbnailsUpsert(t *testing.T) {
+	var err error
+
+	o := Thumbnail{}
+
+	columns := o.generateUpsertColumns([]string{"one", "two"}, []string{"three", "four"}, []string{"five", "six"})
+	if columns.conflict[0] != "one" || columns.conflict[1] != "two" {
+		t.Errorf("Expected conflict to be %v, got %v", []string{"one", "two"}, columns.conflict)
+	}
+
+	if columns.update[0] != "three" || columns.update[1] != "four" {
+		t.Errorf("Expected update to be %v, got %v", []string{"three", "four"}, columns.update)
+	}
+
+	if columns.whitelist[0] != "five" || columns.whitelist[1] != "six" {
+		t.Errorf("Expected whitelist to be %v, got %v", []string{"five", "six"}, columns.whitelist)
+	}
+
+	columns = o.generateUpsertColumns(nil, nil, nil)
+	if len(columns.whitelist) == 0 {
+		t.Errorf("Expected whitelist to contain columns, but got len 0")
+	}
+
+	if len(columns.conflict) == 0 {
+		t.Errorf("Expected conflict to contain columns, but got len 0")
+	}
+
+	if len(columns.update) == 0 {
+		t.Errorf("expected update to contain columns, but got len 0")
+	}
+
+	upsertCols := upsertData{
+		conflict:  []string{"key1", `"key2"`},
+		update:    []string{"aaa", `"bbb"`},
+		whitelist: []string{"thing", `"stuff"`},
+		returning: []string{},
+	}
+
+	query := o.generateUpsertQuery(false, upsertCols)
+	expectedQuery := `INSERT INTO thumbnails ("thing", "stuff") VALUES ($1, $2) ON CONFLICT DO NOTHING`
+
+	if query != expectedQuery {
+		t.Errorf("Expected query mismatch:\n\n%s\n%s\n", query, expectedQuery)
+	}
+
+	query = o.generateUpsertQuery(true, upsertCols)
+	expectedQuery = `INSERT INTO thumbnails ("thing", "stuff") VALUES ($1, $2) ON CONFLICT ("key1", "key2") DO UPDATE SET "aaa" = EXCLUDED."aaa", "bbb" = EXCLUDED."bbb"`
+
+	if query != expectedQuery {
+		t.Errorf("Expected query mismatch:\n\n%s\n%s\n", query, expectedQuery)
+	}
+
+	upsertCols.returning = []string{"stuff"}
+	query = o.generateUpsertQuery(true, upsertCols)
+	expectedQuery = expectedQuery + ` RETURNING "stuff"`
+
+	if query != expectedQuery {
+		t.Errorf("Expected query mismatch:\n\n%s\n%s\n", query, expectedQuery)
+	}
+
+	// Attempt the INSERT side of an UPSERT
+	if err = boil.RandomizeStruct(&o, thumbnailDBTypes, true); err != nil {
+		t.Errorf("Unable to randomize Thumbnail struct: %s", err)
+	}
+
+	if err = o.UpsertG(false, nil, nil); err != nil {
+		t.Errorf("Unable to upsert Thumbnail: %s", err)
+	}
+
+	compare, err := ThumbnailFindG(o.ID)
+	if err != nil {
+		t.Errorf("Unable to find Thumbnail: %s", err)
+	}
+	err = thumbnailCompareVals(&o, compare, true)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Attempt the UPDATE side of an UPSERT
+	if err = boil.RandomizeStruct(&o, thumbnailDBTypes, false, thumbnailPrimaryKeyColumns...); err != nil {
+		t.Errorf("Unable to randomize Thumbnail struct: %s", err)
+	}
+
+	if err = o.UpsertG(true, nil, nil); err != nil {
+		t.Errorf("Unable to upsert Thumbnail: %s", err)
+	}
+
+	compare, err = ThumbnailFindG(o.ID)
+	if err != nil {
+		t.Errorf("Unable to find Thumbnail: %s", err)
+	}
+	err = thumbnailCompareVals(&o, compare, true)
+	if err != nil {
+		t.Error(err)
 	}
 
 	thumbnailsDeleteAllRows(t)

@@ -4,11 +4,13 @@ import (
 	"testing"
 	"reflect"
 	"time"
+	"errors"
+	"fmt"
 
-	"gopkg.in/nullbio/null.v4"
-	"github.com/nullbio/sqlboiler/boil"
-	"github.com/nullbio/sqlboiler/boil/qm"
-	"github.com/nullbio/sqlboiler/strmangle"
+	"gopkg.in/vattle/null.v4"
+	"github.com/vattle/sqlboiler/boil"
+	"github.com/vattle/sqlboiler/boil/qm"
+	"github.com/vattle/sqlboiler/strmangle"
 )
 
 func TestChunks(t *testing.T) {
@@ -188,6 +190,57 @@ func TestChunksDelete(t *testing.T) {
 	}
 }
 
+func TestChunksExists(t *testing.T) {
+	var err error
+
+	o := Chunk{}
+	if err = boil.RandomizeStruct(&o, chunkDBTypes, true); err != nil {
+		t.Errorf("Unable to randomize Chunk struct: %s", err)
+	}
+
+	if err = o.InsertG(); err != nil {
+		t.Errorf("Unable to insert Chunk:\n%#v\nErr: %s", o, err)
+	}
+
+	// Check Exists finds existing rows
+	e, err := ChunkExistsG(o.ID)
+	if err != nil {
+		t.Errorf("Unable to check if Chunk exists: %s", err)
+	}
+	if e != true {
+		t.Errorf("Expected ChunkExistsG to return true, but got false.")
+	}
+
+	whereClause := strmangle.WhereClause(1, chunkPrimaryKeyColumns)
+	e, err = ChunksG(qm.Where(whereClause, boil.GetStructValues(o, chunkPrimaryKeyColumns...)...)).Exists()
+	if err != nil {
+		t.Errorf("Unable to check if Chunk exists: %s", err)
+	}
+	if e != true {
+		t.Errorf("Expected ExistsG to return true, but got false.")
+	}
+
+	// Check Exists does not find non-existing rows
+	o = Chunk{}
+	e, err = ChunkExistsG(o.ID)
+	if err != nil {
+		t.Errorf("Unable to check if Chunk exists: %s", err)
+	}
+	if e != false {
+		t.Errorf("Expected ChunkExistsG to return false, but got true.")
+	}
+
+	e, err = ChunksG(qm.Where(whereClause, boil.GetStructValues(o, chunkPrimaryKeyColumns...)...)).Exists()
+	if err != nil {
+		t.Errorf("Unable to check if Chunk exists: %s", err)
+	}
+	if e != false {
+		t.Errorf("Expected ExistsG to return false, but got true.")
+	}
+
+	chunksDeleteAllRows(t)
+}
+
 func TestChunksFind(t *testing.T) {
 	var err error
 
@@ -206,7 +259,10 @@ func TestChunksFind(t *testing.T) {
 	// Perform all Find queries and assign result objects to slice for comparison
 	for i := 0; i < len(j); i++ {
 		j[i], err = ChunkFindG(o[i].ID)
-		chunkCompareVals(o[i], j[i], t)
+		err = chunkCompareVals(o[i], j[i], true)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 
 	f, err := ChunkFindG(o[0].ID, chunkPrimaryKeyColumns...)
@@ -246,7 +302,10 @@ func TestChunksBind(t *testing.T) {
 		t.Errorf("Unable to call Bind on Chunk single object: %s", err)
 	}
 
-	chunkCompareVals(&o, &j, t)
+	err = chunkCompareVals(&o, &j, true)
+	if err != nil {
+		t.Error(err)
+	}
 
 	// insert 3 rows, attempt to bind into slice
 	chunksDeleteAllRows(t)
@@ -275,7 +334,10 @@ func TestChunksBind(t *testing.T) {
 	}
 
 	for i := 0; i < len(y); i++ {
-		chunkCompareVals(y[i], k[i], t)
+		err = chunkCompareVals(y[i], k[i], true)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 
 	chunksDeleteAllRows(t)
@@ -298,7 +360,10 @@ func TestChunksOne(t *testing.T) {
 		t.Errorf("Unable to fetch One Chunk result:\n#%v\nErr: %s", j, err)
 	}
 
-	chunkCompareVals(&o, j, t)
+	err = chunkCompareVals(&o, j, true)
+	if err != nil {
+		t.Error(err)
+	}
 
 	chunksDeleteAllRows(t)
 }
@@ -329,7 +394,10 @@ func TestChunksAll(t *testing.T) {
 	}
 
 	for i := 0; i < len(o); i++ {
-		chunkCompareVals(o[i], j[i], t)
+		err = chunkCompareVals(o[i], j[i], true)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 
 	chunksDeleteAllRows(t)
@@ -363,36 +431,51 @@ func TestChunksCount(t *testing.T) {
 	chunksDeleteAllRows(t)
 }
 
-var chunkDBTypes = map[string]string{"FileID": "uuid", "Size": "integer", "Hash": "text", "Position": "integer", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "ID": "uuid"}
+var chunkDBTypes = map[string]string{"Hash": "text", "Position": "integer", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "ID": "uuid", "FileID": "uuid", "Size": "integer"}
 
-func chunkCompareVals(o *Chunk, j *Chunk, t *testing.T) {
-	if j.ID != o.ID {
-		t.Errorf("Expected id columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.ID, j.ID)
+func chunkCompareVals(o *Chunk, j *Chunk, equal bool, blacklist ...string) error {
+	if ((equal && j.ID != o.ID) ||
+		(!equal && j.ID == o.ID)) &&
+		!strmangle.HasElement("id", blacklist) {
+		return errors.New(fmt.Sprintf("Expected id columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.ID, j.ID))
 	}
 
-	if j.FileID != o.FileID {
-		t.Errorf("Expected file_id columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.FileID, j.FileID)
+	if ((equal && j.FileID != o.FileID) ||
+		(!equal && j.FileID == o.FileID)) &&
+		!strmangle.HasElement("file_id", blacklist) {
+		return errors.New(fmt.Sprintf("Expected file_id columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.FileID, j.FileID))
 	}
 
-	if j.Size != o.Size {
-		t.Errorf("Expected size columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Size, j.Size)
+	if ((equal && j.Size != o.Size) ||
+		(!equal && j.Size == o.Size)) &&
+		!strmangle.HasElement("size", blacklist) {
+		return errors.New(fmt.Sprintf("Expected size columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Size, j.Size))
 	}
 
-	if j.Hash != o.Hash {
-		t.Errorf("Expected hash columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Hash, j.Hash)
+	if ((equal && j.Hash != o.Hash) ||
+		(!equal && j.Hash == o.Hash)) &&
+		!strmangle.HasElement("hash", blacklist) {
+		return errors.New(fmt.Sprintf("Expected hash columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Hash, j.Hash))
 	}
 
-	if j.Position != o.Position {
-		t.Errorf("Expected position columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Position, j.Position)
+	if ((equal && j.Position != o.Position) ||
+		(!equal && j.Position == o.Position)) &&
+		!strmangle.HasElement("position", blacklist) {
+		return errors.New(fmt.Sprintf("Expected position columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Position, j.Position))
 	}
 
-	if o.CreatedAt.Format("02/01/2006") != j.CreatedAt.Format("02/01/2006") {
-		t.Errorf("Expected Time created_at column string values to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.CreatedAt.Format("02/01/2006"), j.CreatedAt.Format("02/01/2006"))
+	if ((equal && o.CreatedAt.Format("02/01/2006") != j.CreatedAt.Format("02/01/2006")) ||
+		(!equal && o.CreatedAt.Format("02/01/2006") == j.CreatedAt.Format("02/01/2006"))) &&
+		!strmangle.HasElement("created_at", blacklist) {
+		return errors.New(fmt.Sprintf("Time created_at unexpected value, got:\nStruct: %#v\nResponse: %#v\n\n", o.CreatedAt.Format("02/01/2006"), j.CreatedAt.Format("02/01/2006")))
 	}
 
-	if o.UpdatedAt.Format("02/01/2006") != j.UpdatedAt.Format("02/01/2006") {
-		t.Errorf("Expected Time updated_at column string values to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.UpdatedAt.Format("02/01/2006"), j.UpdatedAt.Format("02/01/2006"))
+	if ((equal && o.UpdatedAt.Format("02/01/2006") != j.UpdatedAt.Format("02/01/2006")) ||
+		(!equal && o.UpdatedAt.Format("02/01/2006") == j.UpdatedAt.Format("02/01/2006"))) &&
+		!strmangle.HasElement("updated_at", blacklist) {
+		return errors.New(fmt.Sprintf("Time updated_at unexpected value, got:\nStruct: %#v\nResponse: %#v\n\n", o.UpdatedAt.Format("02/01/2006"), j.UpdatedAt.Format("02/01/2006")))
 	}
+	return nil
 }
 
 func TestChunksInPrimaryKeyArgs(t *testing.T) {
@@ -504,14 +587,21 @@ func TestChunksInsert(t *testing.T) {
 
 	j := make(ChunkSlice, 3)
 	// Perform all Find queries and assign result objects to slice for comparison
-	for i := 0; i < len(j); i++ {
+	for i := 0; i < len(o); i++ {
 		j[i], err = ChunkFindG(o[i].ID)
-		chunkCompareVals(o[i], j[i], t)
+		if err != nil {
+			t.Errorf("Unable to find Chunk row: %s", err)
+		}
+		err = chunkCompareVals(o[i], j[i], true)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 
 	chunksDeleteAllRows(t)
 
 	item := &Chunk{}
+	boil.RandomizeValidatedStruct(item, chunkValidatedColumns, chunkDBTypes)
 	if err = item.InsertG(); err != nil {
 		t.Errorf("Unable to insert zero-value item Chunk:\n%#v\nErr: %s", item, err)
 	}
@@ -541,6 +631,9 @@ func TestChunksInsert(t *testing.T) {
 	}
 
 	regularCols := []string{"file_id", "size", "hash", "position", "created_at", "updated_at"}
+
+	// Remove the validated columns, they can never be zero values
+	regularCols = boil.SetComplement(regularCols, chunkValidatedColumns)
 
 	// Ensure the non-defaultvalue columns and non-autoincrement columns are stored correctly as zero or null values.
 	for _, c := range regularCols {
@@ -610,6 +703,101 @@ func TestChunkToOneFile_File(t *testing.T) {
 }
 
 
+func TestChunksReload(t *testing.T) {
+	var err error
+
+	o := Chunk{}
+	if err = boil.RandomizeStruct(&o, chunkDBTypes, true); err != nil {
+		t.Errorf("Unable to randomize Chunk struct: %s", err)
+	}
+
+	if err = o.InsertG(); err != nil {
+		t.Errorf("Unable to insert Chunk:\n%#v\nErr: %s", o, err)
+	}
+
+	// Create another copy of the object
+	o1, err := ChunkFindG(o.ID)
+	if err != nil {
+		t.Errorf("Unable to find Chunk row.")
+	}
+
+	// Randomize the struct values again, except for the primary key values, so we can call update.
+	err = boil.RandomizeStruct(&o, chunkDBTypes, true, chunkPrimaryKeyColumns...)
+	if err != nil {
+		t.Errorf("Unable to randomize Chunk struct members excluding primary keys: %s", err)
+	}
+
+	colsWithoutPrimKeys := boil.SetComplement(chunkColumns, chunkPrimaryKeyColumns)
+
+	if err = o.UpdateG(colsWithoutPrimKeys...); err != nil {
+		t.Errorf("Unable to update the Chunk row: %s", err)
+	}
+
+	if err = o1.ReloadG(); err != nil {
+		t.Errorf("Unable to reload Chunk object: %s", err)
+	}
+	err = chunkCompareVals(&o, o1, true)
+	if err != nil {
+		t.Error(err)
+	}
+
+	chunksDeleteAllRows(t)
+}
+
+func TestChunksReloadAll(t *testing.T) {
+	var err error
+
+	o1 := make(ChunkSlice, 3)
+	o2 := make(ChunkSlice, 3)
+	if err = boil.RandomizeSlice(&o1, chunkDBTypes, false); err != nil {
+		t.Errorf("Unable to randomize Chunk slice: %s", err)
+	}
+
+	for i := 0; i < len(o1); i++ {
+		if err = o1[i].InsertG(); err != nil {
+			t.Errorf("Unable to insert Chunk:\n%#v\nErr: %s", o1[i], err)
+		}
+	}
+
+	for i := 0; i < len(o1); i++ {
+		o2[i], err = ChunkFindG(o1[i].ID)
+		if err != nil {
+			t.Errorf("Unable to find Chunk row.")
+		}
+		err = chunkCompareVals(o1[i], o2[i], true)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	// Randomize the struct values again, except for the primary key values, so we can call update.
+	err = boil.RandomizeSlice(&o1, chunkDBTypes, false, chunkPrimaryKeyColumns...)
+	if err != nil {
+		t.Errorf("Unable to randomize Chunk slice excluding primary keys: %s", err)
+	}
+
+	colsWithoutPrimKeys := boil.SetComplement(chunkColumns, chunkPrimaryKeyColumns)
+
+	for i := 0; i < len(o1); i++ {
+		if err = o1[i].UpdateG(colsWithoutPrimKeys...); err != nil {
+			t.Errorf("Unable to update the Chunk row: %s", err)
+		}
+	}
+
+	if err = o2.ReloadAllG(); err != nil {
+		t.Errorf("Unable to reload Chunk object: %s", err)
+	}
+
+	for i := 0; i < len(o1); i++ {
+		err = chunkCompareVals(o2[i], o1[i], true)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	chunksDeleteAllRows(t)
+}
+
 func TestChunksSelect(t *testing.T) {
 	// Only run this test if there are ample cols to test on
 	if len(chunkAutoIncrementColumns) == 0 {
@@ -644,6 +832,7 @@ func TestChunksUpdate(t *testing.T) {
 	var err error
 
 	item := Chunk{}
+	boil.RandomizeValidatedStruct(&item, chunkValidatedColumns, chunkDBTypes)
 	if err = item.InsertG(); err != nil {
 		t.Errorf("Unable to insert zero-value item Chunk:\n%#v\nErr: %s", item, err)
 	}
@@ -664,7 +853,10 @@ func TestChunksUpdate(t *testing.T) {
 		t.Errorf("Unable to find Chunk row: %s", err)
 	}
 
-	chunkCompareVals(&item, j, t)
+	err = chunkCompareVals(&item, j, true)
+	if err != nil {
+		t.Error(err)
+	}
 
 	wl := item.generateUpdateColumns("test")
 	if len(wl) != 1 && wl[0] != "test" {
@@ -674,6 +866,167 @@ func TestChunksUpdate(t *testing.T) {
 	wl = item.generateUpdateColumns()
 	if len(wl) == 0 && len(chunkColumnsWithoutDefault) > 0 {
 		t.Errorf("Expected generateUpdateColumns to build a whitelist for Chunk, but got 0 results")
+	}
+
+	chunksDeleteAllRows(t)
+}
+
+func TestChunksSliceUpdateAll(t *testing.T) {
+	var err error
+
+	// insert random columns to test UpdateAll
+	o := make(ChunkSlice, 3)
+	j := make(ChunkSlice, 3)
+
+	if err = boil.RandomizeSlice(&o, chunkDBTypes, false); err != nil {
+		t.Errorf("Unable to randomize Chunk slice: %s", err)
+	}
+
+	for i := 0; i < len(o); i++ {
+		if err = o[i].InsertG(); err != nil {
+			t.Errorf("Unable to insert Chunk:\n%#v\nErr: %s", o[i], err)
+		}
+	}
+
+	vals := M{}
+
+	tmp := Chunk{}
+	blacklist := boil.SetMerge(chunkPrimaryKeyColumns, chunkUniqueColumns)
+	if err = boil.RandomizeStruct(&tmp, chunkDBTypes, false, blacklist...); err != nil {
+		t.Errorf("Unable to randomize struct Chunk: %s", err)
+	}
+
+	// Build the columns and column values from the randomized struct
+	tmpVal := reflect.Indirect(reflect.ValueOf(tmp))
+	nonBlacklist := boil.SetComplement(chunkColumns, blacklist)
+	for _, col := range nonBlacklist {
+		vals[col] = tmpVal.FieldByName(strmangle.TitleCase(col)).Interface()
+	}
+
+	err = o.UpdateAllG(vals)
+	if err != nil {
+		t.Errorf("Failed to update all for Chunk: %s", err)
+	}
+
+	for i := 0; i < len(o); i++ {
+		j[i], err = ChunkFindG(o[i].ID)
+		if err != nil {
+			t.Errorf("Unable to find Chunk row: %s", err)
+		}
+
+		err = chunkCompareVals(j[i], &tmp, true, blacklist...)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	for i := 0; i < len(o); i++ {
+		// Ensure Find found the correct primary key ID's
+		orig := boil.GetStructValues(o[i], chunkPrimaryKeyColumns...)
+		new := boil.GetStructValues(j[i], chunkPrimaryKeyColumns...)
+
+		if !reflect.DeepEqual(orig, new) {
+			t.Errorf("object %d): primary keys do not match:\n\n%#v\n%#v", i, orig, new)
+		}
+	}
+
+	chunksDeleteAllRows(t)
+}
+
+func TestChunksUpsert(t *testing.T) {
+	var err error
+
+	o := Chunk{}
+
+	columns := o.generateUpsertColumns([]string{"one", "two"}, []string{"three", "four"}, []string{"five", "six"})
+	if columns.conflict[0] != "one" || columns.conflict[1] != "two" {
+		t.Errorf("Expected conflict to be %v, got %v", []string{"one", "two"}, columns.conflict)
+	}
+
+	if columns.update[0] != "three" || columns.update[1] != "four" {
+		t.Errorf("Expected update to be %v, got %v", []string{"three", "four"}, columns.update)
+	}
+
+	if columns.whitelist[0] != "five" || columns.whitelist[1] != "six" {
+		t.Errorf("Expected whitelist to be %v, got %v", []string{"five", "six"}, columns.whitelist)
+	}
+
+	columns = o.generateUpsertColumns(nil, nil, nil)
+	if len(columns.whitelist) == 0 {
+		t.Errorf("Expected whitelist to contain columns, but got len 0")
+	}
+
+	if len(columns.conflict) == 0 {
+		t.Errorf("Expected conflict to contain columns, but got len 0")
+	}
+
+	if len(columns.update) == 0 {
+		t.Errorf("expected update to contain columns, but got len 0")
+	}
+
+	upsertCols := upsertData{
+		conflict:  []string{"key1", `"key2"`},
+		update:    []string{"aaa", `"bbb"`},
+		whitelist: []string{"thing", `"stuff"`},
+		returning: []string{},
+	}
+
+	query := o.generateUpsertQuery(false, upsertCols)
+	expectedQuery := `INSERT INTO chunks ("thing", "stuff") VALUES ($1, $2) ON CONFLICT DO NOTHING`
+
+	if query != expectedQuery {
+		t.Errorf("Expected query mismatch:\n\n%s\n%s\n", query, expectedQuery)
+	}
+
+	query = o.generateUpsertQuery(true, upsertCols)
+	expectedQuery = `INSERT INTO chunks ("thing", "stuff") VALUES ($1, $2) ON CONFLICT ("key1", "key2") DO UPDATE SET "aaa" = EXCLUDED."aaa", "bbb" = EXCLUDED."bbb"`
+
+	if query != expectedQuery {
+		t.Errorf("Expected query mismatch:\n\n%s\n%s\n", query, expectedQuery)
+	}
+
+	upsertCols.returning = []string{"stuff"}
+	query = o.generateUpsertQuery(true, upsertCols)
+	expectedQuery = expectedQuery + ` RETURNING "stuff"`
+
+	if query != expectedQuery {
+		t.Errorf("Expected query mismatch:\n\n%s\n%s\n", query, expectedQuery)
+	}
+
+	// Attempt the INSERT side of an UPSERT
+	if err = boil.RandomizeStruct(&o, chunkDBTypes, true); err != nil {
+		t.Errorf("Unable to randomize Chunk struct: %s", err)
+	}
+
+	if err = o.UpsertG(false, nil, nil); err != nil {
+		t.Errorf("Unable to upsert Chunk: %s", err)
+	}
+
+	compare, err := ChunkFindG(o.ID)
+	if err != nil {
+		t.Errorf("Unable to find Chunk: %s", err)
+	}
+	err = chunkCompareVals(&o, compare, true)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Attempt the UPDATE side of an UPSERT
+	if err = boil.RandomizeStruct(&o, chunkDBTypes, false, chunkPrimaryKeyColumns...); err != nil {
+		t.Errorf("Unable to randomize Chunk struct: %s", err)
+	}
+
+	if err = o.UpsertG(true, nil, nil); err != nil {
+		t.Errorf("Unable to upsert Chunk: %s", err)
+	}
+
+	compare, err = ChunkFindG(o.ID)
+	if err != nil {
+		t.Errorf("Unable to find Chunk: %s", err)
+	}
+	err = chunkCompareVals(&o, compare, true)
+	if err != nil {
+		t.Error(err)
 	}
 
 	chunksDeleteAllRows(t)

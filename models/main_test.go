@@ -13,8 +13,8 @@ import (
 	"time"
 	"math/rand"
 
-	"github.com/nullbio/sqlboiler/boil"
-	"github.com/nullbio/sqlboiler/bdb/drivers"
+	"github.com/vattle/sqlboiler/boil"
+	"github.com/vattle/sqlboiler/bdb/drivers"
 	_ "github.com/lib/pq"
 	"github.com/spf13/viper"
 	"github.com/kat-co/vala"
@@ -39,6 +39,7 @@ func TestMain(m *testing.M) {
 	rand.Seed(time.Now().UnixNano())
 
 	// Set DebugMode so we can see generated sql statements
+	flag.Parse()
 	boil.DebugMode = *flagDebugMode
 
 	var err error
@@ -138,7 +139,8 @@ func setup() error {
 		return fmt.Errorf("Unable to load config file: %s", err)
 	}
 
-	viper.SetDefault("postgres.sslmode", "required")
+	viper.SetDefault("postgres.sslmode", "require")
+	viper.SetDefault("postgres.port", "5432")
 
 	// Create a randomized test configuration object.
 	testCfg.Postgres.Host = viper.GetString("postgres.host")

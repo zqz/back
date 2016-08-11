@@ -7,8 +7,8 @@ import (
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
 
-	"github.com/nullbio/sqlboiler/boil"
-	. "github.com/nullbio/sqlboiler/boil/qm"
+	"github.com/vattle/sqlboiler/boil"
+	. "github.com/vattle/sqlboiler/boil/qm"
 )
 
 func fileExistsWithHash(ex boil.Executor, hash string) (bool, error) {

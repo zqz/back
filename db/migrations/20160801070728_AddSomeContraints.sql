@@ -20,6 +20,10 @@ ALTER TABLE chunks ALTER COLUMN size SET NOT NULL;
 ALTER TABLE chunks ALTER COLUMN hash SET NOT NULL;
 ALTER TABLE chunks ALTER COLUMN position SET NOT NULL;
 
+ALTER TABLE thumbnails ALTER COLUMN file_id SET NOT NULL;
+ALTER TABLE thumbnails ALTER COLUMN size SET NOT NULL;
+ALTER TABLE thumbnails ALTER COLUMN hash SET NOT NULL;
+
 -- +goose Down
 -- SQL section 'Down' is executed when this migration is rolled back
 -- Nah bro.

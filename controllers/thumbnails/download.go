@@ -2,18 +2,18 @@ package thumbnails
 
 import (
 	"github.com/zqzca/back/lib"
+	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
 )
 
 // Download a file
 func (t ThumbnailsController) Download(e echo.Context) error {
-	fileID := e.Param("id")
+	id := e.Param("id")
 
-	t, err := thumbnail.FindByID(t.DB, fileID)
+	thumb, err := models.ThumbnailFind(t.DB, id)
 	if err != nil {
 		return err
 	}
 
-	path := lib.LocalPath(t.Hash)
-	return e.File(path)
+	return e.File(lib.LocalPath(thumb.Hash))
 }

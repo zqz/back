@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type Executor interface {
@@ -12,7 +14,7 @@ type Executor interface {
 	Query(query string, args ...interface{}) (*sql.Rows, error)
 }
 
-var Connection *sql.DB
+var Connection *sqlx.DB
 var mu sync.Mutex
 
 func StartTransaction() *sql.Tx {

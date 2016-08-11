@@ -6,26 +6,38 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nullbio/sqlboiler/boil"
-	"github.com/nullbio/sqlboiler/boil/qm"
+	"github.com/vattle/sqlboiler/boil"
+	"github.com/vattle/sqlboiler/boil/qm"
+	"github.com/vattle/sqlboiler/strmangle"
 )
 
 // Chunk is an object representing the database table.
 type Chunk struct {
-	ID        string    `db:"chunk_id" json:"id"`
-	FileID    string    `db:"chunk_file_id" json:"file_id"`
-	Size      int       `db:"chunk_size" json:"size"`
-	Hash      string    `db:"chunk_hash" json:"hash"`
-	Position  int       `db:"chunk_position" json:"position"`
-	CreatedAt time.Time `db:"chunk_created_at" json:"created_at"`
-	UpdatedAt time.Time `db:"chunk_updated_at" json:"updated_at"`
+	ID        string    `boil:"id" json:"id" toml:"id" yaml:"id"`
+	FileID    string    `boil:"file_id" json:"file_id" toml:"file_id" yaml:"file_id"`
+	Size      int       `boil:"size" json:"size" toml:"size" yaml:"size"`
+	Hash      string    `boil:"hash" json:"hash" toml:"hash" yaml:"hash"`
+	Position  int       `boil:"position" json:"position" toml:"position" yaml:"position"`
+	CreatedAt time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+
+	//Relationships *ChunkRelationships `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
+
+// ChunkRelationships are where relationships are both cached
+// and eagerly loaded.
+type ChunkRelationships struct {
+	File *File
+}
+
 
 var (
 	chunkColumns                  = []string{"id", "file_id", "size", "hash", "position", "created_at", "updated_at"}
 	chunkColumnsWithoutDefault    = []string{"file_id", "size", "hash", "position", "created_at", "updated_at"}
 	chunkColumnsWithDefault       = []string{"id"}
 	chunkColumnsWithSimpleDefault = []string{}
+	chunkValidatedColumns         = []string{"id", "file_id"}
+	chunkUniqueColumns            = []string{}
 	chunkPrimaryKeyColumns        = []string{"id"}
 	chunkAutoIncrementColumns     = []string{}
 	chunkAutoIncPrimaryKey        = ""
@@ -42,8 +54,10 @@ type (
 
 var chunkBeforeCreateHooks []ChunkHook
 var chunkBeforeUpdateHooks []ChunkHook
+var chunkBeforeUpsertHooks []ChunkHook
 var chunkAfterCreateHooks []ChunkHook
 var chunkAfterUpdateHooks []ChunkHook
+var chunkAfterUpsertHooks []ChunkHook
 
 // doBeforeCreateHooks executes all "before create" hooks.
 func (o *Chunk) doBeforeCreateHooks() (err error) {
@@ -59,6 +73,17 @@ func (o *Chunk) doBeforeCreateHooks() (err error) {
 // doBeforeUpdateHooks executes all "before Update" hooks.
 func (o *Chunk) doBeforeUpdateHooks() (err error) {
 	for _, hook := range chunkBeforeUpdateHooks {
+		if err := hook(o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doBeforeUpsertHooks executes all "before Upsert" hooks.
+func (o *Chunk) doBeforeUpsertHooks() (err error) {
+	for _, hook := range chunkBeforeUpsertHooks {
 		if err := hook(o); err != nil {
 			return err
 		}
@@ -89,32 +114,32 @@ func (o *Chunk) doAfterUpdateHooks() (err error) {
 	return nil
 }
 
+// doAfterUpsertHooks executes all "after Upsert" hooks.
+func (o *Chunk) doAfterUpsertHooks() (err error) {
+	for _, hook := range chunkAfterUpsertHooks {
+		if err := hook(o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func ChunkAddHook(hookPoint boil.HookPoint, chunkHook ChunkHook) {
 	switch hookPoint {
 	case boil.HookBeforeCreate:
 		chunkBeforeCreateHooks = append(chunkBeforeCreateHooks, chunkHook)
 	case boil.HookBeforeUpdate:
 		chunkBeforeUpdateHooks = append(chunkBeforeUpdateHooks, chunkHook)
+	case boil.HookBeforeUpsert:
+		chunkBeforeUpsertHooks = append(chunkBeforeUpsertHooks, chunkHook)
 	case boil.HookAfterCreate:
 		chunkAfterCreateHooks = append(chunkAfterCreateHooks, chunkHook)
 	case boil.HookAfterUpdate:
 		chunkAfterUpdateHooks = append(chunkAfterUpdateHooks, chunkHook)
+	case boil.HookAfterUpsert:
+		chunkAfterUpsertHooks = append(chunkAfterUpsertHooks, chunkHook)
 	}
-}
-
-// One returns a single chunk record from the query.
-func (q chunkQuery) One() (*Chunk, error) {
-	o := &Chunk{}
-
-	boil.SetLimit(q.Query, 1)
-
-	res := boil.ExecQueryOne(q.Query)
-	err := boil.BindOne(res, boil.Select(q.Query), o)
-	if err != nil {
-		return nil, fmt.Errorf("models: failed to execute a one query for chunks: %s", err)
-	}
-
-	return o, nil
 }
 
 // OneP returns a single chunk record from the query, and panics on error.
@@ -127,19 +152,15 @@ func (q chunkQuery) OneP() *Chunk {
 	return o
 }
 
-// All returns all Chunk records from the query.
-func (q chunkQuery) All() (ChunkSlice, error) {
-	var o ChunkSlice
+// One returns a single chunk record from the query.
+func (q chunkQuery) One() (*Chunk, error) {
+	o := &Chunk{}
 
-	res, err := boil.ExecQueryAll(q.Query)
-	if err != nil {
-		return nil, fmt.Errorf("models: failed to execute an all query for chunks: %s", err)
-	}
-	defer res.Close()
+	boil.SetLimit(q.Query, 1)
 
-	err = boil.BindAll(res, boil.Select(q.Query), &o)
+	err := q.Bind(o)
 	if err != nil {
-		return nil, fmt.Errorf("models: failed to assign all query results to Chunk slice: %s", err)
+		return nil, fmt.Errorf("models: failed to execute a one query for chunks: %s", err)
 	}
 
 	return o, nil
@@ -153,6 +174,28 @@ func (q chunkQuery) AllP() ChunkSlice {
 	}
 
 	return o
+}
+
+// All returns all Chunk records from the query.
+func (q chunkQuery) All() (ChunkSlice, error) {
+	var o ChunkSlice
+
+	err := q.Bind(&o)
+	if err != nil {
+		return nil, fmt.Errorf("models: failed to assign all query results to Chunk slice: %s", err)
+	}
+
+	return o, nil
+}
+
+// CountP returns the count of all Chunk records in the query, and panics on error.
+func (q chunkQuery) CountP() int64 {
+	c, err := q.Count()
+	if err != nil {
+		panic(boil.WrapErr(err))
+	}
+
+	return c
 }
 
 // Count returns the count of all Chunk records in the query.
@@ -169,58 +212,69 @@ func (q chunkQuery) Count() (int64, error) {
 	return count, nil
 }
 
-// CountP returns the count of all Chunk records in the query, and panics on error.
-func (q chunkQuery) CountP() int64 {
-	c, err := q.Count()
+// Exists checks if the row exists in the table, and panics on error.
+func (q chunkQuery) ExistsP() bool {
+	e, err := q.Exists()
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
 
-	return c
+	return e
+}
+
+// Exists checks if the row exists in the table.
+func (q chunkQuery) Exists() (bool, error) {
+	var count int64
+
+	boil.SetCount(q.Query)
+	boil.SetLimit(q.Query, 1)
+
+	err := boil.ExecQueryOne(q.Query).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("models: failed to check if chunks exists: %s", err)
+	}
+
+	return count > 0, nil
 }
 
 
 // FileG pointed to by the foreign key.
-func (c *Chunk) FileG(selectCols ...string) (*File, error) {
-	return c.File(boil.GetDB(), selectCols...)
+func (c *Chunk) FileG(mods ...qm.QueryMod) (*File, error) {
+	return c.File(boil.GetDB(), mods...)
 }
 
 // FileGP pointed to by the foreign key. Panics on error.
-func (c *Chunk) FileGP(selectCols ...string) *File {
-	o, err := c.File(boil.GetDB(), selectCols...)
+func (c *Chunk) FileGP(mods ...qm.QueryMod) *File {
+	slice, err := c.File(boil.GetDB(), mods...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
 
-	return o
+	return slice
 }
 
 // FileP pointed to by the foreign key with exeuctor. Panics on error.
-func (c *Chunk) FileP(exec boil.Executor, selectCols ...string) *File {
-	o, err := c.File(exec, selectCols...)
+func (c *Chunk) FileP(exec boil.Executor, mods ...qm.QueryMod) *File {
+	slice, err := c.File(exec, mods...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
 
-	return o
+	return slice
 }
 
 // File pointed to by the foreign key.
-func (c *Chunk) File(exec boil.Executor, selectCols ...string) (*File, error) {
-	file := &File{}
-
-	selectColumns := `*`
-	if len(selectCols) != 0 {
-		selectColumns = fmt.Sprintf(`"%s"`, strings.Join(selectCols, `","`))
+func (c *Chunk) File(exec boil.Executor, mods ...qm.QueryMod) (*File, error) {
+	queryMods := []qm.QueryMod{
+		qm.Where("id=$1", c.FileID),
 	}
 
-	query := fmt.Sprintf(`select %s from files where "id" = $1`, selectColumns)
-	err := exec.QueryRow(query, c.FileID).Scan(boil.GetStructPointers(file, selectCols...)...)
-	if err != nil {
-		return nil, fmt.Errorf(`models: unable to select from files: %v`, err)
-	}
+	queryMods = append(queryMods, mods...)
 
-	return file, nil
+	query := Files(exec, queryMods...)
+	boil.SetFrom(query.Query, "files")
+
+	return query.One()
 }
 
 
@@ -244,28 +298,30 @@ func ChunkFindG(id string, selectCols ...string) (*Chunk, error) {
 
 // ChunkFindGP retrieves a single record by ID, and panics on error.
 func ChunkFindGP(id string, selectCols ...string) *Chunk {
-	o, err := ChunkFind(boil.GetDB(), id, selectCols...)
+	retobj, err := ChunkFind(boil.GetDB(), id, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
 
-	return o
+	return retobj
 }
 
 // ChunkFind retrieves a single record by ID with an executor.
+// If selectCols is empty Find will return all columns.
 func ChunkFind(exec boil.Executor, id string, selectCols ...string) (*Chunk, error) {
 	chunk := &Chunk{}
 
-	mods := []qm.QueryMod{
-		qm.Select(selectCols...),
-		qm.From("chunks"),
-		qm.Where(`"id"=$1`, id),
+	sel := "*"
+	if len(selectCols) > 0 {
+		sel = strings.Join(strmangle.IdentQuoteSlice(selectCols), ",")
 	}
+	sql := fmt.Sprintf(
+		`select %s from "chunks" where "id"=$1`, sel,
+	)
+	q := boil.SQL(sql, id)
+	boil.SetExecutor(q, exec)
 
-	q := NewQuery(exec, mods...)
-
-	err := boil.ExecQueryOne(q).Scan(boil.GetStructPointers(chunk, selectCols...)...)
-
+	err := q.Bind(chunk)
 	if err != nil {
 		return nil, fmt.Errorf("models: unable to select from chunks: %v", err)
 	}
@@ -275,27 +331,40 @@ func ChunkFind(exec boil.Executor, id string, selectCols ...string) (*Chunk, err
 
 // ChunkFindP retrieves a single record by ID with an executor, and panics on error.
 func ChunkFindP(exec boil.Executor, id string, selectCols ...string) *Chunk {
-	o, err := ChunkFind(exec, id, selectCols...)
+	retobj, err := ChunkFind(exec, id, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
 
-	return o
+	return retobj
 }
 
-// InsertG a single record.
+// InsertG a single record. See Insert for whitelist behavior description.
 func (o *Chunk) InsertG(whitelist ...string) error {
 	return o.Insert(boil.GetDB(), whitelist...)
 }
 
-// InsertGP a single record, and panics on error.
+// InsertGP a single record, and panics on error. See Insert for whitelist
+// behavior description.
 func (o *Chunk) InsertGP(whitelist ...string) {
 	if err := o.Insert(boil.GetDB(), whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
+// InsertP a single record using an executor, and panics on error. See Insert
+// for whitelist behavior description.
+func (o *Chunk) InsertP(exec boil.Executor, whitelist ...string) {
+	if err := o.Insert(exec, whitelist...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
 // Insert a single record using an executor.
+// Whitelist behavior: If a whitelist is provided, only those columns supplied are inserted
+// No whitelist behavior: Without a whitelist, columns are inferred by the following rules:
+// - All columns without a default value are inferred (i.e. name, age)
+// - All columns with a default, but non-zero are inferred (i.e. health = 75)
 func (o *Chunk) Insert(exec boil.Executor, whitelist ...string) error {
 	if o == nil {
 		return errors.New("models: no chunks provided for insertion")
@@ -308,7 +377,7 @@ func (o *Chunk) Insert(exec boil.Executor, whitelist ...string) error {
 		return err
 	}
 
-	ins := fmt.Sprintf(`INSERT INTO chunks ("%s") VALUES (%s)`, strings.Join(wl, `","`), boil.GenerateParamFlags(len(wl), 1))
+	ins := fmt.Sprintf(`INSERT INTO chunks ("%s") VALUES (%s)`, strings.Join(wl, `","`), strmangle.Placeholders(len(wl), 1, 1))
 
 	if len(returnColumns) != 0 {
 		ins = ins + fmt.Sprintf(` RETURNING %s`, strings.Join(returnColumns, ","))
@@ -318,7 +387,8 @@ func (o *Chunk) Insert(exec boil.Executor, whitelist ...string) error {
 	}
 
 	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, ins, boil.GetStructValues(o, wl...))
+		fmt.Fprintln(boil.DebugWriter, ins)
+		fmt.Fprintln(boil.DebugWriter, boil.GetStructValues(o, wl...))
 	}
 
 	if err != nil {
@@ -332,23 +402,26 @@ func (o *Chunk) Insert(exec boil.Executor, whitelist ...string) error {
 	return nil
 }
 
-// InsertP a single record using an executor, and panics on error.
-func (o *Chunk) InsertP(exec boil.Executor, whitelist ...string) {
-	if err := o.Insert(exec, whitelist...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
 // generateInsertColumns generates the whitelist columns and return columns for an insert statement
+// the return columns are used to get values that are assigned within the database during the
+// insert to keep the struct in sync with what's in the db.
+// with a whitelist:
+// - the whitelist is used for the insert columns
+// - the return columns are the result of (columns with default values - the whitelist)
+// without a whitelist:
+// - start with columns without a default as these always need to be inserted
+// - add all columns that have a default in the database but that are non-zero in the struct
+// - the return columns are the result of (columns with default values - the previous set)
 func (o *Chunk) generateInsertColumns(whitelist ...string) ([]string, []string) {
+	if len(whitelist) > 0 {
+		return whitelist, boil.SetComplement(chunkColumnsWithDefault, whitelist)
+	}
+
 	var wl []string
 
-	wl = append(wl, whitelist...)
-	if len(whitelist) == 0 {
-		wl = append(wl, chunkColumnsWithoutDefault...)
-	}
+	wl = append(wl, chunkColumnsWithoutDefault...)
 
-	wl = append(boil.NonZeroDefaultSet(chunkColumnsWithDefault, o), wl...)
+	wl = boil.SetMerge(boil.NonZeroDefaultSet(chunkColumnsWithDefault, o), wl)
 	wl = boil.SortByKeys(chunkColumns, wl)
 
 	// Only return the columns with default values that are not in the insert whitelist
@@ -358,50 +431,36 @@ func (o *Chunk) generateInsertColumns(whitelist ...string) ([]string, []string) 
 }
 
 
-// UpdateG a single Chunk record.
-// UpdateG takes a whitelist of column names that should be updated.
-// The primary key will be used to find the record to update.
+// UpdateG a single Chunk record. See Update for
+// whitelist behavior description.
 func (o *Chunk) UpdateG(whitelist ...string) error {
 	return o.Update(boil.GetDB(), whitelist...)
 }
 
 // UpdateGP a single Chunk record.
 // UpdateGP takes a whitelist of column names that should be updated.
-// The primary key will be used to find the record to update.
-// Panics on error.
+// Panics on error. See Update for whitelist behavior description.
 func (o *Chunk) UpdateGP(whitelist ...string) {
 	if err := o.Update(boil.GetDB(), whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// Update uses an executor to update the Chunk.
-func (o *Chunk) Update(exec boil.Executor, whitelist ...string) error {
-	return o.UpdateAt(exec, o.ID, whitelist...)
-}
-
 // UpdateP uses an executor to update the Chunk, and panics on error.
+// See Update for whitelist behavior description.
 func (o *Chunk) UpdateP(exec boil.Executor, whitelist ...string) {
-	err := o.UpdateAt(exec, o.ID, whitelist...)
+	err := o.Update(exec, whitelist...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// UpdateAtG updates the Chunk using the primary key to find the row to update.
-func (o *Chunk) UpdateAtG(id string, whitelist ...string) error {
-	return o.UpdateAt(boil.GetDB(), id, whitelist...)
-}
-
-// UpdateAtGP updates the Chunk using the primary key to find the row to update. Panics on error.
-func (o *Chunk) UpdateAtGP(id string, whitelist ...string) {
-	if err := o.UpdateAt(boil.GetDB(), id, whitelist...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// UpdateAt uses an executor to update the Chunk using the primary key to find the row to update.
-func (o *Chunk) UpdateAt(exec boil.Executor, id string, whitelist ...string) error {
+// Update uses an executor to update the Chunk.
+// Whitelist behavior: If a whitelist is provided, only the columns given are updated.
+// No whitelist behavior: Without a whitelist, columns are inferred by the following rules:
+// - All columns are inferred to start with
+// - All primary keys are subtracted from this set
+func (o *Chunk) Update(exec boil.Executor, whitelist ...string) error {
 	if err := o.doBeforeUpdateHooks(); err != nil {
 		return err
 	}
@@ -413,7 +472,7 @@ func (o *Chunk) UpdateAt(exec boil.Executor, id string, whitelist ...string) err
 	wl := o.generateUpdateColumns(whitelist...)
 
 	if len(wl) != 0 {
-		query = fmt.Sprintf(`UPDATE chunks SET %s WHERE %s`, boil.SetParamNames(wl), boil.WherePrimaryKey(len(wl)+1, "id"))
+		query = fmt.Sprintf(`UPDATE chunks SET %s WHERE %s`, strmangle.SetParamNames(wl), strmangle.WhereClause(len(wl)+1, chunkPrimaryKeyColumns))
 		values = boil.GetStructValues(o, wl...)
 		values = append(values, o.ID)
 		_, err = exec.Exec(query, values...)
@@ -437,15 +496,14 @@ func (o *Chunk) UpdateAt(exec boil.Executor, id string, whitelist ...string) err
 	return nil
 }
 
-// UpdateAtP uses an executor to update the Chunk using the primary key to find the row to update.
-// Panics on error.
-func (o *Chunk) UpdateAtP(exec boil.Executor, id string, whitelist ...string) {
-	if err := o.UpdateAt(exec, id, whitelist...); err != nil {
+// UpdateAllP updates all rows with matching column names, and panics on error.
+func (q chunkQuery) UpdateAllP(cols M) {
+	if err := q.UpdateAll(cols); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// UpdateAll updates all rows with matching column names.
+// UpdateAll updates all rows with the specified column values.
 func (q chunkQuery) UpdateAll(cols M) error {
 	boil.SetUpdate(q.Query, cols)
 
@@ -457,30 +515,208 @@ func (q chunkQuery) UpdateAll(cols M) error {
 	return nil
 }
 
-// UpdateAllP updates all rows with matching column names, and panics on error.
-func (q chunkQuery) UpdateAllP(cols M) {
-	if err := q.UpdateAll(cols); err != nil {
+// UpdateAllG updates all rows with the specified column values.
+func (o ChunkSlice) UpdateAllG(cols M) error {
+	return o.UpdateAll(boil.GetDB(), cols)
+}
+
+// UpdateAllGP updates all rows with the specified column values, and panics on error.
+func (o ChunkSlice) UpdateAllGP(cols M) {
+	if err := o.UpdateAll(boil.GetDB(), cols); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
+// UpdateAllP updates all rows with the specified column values, and panics on error.
+func (o ChunkSlice) UpdateAllP(exec boil.Executor, cols M) {
+	if err := o.UpdateAll(exec, cols); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// UpdateAll updates all rows with the specified column values, using an executor.
+func (o ChunkSlice) UpdateAll(exec boil.Executor, cols M) error {
+	if o == nil {
+		return errors.New("models: no Chunk slice provided for update all")
+	}
+
+	if len(o) == 0 {
+		return nil
+	}
+
+	colNames := make([]string, len(cols))
+	var args []interface{}
+
+	count := 0
+	for name, value := range cols {
+		colNames[count] = strmangle.IdentQuote(name)
+		args = append(args, value)
+		count++
+	}
+
+	// Append all of the primary key values for each column
+	args = append(args, o.inPrimaryKeyArgs()...)
+
+	sql := fmt.Sprintf(
+		`UPDATE chunks SET (%s) = (%s) WHERE (%s) IN (%s)`,
+		strings.Join(colNames, ", "),
+		strmangle.Placeholders(len(colNames), 1, 1),
+		strings.Join(strmangle.IdentQuoteSlice(chunkPrimaryKeyColumns), ","),
+		strmangle.Placeholders(len(o)*len(chunkPrimaryKeyColumns), len(colNames)+1, len(chunkPrimaryKeyColumns)),
+	)
+
+	q := boil.SQL(sql, args...)
+	boil.SetExecutor(q, exec)
+
+	_, err := boil.ExecQuery(q)
+	if err != nil {
+		return fmt.Errorf("models: unable to update all in chunk slice: %s", err)
+	}
+
+	return nil
+}
+
 // generateUpdateColumns generates the whitelist columns for an update statement
+// if a whitelist is supplied, it's returned
+// if a whitelist is missing then we begin with all columns
+// then we remove the primary key columns
 func (o *Chunk) generateUpdateColumns(whitelist ...string) []string {
 	if len(whitelist) != 0 {
 		return whitelist
 	}
 
-	var wl []string
-	cols := chunkColumnsWithoutDefault
-	cols = append(boil.NonZeroDefaultSet(chunkColumnsWithDefault, o), cols...)
-	// Subtract primary keys and autoincrement columns
-	cols = boil.SetComplement(cols, chunkPrimaryKeyColumns)
-	cols = boil.SetComplement(cols, chunkAutoIncrementColumns)
+	return boil.SetComplement(chunkColumns, chunkPrimaryKeyColumns)
+}
 
-	wl = make([]string, len(cols))
-	copy(wl, cols)
+// UpsertG attempts an insert, and does an update or ignore on conflict.
+func (o *Chunk) UpsertG(update bool, conflictColumns []string, updateColumns []string, whitelist ...string) error {
+	return o.Upsert(boil.GetDB(), update, conflictColumns, updateColumns, whitelist...)
+}
 
-	return wl
+// UpsertGP attempts an insert, and does an update or ignore on conflict. Panics on error.
+func (o *Chunk) UpsertGP(update bool, conflictColumns []string, updateColumns []string, whitelist ...string) {
+	if err := o.Upsert(boil.GetDB(), update, conflictColumns, updateColumns, whitelist...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// UpsertP attempts an insert using an executor, and does an update or ignore on conflict.
+// UpsertP panics on error.
+func (o *Chunk) UpsertP(exec boil.Executor, update bool, conflictColumns []string, updateColumns []string, whitelist ...string) {
+	if err := o.Upsert(exec, update, conflictColumns, updateColumns, whitelist...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// Upsert attempts an insert using an executor, and does an update or ignore on conflict.
+func (o *Chunk) Upsert(exec boil.Executor, update bool, conflictColumns []string, updateColumns []string, whitelist ...string) error {
+	if o == nil {
+		return errors.New("models: no chunks provided for upsert")
+	}
+
+	columns := o.generateUpsertColumns(conflictColumns, updateColumns, whitelist)
+	query := o.generateUpsertQuery(update, columns)
+
+	var err error
+	if err := o.doBeforeUpsertHooks(); err != nil {
+		return err
+	}
+
+	if len(columns.returning) != 0 {
+		err = exec.QueryRow(query, boil.GetStructValues(o, columns.whitelist...)...).Scan(boil.GetStructPointers(o, columns.returning...)...)
+	} else {
+		_, err = exec.Exec(query, o.ID, o.FileID, o.Size, o.Hash, o.Position, o.CreatedAt, o.UpdatedAt)
+	}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, boil.GetStructValues(o, columns.whitelist...))
+	}
+
+	if err != nil {
+		return fmt.Errorf("models: unable to upsert for chunks: %s", err)
+	}
+
+	if err := o.doAfterUpsertHooks(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// generateUpsertColumns builds an upsertData object, using generated values when necessary.
+func (o *Chunk) generateUpsertColumns(conflict []string, update []string, whitelist []string) upsertData {
+	var upsertCols upsertData
+
+	upsertCols.whitelist, upsertCols.returning = o.generateInsertColumns(whitelist...)
+
+	upsertCols.conflict = make([]string, len(conflict))
+	upsertCols.update = make([]string, len(update))
+
+	// generates the ON CONFLICT() columns if none are provided
+	upsertCols.conflict = o.generateConflictColumns(conflict...)
+
+	// generate the UPDATE SET columns if none are provided
+	upsertCols.update = o.generateUpdateColumns(update...)
+
+	return upsertCols
+}
+
+// generateConflictColumns returns the user provided columns.
+// If no columns are provided, it returns the primary key columns.
+func (o *Chunk) generateConflictColumns(columns ...string) []string {
+	if len(columns) != 0 {
+		return columns
+	}
+
+	c := make([]string, len(chunkPrimaryKeyColumns))
+	copy(c, chunkPrimaryKeyColumns)
+
+	return c
+}
+
+// generateUpsertQuery builds a SQL statement string using the upsertData provided.
+func (o *Chunk) generateUpsertQuery(update bool, columns upsertData) string {
+	var set, query string
+
+	conflict := strmangle.IdentQuoteSlice(columns.conflict)
+	whitelist := strmangle.IdentQuoteSlice(columns.whitelist)
+	returning := strmangle.IdentQuoteSlice(columns.returning)
+
+	var sets []string
+	// Generate the UPDATE SET clause
+	for _, v := range columns.update {
+		quoted := strmangle.IdentQuote(v)
+		sets = append(sets, fmt.Sprintf("%s = EXCLUDED.%s", quoted, quoted))
+	}
+	set = strings.Join(sets, ", ")
+
+	query = fmt.Sprintf(
+		"INSERT INTO chunks (%s) VALUES (%s) ON CONFLICT",
+		strings.Join(whitelist, ", "),
+		strmangle.Placeholders(len(whitelist), 1, 1),
+	)
+
+	if !update {
+		query = query + " DO NOTHING"
+	} else {
+		query = fmt.Sprintf("%s (%s) DO UPDATE SET %s", query, strings.Join(conflict, ", "), set)
+	}
+
+	if len(columns.returning) != 0 {
+		query = fmt.Sprintf("%s RETURNING %s", query, strings.Join(returning, ", "))
+	}
+
+	return query
+}
+
+// DeleteP deletes a single Chunk record with an executor.
+// DeleteP will match against the primary key column to find the record to delete.
+// Panics on error.
+func (o *Chunk) DeleteP(exec boil.Executor) {
+	if err := o.Delete(exec); err != nil {
+		panic(boil.WrapErr(err))
+	}
 }
 
 // DeleteG deletes a single Chunk record.
@@ -527,36 +763,27 @@ func (o *Chunk) Delete(exec boil.Executor) error {
 	return nil
 }
 
-// DeleteP deletes a single Chunk record with an executor.
-// DeleteP will match against the primary key column to find the record to delete.
-// Panics on error.
-func (o *Chunk) DeleteP(exec boil.Executor) {
-	if err := o.Delete(exec); err != nil {
+// DeleteAllP deletes all rows, and panics on error.
+func (q chunkQuery) DeleteAllP() {
+	if err := q.DeleteAll(); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// DeleteAll deletes all rows.
-func (o chunkQuery) DeleteAll() error {
-	if o.Query == nil {
+// DeleteAll deletes all matching rows.
+func (q chunkQuery) DeleteAll() error {
+	if q.Query == nil {
 		return errors.New("models: no chunkQuery provided for delete all")
 	}
 
-	boil.SetDelete(o.Query)
+	boil.SetDelete(q.Query)
 
-	_, err := boil.ExecQuery(o.Query)
+	_, err := boil.ExecQuery(q.Query)
 	if err != nil {
 		return fmt.Errorf("models: unable to delete all from chunks: %s", err)
 	}
 
 	return nil
-}
-
-// DeleteAllP deletes all rows, and panics on error.
-func (o chunkQuery) DeleteAllP() {
-	if err := o.DeleteAll(); err != nil {
-		panic(boil.WrapErr(err))
-	}
 }
 
 // DeleteAll deletes all rows in the slice, and panics on error.
@@ -574,41 +801,181 @@ func (o ChunkSlice) DeleteAllG() error {
 	return o.DeleteAll(boil.GetDB())
 }
 
-// DeleteAll deletes all rows in the slice with an executor.
+// DeleteAllP deletes all rows in the slice, using an executor, and panics on error.
+func (o ChunkSlice) DeleteAllP(exec boil.Executor) {
+	if err := o.DeleteAll(exec); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// DeleteAll deletes all rows in the slice, using an executor.
 func (o ChunkSlice) DeleteAll(exec boil.Executor) error {
 	if o == nil {
 		return errors.New("models: no Chunk slice provided for delete all")
 	}
 
-	var mods []qm.QueryMod
+	if len(o) == 0 {
+		return nil
+	}
 
 	args := o.inPrimaryKeyArgs()
-	in := boil.WherePrimaryKeyIn(len(o), "id")
 
-	mods = append(mods,
-		qm.From("chunks"),
-		qm.Where(in, args...),
+	sql := fmt.Sprintf(
+		`DELETE FROM chunks WHERE (%s) IN (%s)`,
+		strings.Join(strmangle.IdentQuoteSlice(chunkPrimaryKeyColumns), ","),
+		strmangle.Placeholders(len(o)*len(chunkPrimaryKeyColumns), 1, len(chunkPrimaryKeyColumns)),
 	)
 
-	query := NewQuery(exec, mods...)
-	boil.SetDelete(query)
+	q := boil.SQL(sql, args...)
+	boil.SetExecutor(q, exec)
 
-	_, err := boil.ExecQuery(query)
+	_, err := boil.ExecQuery(q)
 	if err != nil {
 		return fmt.Errorf("models: unable to delete all from chunk slice: %s", err)
 	}
+
 	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, sql)
 		fmt.Fprintln(boil.DebugWriter, args)
 	}
 
 	return nil
 }
 
-// DeleteAllP deletes all rows in the slice with an executor, and panics on error.
-func (o ChunkSlice) DeleteAllP(exec boil.Executor) {
-	if err := o.DeleteAll(exec); err != nil {
+// ReloadGP refetches the object from the database and panics on error.
+func (o *Chunk) ReloadGP() {
+	if err := o.ReloadG(); err != nil {
 		panic(boil.WrapErr(err))
 	}
+}
+
+// ReloadP refetches the object from the database with an executor. Panics on error.
+func (o *Chunk) ReloadP(exec boil.Executor) {
+	if err := o.Reload(exec); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// ReloadG refetches the object from the database using the primary keys.
+func (o *Chunk) ReloadG() error {
+	if o == nil {
+		return errors.New("models: no Chunk provided for reload")
+	}
+
+	return o.Reload(boil.GetDB())
+}
+
+// Reload refetches the object from the database
+// using the primary keys with an executor.
+func (o *Chunk) Reload(exec boil.Executor) error {
+	ret, err := ChunkFind(exec, o.ID)
+	if err != nil {
+		return err
+	}
+
+	*o = *ret
+	return nil
+}
+
+func (o *ChunkSlice) ReloadAllGP() {
+	if err := o.ReloadAllG(); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+func (o *ChunkSlice) ReloadAllP(exec boil.Executor) {
+	if err := o.ReloadAll(exec); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+func (o *ChunkSlice) ReloadAllG() error {
+	if o == nil {
+		return errors.New("models: empty ChunkSlice provided for reload all")
+	}
+
+	return o.ReloadAll(boil.GetDB())
+}
+
+// ReloadAll refetches every row with matching primary key column values
+// and overwrites the original object slice with the newly updated slice.
+func (o *ChunkSlice) ReloadAll(exec boil.Executor) error {
+	if o == nil {
+		return errors.New("models: no Chunk slice provided for reload all")
+	}
+
+	if len(*o) == 0 {
+		return nil
+	}
+
+	chunks := ChunkSlice{}
+	args := o.inPrimaryKeyArgs()
+
+	sql := fmt.Sprintf(
+		`SELECT chunks.* FROM chunks WHERE (%s) IN (%s)`,
+		strings.Join(strmangle.IdentQuoteSlice(chunkPrimaryKeyColumns), ","),
+		strmangle.Placeholders(len(*o)*len(chunkPrimaryKeyColumns), 1, len(chunkPrimaryKeyColumns)),
+	)
+
+	q := boil.SQL(sql, args...)
+	boil.SetExecutor(q, exec)
+
+	err := q.Bind(&chunks)
+	if err != nil {
+		return fmt.Errorf("models: unable to reload all in ChunkSlice: %v", err)
+	}
+
+	*o = chunks
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, sql)
+		fmt.Fprintln(boil.DebugWriter, args)
+	}
+
+	return nil
+}
+
+
+// ChunkExists checks if the Chunk row exists.
+func ChunkExists(exec boil.Executor, id string) (bool, error) {
+	var exists bool
+
+	row := exec.QueryRow(
+		`select exists(select 1 from "chunks" where "id"=$1 limit 1)`,
+		id,
+	)
+
+	err := row.Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("models: unable to check if chunks exists: %v", err)
+	}
+
+	return exists, nil
+}
+
+// ChunkExistsG checks if the Chunk row exists.
+func ChunkExistsG(id string) (bool, error) {
+	return ChunkExists(boil.GetDB(), id)
+}
+
+// ChunkExistsGP checks if the Chunk row exists. Panics on error.
+func ChunkExistsGP(id string) bool {
+	e, err := ChunkExists(boil.GetDB(), id)
+	if err != nil {
+		panic(boil.WrapErr(err))
+	}
+
+	return e
+}
+
+// ChunkExistsP checks if the Chunk row exists. Panics on error.
+func ChunkExistsP(exec boil.Executor, id string) bool {
+	e, err := ChunkExists(exec, id)
+	if err != nil {
+		panic(boil.WrapErr(err))
+	}
+
+	return e
 }
 
 func (o Chunk) inPrimaryKeyArgs() []interface{} {

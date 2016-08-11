@@ -2,60 +2,85 @@ package chunks
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
-	"github.com/pkg/errors"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/processors"
 	"github.com/zqzca/echo"
 
-	. "github.com/nullbio/sqlboiler/boil/qm"
+	. "github.com/vattle/sqlboiler/boil/qm"
 )
 
-func Write(e echo.Context) error {
-	req := e.Request()
-	length := req.ContentLength()
+const maxChunkSize = 5 * 1024 * 1024
 
-	if length == 0 {
+func (c ChunkController) Write(e echo.Context) error {
+	req := e.Request()
+	contentLength := req.ContentLength()
+
+	if contentLength == 0 {
 		return e.NoContent(http.StatusLengthRequired)
 	}
 
-	if length > 5*1024*1024 {
+	if contentLength > maxChunkSize {
 		return e.NoContent(http.StatusRequestEntityTooLarge)
 	}
 
-	fileID := e.Param("file_id")
-	if !fileExists(fileID) {
+	// Make sure the file exists.
+	fid := e.Param("file_id")
+	f, err := models.Files(c.DB, Where("file_id=$1", fid)).One()
+	if err != nil {
 		return e.NoContent(http.StatusNotFound)
 	}
 
+	chunkID, err := strconv.Atoi(e.Param("chunk_id"))
+	if err != nil {
+		c.Error("Failed to convert chunk id into integer")
+		return err
+	}
+
 	clientHash := e.Param("hash")
-	if chunkExists(fileID, clientHash) {
+	if c.chunkExists(f.ID, clientHash) {
+		c.Warn(
+			"Chunk Already exists",
+			"ID", clientHash,
+		)
+
 		return e.NoContent(http.StatusConflict)
 	}
 
-	// Actually read file.
+	// Actually read file...
 	buf, err := ioutil.ReadAll(req.Body())
-
 	if err != nil {
+		c.Error("Failed to read Request Body", "error", err)
+
 		return e.NoContent(http.StatusBadRequest)
 	}
 
 	b := bytes.NewReader(buf)
 	hash, _ := lib.Hash(b)
 
-	_, err := b.Seek(0, io.SET_SEEK)
+	// Does this need to be handled? Can a bytesbuffer error on seek?
+	b.Seek(0, os.SEEK_SET)
 
-	fmt.Println("Length: ", length)
-	fmt.Println("Size:", b.Size())
-	fmt.Println("Hash:", hash)
+	c.Debug(
+		"Chunk Received",
+		"Request Size", contentLength,
+		"Size", b.Size(),
+		"Hash", hash,
+	)
 
 	if hash != clientHash {
+		c.Warn(
+			"Hash does not match what client specified",
+			"Client", clientHash,
+			"Server", hash,
+		)
 		return e.NoContent(422) // Unprocessable Entity
 	}
 
@@ -63,38 +88,41 @@ func Write(e echo.Context) error {
 	dstPath := filepath.Join("files", "chunks", hash)
 
 	var size int
-	if size, err = storeChunk(b, dstPath); err != nil {
-		fmt.Println("failed to store chunk:", err)
+	if size, err = c.storeChunk(b, dstPath); err != nil {
+		c.Error("Failed to store chunk", "Error", err)
 		return e.NoContent(http.StatusInternalServerError)
 	}
 
-	c := &models.Chunk{
-		FileID:   fileID,
+	chunk := &models.Chunk{
+		FileID:   f.ID,
 		Position: int(chunkID),
 		Size:     size,
 		Hash:     hash,
 	}
 
-	err = c.Insert()
-	if err != nil {
+	if err = chunk.Insert(c.DB); err != nil {
+		c.Error("Failed to insert chunk in DB", "Error", err)
 		return e.NoContent(http.StatusInternalServerError)
 	}
 
-	go checkFinished(fileID)
+	go c.checkFinished(f)
 
 	return e.NoContent(http.StatusCreated)
 }
 
-func fileExists(fid string) bool {
-	return models.Files(Where("file_id=$1", fid)).Count() > 0
+func (c ChunkController) chunkExists(fid string, hash string) bool {
+	chunkCount, err := models.Chunks(c.DB, Where("file_id=$1 and hash=$2", fid, hash)).Count()
+
+	if err != nil {
+		c.Error("Failed to look up chunk count", err)
+		return false
+	}
+
+	return chunkCount > 0
 }
 
-func chunkExists(fid string, hash string) bool {
-	return models.Chunks(Where("file_id=$1 and hash=$2", fid, hash)).Count() > 0
-}
-
-func storeChunk(src io.Reader, path string) (int, error) {
-	// Destination file
+// storeChunk writes the chunk data from src to a new file at path.
+func (c ChunkController) storeChunk(src io.Reader, path string) (int, error) {
 	dst, err := os.Create(path)
 
 	if err != nil {
@@ -106,39 +134,42 @@ func storeChunk(src io.Reader, path string) (int, error) {
 	var fileSize int64
 
 	if fileSize, err = io.Copy(dst, src); err != nil {
+		c.Error(
+			"Failed to copy chunk data to destination",
+			"Destination", path,
+			"Error", err,
+		)
+
 		return int(fileSize), err
 	}
 
-	return int(fileSize), nil
+	return 0, nil
 }
 
-func checkFinished(fid string) {
-	chunks, err := models.Chunks(Where("file_id=$1", fid)).All()
+func (c ChunkController) checkFinished(f *models.File) {
+	chunks, err := models.Chunks(c.DB, Where("file_id=$1", f.ID)).All()
 
 	if err != nil {
-		fmt.Println("Failed to query for all chunks with file id:", fid)
-		return
-	}
-
-	f, err := models.FileFind(fid)
-
-	if err != nil {
-		fmt.Println("Failed to query for file", err)
+		c.Error("Failed to lookup chunks", "Error", err)
 		return
 	}
 
 	completed_chunks := len(chunks)
-	required_chunks := f.Chunks
+	required_chunks, err := models.Chunks(c.DB, Where("file_id=$1", f.ID)).Count()
 
-	if completed_chunks == required_chunks {
-		err = FileCompleter(f)
+	if completed_chunks != int(required_chunks) {
+		c.Info(
+			"File not finished",
+			"Received", completed_chunks,
+			"Total", required_chunks,
+		)
 
-		if err != nil {
-			return errors.Wrap(err, "Failed to complete file")
-		}
-		// fmt.Println("processing")
-		// tx := Begin()
-		// // f.Process(tx)
-		// tx.Commit()
+		return
+	}
+
+	err = processors.CompleteFile(c.Dependencies, f)
+
+	if err != nil {
+		c.Error("Failed to finish file", "error", err)
 	}
 }
