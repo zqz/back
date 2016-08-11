@@ -13,15 +13,17 @@ import (
 
 //Index returns a list of files
 func (f FileController) Index(e echo.Context) error {
-	pageStr := e.Param("page")
-	perPageStr := e.Param("per_page")
+	pageStr := e.QueryParam("page")
+	perPageStr := e.QueryParam("per_page")
 
 	page, err := strconv.Atoi(pageStr)
 	if err != nil {
+		f.Warn("Failed to decode page param", "e", err)
 		return e.NoContent(http.StatusBadRequest)
 	}
 	perPage, err := strconv.Atoi(perPageStr)
 	if err != nil {
+		f.Warn("Failed to decode per_page param")
 		return e.NoContent(http.StatusBadRequest)
 	}
 

@@ -4,8 +4,8 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
+	"os"
 
 	"golang.org/x/net/http2"
 
@@ -85,9 +85,13 @@ func main() {
 		return
 	}
 
+	log := logrus.New()
+	log.Level = logrus.WarnLevel
+	log.Out = os.Stdout
+
 	deps := controllers.Dependencies{
 		Fs:     afero.NewOsFs(),
-		Logger: logrus.New(),
+		Logger: log,
 		DB:     db,
 	}
 
