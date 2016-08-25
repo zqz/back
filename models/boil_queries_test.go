@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 	"math/rand"
-	"bytes"
 
 	"github.com/vattle/sqlboiler/boil"
 )
@@ -70,12 +69,5 @@ func randStr(length int) string {
 func getDBNameHash(input string) string {
 	initDBNameRand(input)
 	return randStr(40)
-}
-
-// byteSliceEqual calls bytes.Equal to check that two
-// byte slices are equal. bytes.Equal is not used directly
-// to avoid an unecessary conditional type import.
-func byteSliceEqual(a []byte, b []byte) bool {
-	return bytes.Equal(a, b)
 }
 

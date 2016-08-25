@@ -1,11 +1,12 @@
 package models
 
 import (
-	"errors"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/vattle/sqlboiler/boil/qm"
 	"github.com/vattle/sqlboiler/strmangle"
@@ -24,27 +25,32 @@ type File struct {
 	UpdatedAt time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	Slug      string    `boil:"slug" json:"slug" toml:"slug" yaml:"slug"`
 
-	//Relationships *FileRelationships `boil:"-" json:"-" toml:"-" yaml:"-"`
+	Loaded *FileLoaded `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
-// FileRelationships are where relationships are both cached
-// and eagerly loaded.
-type FileRelationships struct {
+// FileLoaded are where relationships are eagerly loaded.
+type FileLoaded struct {
 	Chunks     ChunkSlice
 	Thumbnails ThumbnailSlice
 }
 
-
 var (
-	fileColumns                  = []string{"id", "size", "num_chunks", "state", "name", "hash", "type", "created_at", "updated_at", "slug"}
-	fileColumnsWithoutDefault    = []string{"size", "num_chunks", "state", "name", "hash", "type", "created_at", "updated_at"}
-	fileColumnsWithDefault       = []string{"id", "slug"}
-	fileColumnsWithSimpleDefault = []string{}
-	fileValidatedColumns         = []string{"id"}
-	fileUniqueColumns            = []string{}
-	filePrimaryKeyColumns        = []string{"id"}
-	fileAutoIncrementColumns     = []string{}
-	fileAutoIncPrimaryKey        = ""
+	fileColumns               = []string{"id", "size", "num_chunks", "state", "name", "hash", "type", "created_at", "updated_at", "slug"}
+	fileColumnsWithoutDefault = []string{"size", "num_chunks", "state", "name", "hash", "type", "created_at", "updated_at"}
+	fileColumnsWithDefault    = []string{"id", "slug"}
+	filePrimaryKeyColumns     = []string{"id"}
+	fileTitleCases            = map[string]string{
+		"id":         "ID",
+		"size":       "Size",
+		"num_chunks": "NumChunks",
+		"state":      "State",
+		"name":       "Name",
+		"hash":       "Hash",
+		"type":       "Type",
+		"created_at": "CreatedAt",
+		"updated_at": "UpdatedAt",
+		"slug":       "Slug",
+	}
 )
 
 type (
@@ -162,9 +168,12 @@ func (q fileQuery) One() (*File, error) {
 
 	boil.SetLimit(q.Query, 1)
 
-	err := q.Bind(o)
+	err := q.BindFast(o, fileTitleCases)
 	if err != nil {
-		return nil, fmt.Errorf("models: failed to execute a one query for files: %s", err)
+		if errors.Cause(err) == sql.ErrNoRows {
+			return nil, sql.ErrNoRows
+		}
+		return nil, errors.Wrap(err, "models: failed to execute a one query for files")
 	}
 
 	return o, nil
@@ -184,9 +193,9 @@ func (q fileQuery) AllP() FileSlice {
 func (q fileQuery) All() (FileSlice, error) {
 	var o FileSlice
 
-	err := q.Bind(&o)
+	err := q.BindFast(&o, fileTitleCases)
 	if err != nil {
-		return nil, fmt.Errorf("models: failed to assign all query results to File slice: %s", err)
+		return nil, errors.Wrap(err, "models: failed to assign all query results to File slice")
 	}
 
 	return o, nil
@@ -210,7 +219,7 @@ func (q fileQuery) Count() (int64, error) {
 
 	err := boil.ExecQueryOne(q.Query).Scan(&count)
 	if err != nil {
-		return 0, fmt.Errorf("models: failed to count files rows: %s", err)
+		return 0, errors.Wrap(err, "models: failed to count files rows")
 	}
 
 	return count, nil
@@ -235,7 +244,7 @@ func (q fileQuery) Exists() (bool, error) {
 
 	err := boil.ExecQueryOne(q.Query).Scan(&count)
 	if err != nil {
-		return false, fmt.Errorf("models: failed to check if files exists: %s", err)
+		return false, errors.Wrap(err, "models: failed to check if files exists")
 	}
 
 	return count > 0, nil
@@ -243,32 +252,12 @@ func (q fileQuery) Exists() (bool, error) {
 
 
 // ChunksG retrieves all the file's chunks.
-func (f *File) ChunksG(mods ...qm.QueryMod) (ChunkSlice, error) {
+func (f *File) ChunksG(mods ...qm.QueryMod) chunkQuery {
 	return f.Chunks(boil.GetDB(), mods...)
 }
 
-// ChunksGP panics on error. Retrieves all the file's chunks.
-func (f *File) ChunksGP(mods ...qm.QueryMod) ChunkSlice {
-	slice, err := f.Chunks(boil.GetDB(), mods...)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return slice
-}
-
-// ChunksP panics on error. Retrieves all the file's chunks with an executor.
-func (f *File) ChunksP(exec boil.Executor, mods ...qm.QueryMod) ChunkSlice {
-	slice, err := f.Chunks(exec, mods...)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return slice
-}
-
 // Chunks retrieves all the file's chunks with an executor.
-func (f *File) Chunks(exec boil.Executor, mods ...qm.QueryMod) (ChunkSlice, error) {
+func (f *File) Chunks(exec boil.Executor, mods ...qm.QueryMod) chunkQuery {
 	queryMods := []qm.QueryMod{
 		qm.Select(`"a".*`),
 	}
@@ -283,36 +272,16 @@ func (f *File) Chunks(exec boil.Executor, mods ...qm.QueryMod) (ChunkSlice, erro
 
 	query := Chunks(exec, queryMods...)
 	boil.SetFrom(query.Query, `"chunks" as "a"`)
-	return query.All()
+	return query
 }
 
 // ThumbnailsG retrieves all the file's thumbnails.
-func (f *File) ThumbnailsG(mods ...qm.QueryMod) (ThumbnailSlice, error) {
+func (f *File) ThumbnailsG(mods ...qm.QueryMod) thumbnailQuery {
 	return f.Thumbnails(boil.GetDB(), mods...)
 }
 
-// ThumbnailsGP panics on error. Retrieves all the file's thumbnails.
-func (f *File) ThumbnailsGP(mods ...qm.QueryMod) ThumbnailSlice {
-	slice, err := f.Thumbnails(boil.GetDB(), mods...)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return slice
-}
-
-// ThumbnailsP panics on error. Retrieves all the file's thumbnails with an executor.
-func (f *File) ThumbnailsP(exec boil.Executor, mods ...qm.QueryMod) ThumbnailSlice {
-	slice, err := f.Thumbnails(exec, mods...)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return slice
-}
-
 // Thumbnails retrieves all the file's thumbnails with an executor.
-func (f *File) Thumbnails(exec boil.Executor, mods ...qm.QueryMod) (ThumbnailSlice, error) {
+func (f *File) Thumbnails(exec boil.Executor, mods ...qm.QueryMod) thumbnailQuery {
 	queryMods := []qm.QueryMod{
 		qm.Select(`"a".*`),
 	}
@@ -327,8 +296,141 @@ func (f *File) Thumbnails(exec boil.Executor, mods ...qm.QueryMod) (ThumbnailSli
 
 	query := Thumbnails(exec, queryMods...)
 	boil.SetFrom(query.Query, `"thumbnails" as "a"`)
-	return query.All()
+	return query
 }
+
+
+
+// LoadChunks allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (r *FileLoaded) LoadChunks(e boil.Executor, singular bool, maybeFile interface{}) error {
+	var slice []*File
+	var object *File
+
+	count := 1
+	if singular {
+		object = maybeFile.(*File)
+	} else {
+		slice = *maybeFile.(*FileSlice)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			args[i] = obj.ID
+		}
+	}
+
+	query := fmt.Sprintf(
+		`select * from "chunks" where "file_id" in (%s)`,
+		strmangle.Placeholders(count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load chunks")
+	}
+	defer results.Close()
+
+	var resultSlice []*Chunk
+	if err = boil.BindFast(results, &resultSlice, fileTitleCases); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice chunks")
+	}
+
+	if singular {
+		if object.Loaded == nil {
+			object.Loaded = &FileLoaded{}
+		}
+		object.Loaded.Chunks = resultSlice
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.FileID {
+				if local.Loaded == nil {
+					local.Loaded = &FileLoaded{}
+				}
+				local.Loaded.Chunks = append(local.Loaded.Chunks, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadThumbnails allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (r *FileLoaded) LoadThumbnails(e boil.Executor, singular bool, maybeFile interface{}) error {
+	var slice []*File
+	var object *File
+
+	count := 1
+	if singular {
+		object = maybeFile.(*File)
+	} else {
+		slice = *maybeFile.(*FileSlice)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			args[i] = obj.ID
+		}
+	}
+
+	query := fmt.Sprintf(
+		`select * from "thumbnails" where "file_id" in (%s)`,
+		strmangle.Placeholders(count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load thumbnails")
+	}
+	defer results.Close()
+
+	var resultSlice []*Thumbnail
+	if err = boil.BindFast(results, &resultSlice, fileTitleCases); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice thumbnails")
+	}
+
+	if singular {
+		if object.Loaded == nil {
+			object.Loaded = &FileLoaded{}
+		}
+		object.Loaded.Thumbnails = resultSlice
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.FileID {
+				if local.Loaded == nil {
+					local.Loaded = &FileLoaded{}
+				}
+				local.Loaded.Thumbnails = append(local.Loaded.Thumbnails, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 
 
 // FilesG retrieves all records.
@@ -341,7 +443,6 @@ func Files(exec boil.Executor, mods ...qm.QueryMod) fileQuery {
 	mods = append(mods, qm.From("files"))
 	return fileQuery{NewQuery(exec, mods...)}
 }
-
 
 // FileFindG retrieves a single record by ID.
 func FileFindG(id string, selectCols ...string) (*File, error) {
@@ -361,24 +462,28 @@ func FileFindGP(id string, selectCols ...string) *File {
 // FileFind retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
 func FileFind(exec boil.Executor, id string, selectCols ...string) (*File, error) {
-	file := &File{}
+	fileObj := &File{}
 
 	sel := "*"
 	if len(selectCols) > 0 {
 		sel = strings.Join(strmangle.IdentQuoteSlice(selectCols), ",")
 	}
-	sql := fmt.Sprintf(
+	query := fmt.Sprintf(
 		`select %s from "files" where "id"=$1`, sel,
 	)
-	q := boil.SQL(sql, id)
+
+	q := boil.SQL(query, id)
 	boil.SetExecutor(q, exec)
 
-	err := q.Bind(file)
+	err := q.BindFast(fileObj, fileTitleCases)
 	if err != nil {
-		return nil, fmt.Errorf("models: unable to select from files: %v", err)
+		if errors.Cause(err) == sql.ErrNoRows {
+			return nil, sql.ErrNoRows
+		}
+		return nil, errors.Wrap(err, "models: unable to select from files")
 	}
 
-	return file, nil
+	return fileObj, nil
 }
 
 // FileFindP retrieves a single record by ID with an executor, and panics on error.
@@ -422,7 +527,13 @@ func (o *File) Insert(exec boil.Executor, whitelist ...string) error {
 		return errors.New("models: no files provided for insertion")
 	}
 
-	wl, returnColumns := o.generateInsertColumns(whitelist...)
+	wl, returnColumns := strmangle.InsertColumnSet(
+		fileColumns,
+		fileColumnsWithDefault,
+		fileColumnsWithoutDefault,
+		boil.NonZeroDefaultSet(fileColumnsWithDefault, fileTitleCases, o),
+		whitelist,
+	)
 
 	var err error
 	if err := o.doBeforeCreateHooks(); err != nil {
@@ -433,55 +544,22 @@ func (o *File) Insert(exec boil.Executor, whitelist ...string) error {
 
 	if len(returnColumns) != 0 {
 		ins = ins + fmt.Sprintf(` RETURNING %s`, strings.Join(returnColumns, ","))
-		err = exec.QueryRow(ins, boil.GetStructValues(o, wl...)...).Scan(boil.GetStructPointers(o, returnColumns...)...)
+		err = exec.QueryRow(ins, boil.GetStructValues(o, fileTitleCases, wl...)...).Scan(boil.GetStructPointers(o, fileTitleCases, returnColumns...)...)
 	} else {
-		_, err = exec.Exec(ins, o.ID, o.Size, o.NumChunks, o.State, o.Name, o.Hash, o.Type, o.CreatedAt, o.UpdatedAt, o.Slug)
+		_, err = exec.Exec(ins, boil.GetStructValues(o, fileTitleCases, wl...)...)
 	}
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, ins)
-		fmt.Fprintln(boil.DebugWriter, boil.GetStructValues(o, wl...))
+		fmt.Fprintln(boil.DebugWriter, boil.GetStructValues(o, fileTitleCases, wl...))
 	}
 
 	if err != nil {
-		return fmt.Errorf("models: unable to insert into files: %s", err)
+		return errors.Wrap(err, "models: unable to insert into files")
 	}
 
-	if err := o.doAfterCreateHooks(); err != nil {
-		return err
-	}
-
-	return nil
+	return o.doAfterCreateHooks()
 }
-
-// generateInsertColumns generates the whitelist columns and return columns for an insert statement
-// the return columns are used to get values that are assigned within the database during the
-// insert to keep the struct in sync with what's in the db.
-// with a whitelist:
-// - the whitelist is used for the insert columns
-// - the return columns are the result of (columns with default values - the whitelist)
-// without a whitelist:
-// - start with columns without a default as these always need to be inserted
-// - add all columns that have a default in the database but that are non-zero in the struct
-// - the return columns are the result of (columns with default values - the previous set)
-func (o *File) generateInsertColumns(whitelist ...string) ([]string, []string) {
-	if len(whitelist) > 0 {
-		return whitelist, boil.SetComplement(fileColumnsWithDefault, whitelist)
-	}
-
-	var wl []string
-
-	wl = append(wl, fileColumnsWithoutDefault...)
-
-	wl = boil.SetMerge(boil.NonZeroDefaultSet(fileColumnsWithDefault, o), wl)
-	wl = boil.SortByKeys(fileColumns, wl)
-
-	// Only return the columns with default values that are not in the insert whitelist
-	rc := boil.SetComplement(fileColumnsWithDefault, wl)
-
-	return wl, rc
-}
-
 
 // UpdateG a single File record. See Update for
 // whitelist behavior description.
@@ -512,6 +590,8 @@ func (o *File) UpdateP(exec boil.Executor, whitelist ...string) {
 // No whitelist behavior: Without a whitelist, columns are inferred by the following rules:
 // - All columns are inferred to start with
 // - All primary keys are subtracted from this set
+// Update does not automatically update the record in case of default values. Use .Reload()
+// to refresh the records.
 func (o *File) Update(exec boil.Executor, whitelist ...string) error {
 	if err := o.doBeforeUpdateHooks(); err != nil {
 		return err
@@ -521,31 +601,30 @@ func (o *File) Update(exec boil.Executor, whitelist ...string) error {
 	var query string
 	var values []interface{}
 
-	wl := o.generateUpdateColumns(whitelist...)
-
-	if len(wl) != 0 {
-		query = fmt.Sprintf(`UPDATE files SET %s WHERE %s`, strmangle.SetParamNames(wl), strmangle.WhereClause(len(wl)+1, filePrimaryKeyColumns))
-		values = boil.GetStructValues(o, wl...)
-		values = append(values, o.ID)
-		_, err = exec.Exec(query, values...)
-	} else {
-		return fmt.Errorf("models: unable to update files, could not build whitelist")
+	wl := strmangle.UpdateColumnSet(fileColumns, filePrimaryKeyColumns, whitelist)
+	if len(wl) == 0 {
+		return errors.New("models: unable to update files, could not build whitelist")
 	}
+
+	query = fmt.Sprintf(`UPDATE files SET %s WHERE %s`, strmangle.SetParamNames(wl), strmangle.WhereClause(len(wl)+1, filePrimaryKeyColumns))
+	values = boil.GetStructValues(o, fileTitleCases, wl...)
+	values = append(values, o.ID)
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, query)
 		fmt.Fprintln(boil.DebugWriter, values)
 	}
 
+	result, err := exec.Exec(query, values...)
 	if err != nil {
-		return fmt.Errorf("models: unable to update files row: %s", err)
+		return errors.Wrap(err, "models: unable to update files row")
 	}
 
-	if err := o.doAfterUpdateHooks(); err != nil {
-		return err
+	if r, err := result.RowsAffected(); err == nil && r != 1 {
+		return errors.Errorf("failed to update single row, updated %d rows", r)
 	}
 
-	return nil
+	return o.doAfterUpdateHooks()
 }
 
 // UpdateAllP updates all rows with matching column names, and panics on error.
@@ -561,7 +640,7 @@ func (q fileQuery) UpdateAll(cols M) error {
 
 	_, err := boil.ExecQuery(q.Query)
 	if err != nil {
-		return fmt.Errorf("models: unable to update all for files: %s", err)
+		return errors.Wrap(err, "models: unable to update all for files")
 	}
 
 	return nil
@@ -588,22 +667,23 @@ func (o FileSlice) UpdateAllP(exec boil.Executor, cols M) {
 
 // UpdateAll updates all rows with the specified column values, using an executor.
 func (o FileSlice) UpdateAll(exec boil.Executor, cols M) error {
-	if o == nil {
-		return errors.New("models: no File slice provided for update all")
-	}
-
-	if len(o) == 0 {
+	ln := int64(len(o))
+	if ln == 0 {
 		return nil
 	}
 
-	colNames := make([]string, len(cols))
-	var args []interface{}
+	if len(cols) == 0 {
+		return errors.New("models: update all requires at least one column argument")
+	}
 
-	count := 0
+	colNames := make([]string, len(cols))
+	args := make([]interface{}, len(cols))
+
+	i := 0
 	for name, value := range cols {
-		colNames[count] = strmangle.IdentQuote(name)
-		args = append(args, value)
-		count++
+		colNames[i] = strmangle.IdentQuote(name)
+		args[i] = value
+		i++
 	}
 
 	// Append all of the primary key values for each column
@@ -617,27 +697,21 @@ func (o FileSlice) UpdateAll(exec boil.Executor, cols M) error {
 		strmangle.Placeholders(len(o)*len(filePrimaryKeyColumns), len(colNames)+1, len(filePrimaryKeyColumns)),
 	)
 
-	q := boil.SQL(sql, args...)
-	boil.SetExecutor(q, exec)
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, sql)
+		fmt.Fprintln(boil.DebugWriter, args...)
+	}
 
-	_, err := boil.ExecQuery(q)
+	result, err := exec.Exec(sql, args...)
 	if err != nil {
-		return fmt.Errorf("models: unable to update all in file slice: %s", err)
+		return errors.Wrap(err, "models: unable to update all in file slice")
+	}
+
+	if r, err := result.RowsAffected(); err == nil && r != ln {
+		return errors.Errorf("failed to update %d rows, only affected %d", ln, r)
 	}
 
 	return nil
-}
-
-// generateUpdateColumns generates the whitelist columns for an update statement
-// if a whitelist is supplied, it's returned
-// if a whitelist is missing then we begin with all columns
-// then we remove the primary key columns
-func (o *File) generateUpdateColumns(whitelist ...string) []string {
-	if len(whitelist) != 0 {
-		return whitelist
-	}
-
-	return boil.SetComplement(fileColumns, filePrimaryKeyColumns)
 }
 
 // UpsertG attempts an insert, and does an update or ignore on conflict.
@@ -661,32 +735,49 @@ func (o *File) UpsertP(exec boil.Executor, update bool, conflictColumns []string
 }
 
 // Upsert attempts an insert using an executor, and does an update or ignore on conflict.
-func (o *File) Upsert(exec boil.Executor, update bool, conflictColumns []string, updateColumns []string, whitelist ...string) error {
+func (o *File) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns []string, updateColumns []string, whitelist ...string) error {
 	if o == nil {
 		return errors.New("models: no files provided for upsert")
 	}
 
-	columns := o.generateUpsertColumns(conflictColumns, updateColumns, whitelist)
-	query := o.generateUpsertQuery(update, columns)
+	var ret []string
+	whitelist, ret = strmangle.InsertColumnSet(
+		fileColumns,
+		fileColumnsWithDefault,
+		fileColumnsWithoutDefault,
+		boil.NonZeroDefaultSet(fileColumnsWithDefault, fileTitleCases, o),
+		whitelist,
+	)
+	update := strmangle.UpdateColumnSet(
+		fileColumns,
+		filePrimaryKeyColumns,
+		updateColumns,
+	)
+	conflict := conflictColumns
+	if len(conflict) == 0 {
+		conflict = make([]string, len(filePrimaryKeyColumns))
+		copy(conflict, filePrimaryKeyColumns)
+	}
+
+	query := generateUpsertQuery("files", updateOnConflict, ret, update, conflict, whitelist)
 
 	var err error
 	if err := o.doBeforeUpsertHooks(); err != nil {
 		return err
 	}
 
-	if len(columns.returning) != 0 {
-		err = exec.QueryRow(query, boil.GetStructValues(o, columns.whitelist...)...).Scan(boil.GetStructPointers(o, columns.returning...)...)
-	} else {
-		_, err = exec.Exec(query, o.ID, o.Size, o.NumChunks, o.State, o.Name, o.Hash, o.Type, o.CreatedAt, o.UpdatedAt, o.Slug)
-	}
-
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, query)
-		fmt.Fprintln(boil.DebugWriter, boil.GetStructValues(o, columns.whitelist...))
+		fmt.Fprintln(boil.DebugWriter, boil.GetStructValues(o, fileTitleCases, whitelist...))
+	}
+	if len(ret) != 0 {
+		err = exec.QueryRow(query, boil.GetStructValues(o, fileTitleCases, whitelist...)...).Scan(boil.GetStructPointers(o, fileTitleCases, ret...)...)
+	} else {
+		_, err = exec.Exec(query, boil.GetStructValues(o, fileTitleCases, whitelist...)...)
 	}
 
 	if err != nil {
-		return fmt.Errorf("models: unable to upsert for files: %s", err)
+		return errors.Wrap(err, "models: unable to upsert for files")
 	}
 
 	if err := o.doAfterUpsertHooks(); err != nil {
@@ -694,72 +785,6 @@ func (o *File) Upsert(exec boil.Executor, update bool, conflictColumns []string,
 	}
 
 	return nil
-}
-
-// generateUpsertColumns builds an upsertData object, using generated values when necessary.
-func (o *File) generateUpsertColumns(conflict []string, update []string, whitelist []string) upsertData {
-	var upsertCols upsertData
-
-	upsertCols.whitelist, upsertCols.returning = o.generateInsertColumns(whitelist...)
-
-	upsertCols.conflict = make([]string, len(conflict))
-	upsertCols.update = make([]string, len(update))
-
-	// generates the ON CONFLICT() columns if none are provided
-	upsertCols.conflict = o.generateConflictColumns(conflict...)
-
-	// generate the UPDATE SET columns if none are provided
-	upsertCols.update = o.generateUpdateColumns(update...)
-
-	return upsertCols
-}
-
-// generateConflictColumns returns the user provided columns.
-// If no columns are provided, it returns the primary key columns.
-func (o *File) generateConflictColumns(columns ...string) []string {
-	if len(columns) != 0 {
-		return columns
-	}
-
-	c := make([]string, len(filePrimaryKeyColumns))
-	copy(c, filePrimaryKeyColumns)
-
-	return c
-}
-
-// generateUpsertQuery builds a SQL statement string using the upsertData provided.
-func (o *File) generateUpsertQuery(update bool, columns upsertData) string {
-	var set, query string
-
-	conflict := strmangle.IdentQuoteSlice(columns.conflict)
-	whitelist := strmangle.IdentQuoteSlice(columns.whitelist)
-	returning := strmangle.IdentQuoteSlice(columns.returning)
-
-	var sets []string
-	// Generate the UPDATE SET clause
-	for _, v := range columns.update {
-		quoted := strmangle.IdentQuote(v)
-		sets = append(sets, fmt.Sprintf("%s = EXCLUDED.%s", quoted, quoted))
-	}
-	set = strings.Join(sets, ", ")
-
-	query = fmt.Sprintf(
-		"INSERT INTO files (%s) VALUES (%s) ON CONFLICT",
-		strings.Join(whitelist, ", "),
-		strmangle.Placeholders(len(whitelist), 1, 1),
-	)
-
-	if !update {
-		query = query + " DO NOTHING"
-	} else {
-		query = fmt.Sprintf("%s (%s) DO UPDATE SET %s", query, strings.Join(conflict, ", "), set)
-	}
-
-	if len(columns.returning) != 0 {
-		query = fmt.Sprintf("%s RETURNING %s", query, strings.Join(returning, ", "))
-	}
-
-	return query
 }
 
 // DeleteP deletes a single File record with an executor.
@@ -794,22 +819,21 @@ func (o *File) DeleteGP() {
 // Delete will match against the primary key column to find the record to delete.
 func (o *File) Delete(exec boil.Executor) error {
 	if o == nil {
-		return errors.New("models: no File provided for deletion")
+		return errors.New("models: no File provided for delete")
 	}
 
-	var mods []qm.QueryMod
+	args := o.inPrimaryKeyArgs()
 
-	mods = append(mods,
-		qm.From("files"),
-		qm.Where(`"id"=$1`, o.ID),
-	)
+	sql := `DELETE FROM files WHERE "id"=$1`
 
-	query := NewQuery(exec, mods...)
-	boil.SetDelete(query)
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, sql)
+		fmt.Fprintln(boil.DebugWriter, args...)
+	}
 
-	_, err := boil.ExecQuery(query)
+	_, err := exec.Exec(sql, args...)
 	if err != nil {
-		return fmt.Errorf("models: unable to delete from files: %s", err)
+		return errors.Wrap(err, "models: unable to delete from files")
 	}
 
 	return nil
@@ -832,7 +856,7 @@ func (q fileQuery) DeleteAll() error {
 
 	_, err := boil.ExecQuery(q.Query)
 	if err != nil {
-		return fmt.Errorf("models: unable to delete all from files: %s", err)
+		return errors.Wrap(err, "models: unable to delete all from files")
 	}
 
 	return nil
@@ -878,17 +902,14 @@ func (o FileSlice) DeleteAll(exec boil.Executor) error {
 		strmangle.Placeholders(len(o)*len(filePrimaryKeyColumns), 1, len(filePrimaryKeyColumns)),
 	)
 
-	q := boil.SQL(sql, args...)
-	boil.SetExecutor(q, exec)
-
-	_, err := boil.ExecQuery(q)
-	if err != nil {
-		return fmt.Errorf("models: unable to delete all from file slice: %s", err)
-	}
-
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
 		fmt.Fprintln(boil.DebugWriter, args)
+	}
+
+	_, err := exec.Exec(sql, args...)
+	if err != nil {
+		return errors.Wrap(err, "models: unable to delete all from file slice")
 	}
 
 	return nil
@@ -952,11 +973,7 @@ func (o *FileSlice) ReloadAllG() error {
 // ReloadAll refetches every row with matching primary key column values
 // and overwrites the original object slice with the newly updated slice.
 func (o *FileSlice) ReloadAll(exec boil.Executor) error {
-	if o == nil {
-		return errors.New("models: no File slice provided for reload all")
-	}
-
-	if len(*o) == 0 {
+	if o == nil || len(*o) == 0 {
 		return nil
 	}
 
@@ -972,34 +989,32 @@ func (o *FileSlice) ReloadAll(exec boil.Executor) error {
 	q := boil.SQL(sql, args...)
 	boil.SetExecutor(q, exec)
 
-	err := q.Bind(&files)
+	err := q.BindFast(&files, fileTitleCases)
 	if err != nil {
-		return fmt.Errorf("models: unable to reload all in FileSlice: %v", err)
+		return errors.Wrap(err, "models: unable to reload all in FileSlice")
 	}
 
 	*o = files
 
-	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, sql)
-		fmt.Fprintln(boil.DebugWriter, args)
-	}
-
 	return nil
 }
-
 
 // FileExists checks if the File row exists.
 func FileExists(exec boil.Executor, id string) (bool, error) {
 	var exists bool
 
-	row := exec.QueryRow(
-		`select exists(select 1 from "files" where "id"=$1 limit 1)`,
-		id,
-	)
+	sql := `select exists(select 1 from "files" where "id"=$1 limit 1)`
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, sql)
+		fmt.Fprintln(boil.DebugWriter, id)
+	}
+
+	row := exec.QueryRow(sql, id)
 
 	err := row.Scan(&exists)
 	if err != nil {
-		return false, fmt.Errorf("models: unable to check if files exists: %v", err)
+		return false, errors.Wrap(err, "models: unable to check if files exists")
 	}
 
 	return exists, nil

@@ -2,6 +2,7 @@ package chunks
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -24,25 +25,31 @@ func (c ChunkController) Write(e echo.Context) error {
 	contentLength := req.ContentLength()
 
 	if contentLength == 0 {
+		c.Debug("No content length")
 		return e.NoContent(http.StatusLengthRequired)
 	}
 
 	if contentLength > maxChunkSize {
+		c.Debug("Content length > maxChunkSize", "length", contentLength, "max", maxChunkSize)
 		return e.NoContent(http.StatusRequestEntityTooLarge)
 	}
 
+	fmt.Println("yyyyyyyy")
 	// Make sure the file exists.
 	fid := e.Param("file_id")
-	f, err := models.Files(c.DB, Where("file_id=$1", fid)).One()
+	f, err := models.FileFind(c.DB, fid)
 	if err != nil {
+		c.Debug("File not found", "hash", fid)
 		return e.NoContent(http.StatusNotFound)
 	}
 
+	fmt.Println("awdawdwa")
 	chunkID, err := strconv.Atoi(e.Param("chunk_id"))
 	if err != nil {
 		c.Error("Failed to convert chunk id into integer")
 		return err
 	}
+	fmt.Println("didiid")
 
 	clientHash := e.Param("hash")
 	if c.chunkExists(f.ID, clientHash) {
@@ -105,7 +112,7 @@ func (c ChunkController) Write(e echo.Context) error {
 		return e.NoContent(http.StatusInternalServerError)
 	}
 
-	go c.checkFinished(f)
+	c.checkFinished(f)
 
 	return e.NoContent(http.StatusCreated)
 }
@@ -155,7 +162,10 @@ func (c ChunkController) checkFinished(f *models.File) {
 	}
 
 	completed_chunks := len(chunks)
-	required_chunks, err := models.Chunks(c.DB, Where("file_id=$1", f.ID)).Count()
+	required_chunks := f.NumChunks
+
+	fmt.Println("Completed Chunks:", completed_chunks)
+	fmt.Println("Required:", required_chunks)
 
 	if completed_chunks != int(required_chunks) {
 		c.Info(
@@ -167,9 +177,11 @@ func (c ChunkController) checkFinished(f *models.File) {
 		return
 	}
 
-	err = processors.CompleteFile(c.Dependencies, f)
+	go func() {
+		err = processors.CompleteFile(c.Dependencies, f)
 
-	if err != nil {
-		c.Error("Failed to finish file", "error", err)
-	}
+		if err != nil {
+			c.Error("Failed to finish file", "error", err)
+		}
+	}()
 }

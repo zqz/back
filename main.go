@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
+
+	"gopkg.in/nullbio/null.v4"
 
 	"golang.org/x/net/http2"
 
@@ -45,8 +49,79 @@ func redirect() {
 	))
 }
 
+var indexPage null.String
+
+func IndexPage(c echo.Context) error {
+	if indexPage.Valid {
+		return c.HTML(200, indexPage.String)
+	}
+
+	css := []string{
+		"login", "menu", "registration", "table", "authentication",
+		"uploader", "upload_file", "style", "alerts", "dashboard",
+		"header", "footer", "file_list_component", "file_view",
+	}
+
+	js := []string{
+		"helpers", "alerts", "table_component", "authentication_component",
+		"router", "login", "login_component", "menu", "header_component",
+		"footer_component", "app",
+	}
+
+	libs := []string{
+		"dominate", "filesize",
+	}
+
+	var output bytes.Buffer
+
+	output.WriteString("<!DOCTYPE HTML><html><head>")
+	output.WriteString("<meta http-equiv='content-type' content='text/html; charset=utf-8'>")
+	output.WriteString("<title>zqz.ca</title>")
+	output.WriteString("<link rel='shortcut icon' href='/favicon.ico'/>")
+	output.WriteString("<link href='//fonts.googleapis.com/css?family=Material+Icons' rel='stylesheet' type='text/css'>")
+
+	for _, dep := range css {
+		output.WriteString("<link rel='stylesheet' media='screen' href='/assets/")
+		output.WriteString(dep)
+		output.WriteString(".css'/>")
+	}
+
+	output.WriteString("</head>")
+	output.WriteString("<body>")
+
+	// IF DEV
+
+	if *livereload {
+		output.WriteString("<script src='http://")
+		output.WriteString(strings.Split(c.Request().Host(), ":")[0])
+		output.WriteString(":35729/livereload.js?snipver=1")
+		output.WriteString("'></script>")
+	}
+
+	for _, dep := range libs {
+		output.WriteString("<script type='text/javascript' src='/assets/lib/")
+		output.WriteString(dep)
+		output.WriteString(".js'></script>")
+	}
+
+	for _, dep := range js {
+		output.WriteString("<script type='text/javascript' src='/assets/")
+		output.WriteString(dep)
+		output.WriteString(".js'></script>")
+	}
+
+	output.WriteString("</body></html>")
+
+	indexPage = null.StringFrom(output.String())
+
+	return c.HTML(200, indexPage.String)
+}
+
+var livereload *bool
+
 func main() {
 	secure := flag.Bool("secure", false, "Enable HTTPS")
+	livereload = flag.Bool("livereload", false, "Enable Live Reload")
 
 	flag.Parse()
 
@@ -86,14 +161,17 @@ func main() {
 	}
 
 	log := logrus.New()
-	log.Level = logrus.WarnLevel
+	log.Level = logrus.DebugLevel
 	log.Out = os.Stdout
+	log.Formatter = &logrus.TextFormatter{}
 
 	deps := controllers.Dependencies{
 		Fs:     afero.NewOsFs(),
 		Logger: log,
 		DB:     db,
 	}
+
+	e.Get("/", IndexPage)
 
 	// Files
 	files := &files.FileController{deps}
@@ -107,7 +185,7 @@ func main() {
 
 	// Thumbnail
 	thumbnails := thumbnails.ThumbnailsController{deps}
-	v1.Get("/thumbnails/:file_id", thumbnails.Download)
+	v1.Get("/thumbnails/:id", thumbnails.Download)
 
 	// Chunks
 	chunks := chunks.ChunkController{deps}
@@ -129,6 +207,7 @@ func main() {
 	v1.Post("/p2p/:id", p2p.Answer)
 
 	// Dashboard
+	dashboard := dashboard.DashboardController{deps}
 	v1.Get("/dashboard", dashboard.Index)
 
 	// r := api.Group("/users")
@@ -147,7 +226,7 @@ func main() {
 	// }))
 
 	e.Static("/assets", "assets")
-	e.File("/*", "assets/index.html")
+	e.Get("/*", IndexPage)
 
 	var s *standard.Server
 

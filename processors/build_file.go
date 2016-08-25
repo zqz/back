@@ -38,6 +38,7 @@ func BuildFile(deps controllers.Dependencies, f *models.File) (io.Reader, error)
 	mw := io.MultiWriter(fullFile, fullFileBuffer)
 
 	for _, c := range chunks {
+		fmt.Println("pos:", c.Position)
 		path := filepath.Join("files", "chunks", c.Hash)
 		chunkData, err := fs.Open(path)
 

@@ -11,6 +11,7 @@ import (
 
 	"gopkg.in/nullbio/null.v4"
 
+	"github.com/zqzca/back/controllers"
 	"github.com/zqzca/back/db"
 	"github.com/zqzca/echo"
 )
@@ -20,6 +21,10 @@ type dashboardEntry struct {
 	Slug        string      `json:"slug"`
 	ThumbnailID null.String `json:"thumb_id"`
 	CreatedAt   time.Time   `json:"created_at"`
+}
+
+type DashboardController struct {
+	controllers.Dependencies
 }
 
 type dashboardData struct {
@@ -47,24 +52,25 @@ const totalPagesSQL = `
 `
 
 //Index returns a list of files
-func Index(c echo.Context) error {
+func (d DashboardController) Index(c echo.Context) error {
 	page, perPage := paginationOptions(c)
 
-	entries, err := pagination(db.Connection, page, perPage)
+	entries, err := pagination(d.DB, page, perPage)
 
 	if err != nil {
 		fmt.Println("failed to fetch page:", err)
 		return err
 	}
 
-	total := totalPages(db.Connection, perPage)
-	var d dashboardData
+	total := totalPages(d.DB, perPage)
 
-	d.Entries = entries
-	d.Total = total
-	d.Page = page
+	data := dashboardData{
+		Entries: entries,
+		Total:   total,
+		Page:    page,
+	}
 
-	return c.JSON(http.StatusOK, d)
+	return c.JSON(http.StatusOK, data)
 }
 
 func totalPages(ex db.Executor, perPage int) int {

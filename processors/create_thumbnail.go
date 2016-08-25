@@ -4,6 +4,9 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 
 	"github.com/disintegration/imaging"
@@ -15,6 +18,15 @@ import (
 func CreateThumbnail(deps controllers.Dependencies, r io.Reader) (string, int, error) {
 	raw, format, err := image.Decode(r)
 
+	// var jpgData bytes.Buffer
+
+	// err = jpeg.Encode(jpgData, raw, &jpeg.Options{90})
+
+	// if err != nil {
+	// 	fmt.Println("failed to create a jpg")
+	// 	return "", 0, err
+	// }
+
 	fmt.Println("format:", format)
 
 	if err != nil {
@@ -23,7 +35,7 @@ func CreateThumbnail(deps controllers.Dependencies, r io.Reader) (string, int, e
 	}
 
 	fs := deps.Fs
-	tmpFile, err := afero.TempFile(fs, "", "thumbnail")
+	tmpFile, err := afero.TempFile(fs, ".", "thumbnail")
 
 	// Make sure we close.
 	closeTmpFile := func() {
@@ -51,15 +63,15 @@ func CreateThumbnail(deps controllers.Dependencies, r io.Reader) (string, int, e
 		return "", 0, err
 	}
 
-	closeTmpFile()
 	hash := fmt.Sprintf("%x", h.Sum(nil))
 
-	deps.Debug("Thumbnail hash", hash)
+	deps.Debug("Thumbnail hash", "hash:", hash)
 	newPath := lib.LocalPath(hash)
 
 	err = fs.Rename(tmpFile.Name(), newPath)
 	if err != nil {
 		fmt.Println("Failed to rename file!?", err)
+
 		// Todo delete file
 		return hash, int(wc), err
 	}

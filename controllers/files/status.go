@@ -1,9 +1,9 @@
 package files
 
 import (
-	"fmt"
 	"net/http"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
@@ -19,7 +19,7 @@ type fileStatus struct {
 	ChunksNeeded   int      `json:"chunks_needed,omitempty"`
 }
 
-func statusForFile(ex boil.Executor, f *models.File) *fileStatus {
+func statusForFile(ex boil.Executor, f *models.File) (*fileStatus, error) {
 	var state string
 
 	switch f.State {
@@ -31,11 +31,12 @@ func statusForFile(ex boil.Executor, f *models.File) *fileStatus {
 		state = "finished"
 	}
 
+	spew.Dump(f)
+
 	chunksNeeded := 0
 	chunks, err := models.Chunks(ex, Where("file_id=$1", f.ID)).All()
 	if err != nil {
-		fmt.Println(err)
-		return nil
+		return nil, err
 	}
 
 	numChunks := len(chunks)
@@ -54,7 +55,7 @@ func statusForFile(ex boil.Executor, f *models.File) *fileStatus {
 		State:          state,
 		ChunksReceived: chunksReceived,
 		ChunksNeeded:   chunksNeeded,
-	}
+	}, nil
 }
 
 func (f FileController) Status(e echo.Context) error {
@@ -66,6 +67,12 @@ func (f FileController) Status(e echo.Context) error {
 		return e.NoContent(http.StatusNotFound)
 	}
 
-	fs := statusForFile(f.DB, file)
+	fs, err := statusForFile(f.DB, file)
+
+	if err != nil {
+		f.Info("Failed to fetch status for file", "err", err)
+		return e.NoContent(http.StatusInternalServerError)
+	}
+
 	return e.JSON(http.StatusOK, fs)
 }

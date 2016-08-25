@@ -11,6 +11,8 @@ import (
 func Connect() (*sqlx.DB, error) {
 	open := os.Getenv("DATABASE_URL")
 
+	fmt.Println("connecting to", open)
+
 	if parsedURL, err := pq.ParseURL(open); err == nil && parsedURL != "" {
 		open = parsedURL
 	}
@@ -19,6 +21,14 @@ func Connect() (*sqlx.DB, error) {
 
 	if err != nil {
 		fmt.Println(err)
+		return nil, err
+	}
+
+	err = con.Ping()
+
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
 	}
 
 	return con, err

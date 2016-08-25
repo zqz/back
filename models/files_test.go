@@ -3,505 +3,286 @@ package models
 import (
 	"testing"
 	"reflect"
-	"time"
-	"errors"
-	"fmt"
 
-	"gopkg.in/vattle/null.v4"
 	"github.com/vattle/sqlboiler/boil"
-	"github.com/vattle/sqlboiler/boil/qm"
+	"github.com/vattle/sqlboiler/boil/randomize"
 	"github.com/vattle/sqlboiler/strmangle"
 )
 
-func TestFiles(t *testing.T) {
-	var err error
+func testFiles(t *testing.T) {
+	t.Parallel()
 
-	o := make(FileSlice, 2)
-	if err = boil.RandomizeSlice(&o, fileDBTypes, true); err != nil {
-		t.Errorf("Unable to randomize File slice: %s", err)
-	}
+	query := Files(nil)
 
-	// insert two random objects to test DeleteAll
-	for i := 0; i < len(o); i++ {
-		err = o[i].InsertG()
-		if err != nil {
-			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
-		}
-	}
-
-	// Delete all rows to give a clean slate
-	err = FilesG().DeleteAll()
-	if err != nil {
-		t.Errorf("Unable to delete all from Files: %s", err)
-	}
-
-	// Check number of rows in table to ensure DeleteAll was successful
-	var c int64
-	c, err = FilesG().Count()
-
-	if c != 0 {
-		t.Errorf("Expected files table to be empty, but got %d rows", c)
-	}
-
-	o = make(FileSlice, 3)
-	if err = boil.RandomizeSlice(&o, fileDBTypes, true); err != nil {
-		t.Errorf("Unable to randomize File slice: %s", err)
-	}
-
-	for i := 0; i < len(o); i++ {
-		err = o[i].InsertG()
-		if err != nil {
-			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
-		}
-	}
-
-	// Ensure Count is valid
-	c, err = FilesG().Count()
-	if c != 3 {
-		t.Errorf("Expected files table to have 3 rows, but got %d", c)
-	}
-
-	// Attempt to retrieve all objects
-	res, err := FilesG().All()
-	if err != nil {
-		t.Errorf("Unable to retrieve all Files, err: %s", err)
-	}
-
-	if len(res) != 3 {
-		t.Errorf("Expected 3 File rows, got %d", len(res))
-	}
-
-	filesDeleteAllRows(t)
-}
-
-func filesDeleteAllRows(t *testing.T) {
-	// Delete all rows to give a clean slate
-	err := FilesG().DeleteAll()
-	if err != nil {
-		t.Errorf("Unable to delete all from Files: %s", err)
+	if query.Query == nil {
+		t.Error("expected a query, got nothing")
 	}
 }
 
-func TestFilesQueryDeleteAll(t *testing.T) {
+func testFilesDelete(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
 	var err error
-	var c int64
-
-	// Start from a clean slate
-	filesDeleteAllRows(t)
-
-	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = FilesG().Count()
-
-	if c != 0 {
-		t.Errorf("Expected 0 rows after ObjDeleteAllRows() call, but got %d rows", c)
-	}
-
-	o := make(FileSlice, 3)
-	if err = boil.RandomizeSlice(&o, fileDBTypes, true); err != nil {
-		t.Errorf("Unable to randomize File slice: %s", err)
-	}
-
-	// insert random columns to test DeleteAll
-	for i := 0; i < len(o); i++ {
-		err = o[i].InsertG()
-		if err != nil {
-			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
-		}
-	}
-
-	// Test DeleteAll() query function
-	err = FilesG().DeleteAll()
-	if err != nil {
-		t.Errorf("Unable to delete all from Files: %s", err)
-	}
-
-	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = FilesG().Count()
-
-	if c != 0 {
-		t.Errorf("Expected 0 rows after Obj().DeleteAll() call, but got %d rows", c)
-	}
-}
-
-func TestFilesSliceDeleteAll(t *testing.T) {
-	var err error
-	var c int64
-
-	// insert random columns to test DeleteAll
-	o := make(FileSlice, 3)
-	if err = boil.RandomizeSlice(&o, fileDBTypes, true); err != nil {
-		t.Errorf("Unable to randomize File slice: %s", err)
-	}
-
-	for i := 0; i < len(o); i++ {
-		err = o[i].InsertG()
-		if err != nil {
-			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
-		}
-	}
-
-	// test DeleteAll slice function
-	if err = o.DeleteAllG(); err != nil {
-		t.Errorf("Unable to objSlice.DeleteAll(): %s", err)
-	}
-
-	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = FilesG().Count()
-
-	if c != 0 {
-		t.Errorf("Expected 0 rows after objSlice.DeleteAll() call, but got %d rows", c)
-	}
-}
-
-func TestFilesDelete(t *testing.T) {
-	var err error
-	var c int64
-
-	// insert random columns to test Delete
-	o := make(FileSlice, 3)
-	if err = boil.RandomizeSlice(&o, fileDBTypes, true); err != nil {
-		t.Errorf("Unable to randomize File slice: %s", err)
-	}
-
-	for i := 0; i < len(o); i++ {
-		err = o[i].InsertG()
-		if err != nil {
-			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
-		}
-	}
-
-	o[0].DeleteG()
-
-	// Check number of rows in table to ensure DeleteAll was successful
-	c, err = FilesG().Count()
-
-	if c != 2 {
-		t.Errorf("Expected 2 rows after obj.Delete() call, but got %d rows", c)
-	}
-
-	o[1].DeleteG()
-	o[2].DeleteG()
-
-	// Check number of rows in table to ensure Delete worked for all rows
-	c, err = FilesG().Count()
-
-	if c != 0 {
-		t.Errorf("Expected 0 rows after all obj.Delete() calls, but got %d rows", c)
-	}
-}
-
-func TestFilesExists(t *testing.T) {
-	var err error
-
-	o := File{}
-	if err = boil.RandomizeStruct(&o, fileDBTypes, true); err != nil {
+	file := &File{}
+	if err = randomize.Struct(seed, file, fileDBTypes, true); err != nil {
 		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	if err = o.InsertG(); err != nil {
-		t.Errorf("Unable to insert File:\n%#v\nErr: %s", o, err)
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = file.Insert(tx); err != nil {
+		t.Error(err)
 	}
 
-	// Check Exists finds existing rows
-	e, err := FileExistsG(o.ID)
+	if err = file.Delete(tx); err != nil {
+		t.Error(err)
+	}
+
+	count, err := Files(tx).Count()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if count != 0 {
+		t.Error("want zero records, got:", count)
+	}
+}
+
+func testFilesQueryDeleteAll(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
+	var err error
+	file := &File{}
+	if err = randomize.Struct(seed, file, fileDBTypes, true); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
+	}
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = file.Insert(tx); err != nil {
+		t.Error(err)
+	}
+
+	if err = Files(tx).DeleteAll(); err != nil {
+		t.Error(err)
+	}
+
+	count, err := Files(tx).Count()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if count != 0 {
+		t.Error("want zero records, got:", count)
+	}
+}
+
+func testFilesSliceDeleteAll(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
+	var err error
+	file := &File{}
+	if err = randomize.Struct(seed, file, fileDBTypes, true); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
+	}
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = file.Insert(tx); err != nil {
+		t.Error(err)
+	}
+
+	slice := FileSlice{file}
+
+	if err = slice.DeleteAll(tx); err != nil {
+		t.Error(err)
+	}
+
+	count, err := Files(tx).Count()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if count != 0 {
+		t.Error("want zero records, got:", count)
+	}
+}
+
+func testFilesExists(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
+	var err error
+	file := &File{}
+	if err = randomize.Struct(seed, file, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
+	}
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = file.Insert(tx); err != nil {
+		t.Error(err)
+	}
+
+	e, err := FileExists(tx, file.ID)
 	if err != nil {
 		t.Errorf("Unable to check if File exists: %s", err)
 	}
 	if e != true {
 		t.Errorf("Expected FileExistsG to return true, but got false.")
 	}
-
-	whereClause := strmangle.WhereClause(1, filePrimaryKeyColumns)
-	e, err = FilesG(qm.Where(whereClause, boil.GetStructValues(o, filePrimaryKeyColumns...)...)).Exists()
-	if err != nil {
-		t.Errorf("Unable to check if File exists: %s", err)
-	}
-	if e != true {
-		t.Errorf("Expected ExistsG to return true, but got false.")
-	}
-
-	// Check Exists does not find non-existing rows
-	o = File{}
-	e, err = FileExistsG(o.ID)
-	if err != nil {
-		t.Errorf("Unable to check if File exists: %s", err)
-	}
-	if e != false {
-		t.Errorf("Expected FileExistsG to return false, but got true.")
-	}
-
-	e, err = FilesG(qm.Where(whereClause, boil.GetStructValues(o, filePrimaryKeyColumns...)...)).Exists()
-	if err != nil {
-		t.Errorf("Unable to check if File exists: %s", err)
-	}
-	if e != false {
-		t.Errorf("Expected ExistsG to return false, but got true.")
-	}
-
-	filesDeleteAllRows(t)
 }
 
-func TestFilesFind(t *testing.T) {
+func testFilesFind(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
 	var err error
-
-	o := make(FileSlice, 3)
-	if err = boil.RandomizeSlice(&o, fileDBTypes, true); err != nil {
-		t.Errorf("Unable to randomize File slice: %s", err)
-	}
-
-	for i := 0; i < len(o); i++ {
-		if err = o[i].InsertG(); err != nil {
-			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
-		}
-	}
-
-	j := make(FileSlice, 3)
-	// Perform all Find queries and assign result objects to slice for comparison
-	for i := 0; i < len(j); i++ {
-		j[i], err = FileFindG(o[i].ID)
-		err = fileCompareVals(o[i], j[i], true)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	f, err := FileFindG(o[0].ID, filePrimaryKeyColumns...)
-
-	if o[0].ID != f.ID {
-		t.Errorf("Expected primary key values to match, ID did not match")
-	}
-
-	colsWithoutPrimKeys := boil.SetComplement(fileColumns, filePrimaryKeyColumns)
-	fRef := reflect.ValueOf(f).Elem()
-	for _, v := range colsWithoutPrimKeys {
-		val := fRef.FieldByName(v)
-		if val.IsValid() {
-			t.Errorf("Expected all other columns to be zero value, but column %s was %#v", v, val.Interface())
-		}
-	}
-
-	filesDeleteAllRows(t)
-}
-
-func TestFilesBind(t *testing.T) {
-	var err error
-
-	o := File{}
-	if err = boil.RandomizeStruct(&o, fileDBTypes, true); err != nil {
+	file := &File{}
+	if err = randomize.Struct(seed, file, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	if err = o.InsertG(); err != nil {
-		t.Errorf("Unable to insert File:\n%#v\nErr: %s", o, err)
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = file.Insert(tx); err != nil {
+		t.Error(err)
 	}
 
-	j := File{}
-
-	err = FilesG(qm.Where(`"id"=$1`, o.ID)).Bind(&j)
-	if err != nil {
-		t.Errorf("Unable to call Bind on File single object: %s", err)
-	}
-
-	err = fileCompareVals(&o, &j, true)
+	fileFound, err := FileFind(tx, file.ID)
 	if err != nil {
 		t.Error(err)
 	}
 
-	// insert 3 rows, attempt to bind into slice
-	filesDeleteAllRows(t)
-
-	y := make(FileSlice, 3)
-	if err = boil.RandomizeSlice(&y, fileDBTypes, true); err != nil {
-		t.Errorf("Unable to randomize File slice: %s", err)
+	if fileFound == nil {
+		t.Error("want a record, got nil")
 	}
-
-	// insert random columns to test DeleteAll
-	for i := 0; i < len(y); i++ {
-		err = y[i].InsertG()
-		if err != nil {
-			t.Errorf("Unable to insert File:\n%#v\nErr: %s", y[i], err)
-		}
-	}
-
-	k := FileSlice{}
-	err = FilesG().Bind(&k)
-	if err != nil {
-		t.Errorf("Unable to call Bind on File slice of objects: %s", err)
-	}
-
-	if len(k) != 3 {
-		t.Errorf("Expected 3 results, got %d", len(k))
-	}
-
-	for i := 0; i < len(y); i++ {
-		err = fileCompareVals(y[i], k[i], true)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	filesDeleteAllRows(t)
 }
 
-func TestFilesOne(t *testing.T) {
-	var err error
+func testFilesBind(t *testing.T) {
+	t.Parallel()
 
-	o := File{}
-	if err = boil.RandomizeStruct(&o, fileDBTypes, true); err != nil {
+	seed := randomize.NewSeed()
+	var err error
+	file := &File{}
+	if err = randomize.Struct(seed, file, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	if err = o.InsertG(); err != nil {
-		t.Errorf("Unable to insert File:\n%#v\nErr: %s", o, err)
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = file.Insert(tx); err != nil {
+		t.Error(err)
 	}
 
-	j, err := FilesG().One()
-	if err != nil {
-		t.Errorf("Unable to fetch One File result:\n#%v\nErr: %s", j, err)
+	if err = Files(tx).Bind(file); err != nil {
+		t.Error(err)
+	}
+}
+
+func testFilesOne(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
+	var err error
+	file := &File{}
+	if err = randomize.Struct(seed, file, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	err = fileCompareVals(&o, j, true)
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = file.Insert(tx); err != nil {
+		t.Error(err)
+	}
+
+	if x, err := Files(tx).One(); err != nil {
+		t.Error(err)
+	} else if x == nil {
+		t.Error("expected to get a non nil record")
+	}
+}
+
+func testFilesAll(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
+	var err error
+	fileOne := &File{}
+	fileTwo := &File{}
+	if err = randomize.Struct(seed, fileOne, fileDBTypes, false, fileColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
+	}
+	if err = randomize.Struct(seed, fileTwo, fileDBTypes, false, fileColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
+	}
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = fileOne.Insert(tx); err != nil {
+		t.Error(err)
+	}
+	if err = fileTwo.Insert(tx); err != nil {
+		t.Error(err)
+	}
+
+	slice, err := Files(tx).All()
 	if err != nil {
 		t.Error(err)
 	}
 
-	filesDeleteAllRows(t)
+	if len(slice) != 2 {
+		t.Error("want 2 records, got:", len(slice))
+	}
 }
 
-func TestFilesAll(t *testing.T) {
+func testFilesCount(t *testing.T) {
+	t.Parallel()
+
 	var err error
-
-	o := make(FileSlice, 3)
-	if err = boil.RandomizeSlice(&o, fileDBTypes, true); err != nil {
-		t.Errorf("Unable to randomize File slice: %s", err)
+	seed := randomize.NewSeed()
+	fileOne := &File{}
+	fileTwo := &File{}
+	if err = randomize.Struct(seed, fileOne, fileDBTypes, false, fileColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
+	}
+	if err = randomize.Struct(seed, fileTwo, fileDBTypes, false, fileColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	// insert random columns to test DeleteAll
-	for i := 0; i < len(o); i++ {
-		err = o[i].InsertG()
-		if err != nil {
-			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
-		}
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = fileOne.Insert(tx); err != nil {
+		t.Error(err)
+	}
+	if err = fileTwo.Insert(tx); err != nil {
+		t.Error(err)
 	}
 
-	j, err := FilesG().All()
+	count, err := Files(tx).Count()
 	if err != nil {
-		t.Errorf("Unable to fetch All File results: %s", err)
+		t.Error(err)
 	}
 
-	if len(j) != 3 {
-		t.Errorf("Expected 3 results, got %d", len(j))
+	if count != 2 {
+		t.Error("want 2 records, got:", count)
 	}
-
-	for i := 0; i < len(o); i++ {
-		err = fileCompareVals(o[i], j[i], true)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	filesDeleteAllRows(t)
 }
 
-func TestFilesCount(t *testing.T) {
-	var err error
+var fileDBTypes = map[string]string{"NumChunks": "integer", "State": "integer", "Name": "text", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "ID": "uuid", "Size": "integer", "Slug": "text", "Hash": "text", "Type": "text"}
 
-	o := make(FileSlice, 3)
-	if err = boil.RandomizeSlice(&o, fileDBTypes, true); err != nil {
-		t.Errorf("Unable to randomize File slice: %s", err)
-	}
+func testFilesInPrimaryKeyArgs(t *testing.T) {
+	t.Parallel()
 
-	// insert random columns to test Count
-	for i := 0; i < len(o); i++ {
-		err = o[i].InsertG()
-		if err != nil {
-			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
-		}
-	}
-
-	c, err := FilesG().Count()
-	if err != nil {
-		t.Errorf("Unable to count query File: %s", err)
-	}
-
-	if c != 3 {
-		t.Errorf("Expected 3 results from count File, got %d", c)
-	}
-
-	filesDeleteAllRows(t)
-}
-
-var fileDBTypes = map[string]string{"UpdatedAt": "timestamp without time zone", "Slug": "text", "NumChunks": "integer", "Name": "text", "Type": "text", "CreatedAt": "timestamp without time zone", "ID": "uuid", "Size": "integer", "State": "integer", "Hash": "text"}
-
-func fileCompareVals(o *File, j *File, equal bool, blacklist ...string) error {
-	if ((equal && j.ID != o.ID) ||
-		(!equal && j.ID == o.ID)) &&
-		!strmangle.HasElement("id", blacklist) {
-		return errors.New(fmt.Sprintf("Expected id columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.ID, j.ID))
-	}
-
-	if ((equal && j.Size != o.Size) ||
-		(!equal && j.Size == o.Size)) &&
-		!strmangle.HasElement("size", blacklist) {
-		return errors.New(fmt.Sprintf("Expected size columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Size, j.Size))
-	}
-
-	if ((equal && j.NumChunks != o.NumChunks) ||
-		(!equal && j.NumChunks == o.NumChunks)) &&
-		!strmangle.HasElement("num_chunks", blacklist) {
-		return errors.New(fmt.Sprintf("Expected num_chunks columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.NumChunks, j.NumChunks))
-	}
-
-	if ((equal && j.State != o.State) ||
-		(!equal && j.State == o.State)) &&
-		!strmangle.HasElement("state", blacklist) {
-		return errors.New(fmt.Sprintf("Expected state columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.State, j.State))
-	}
-
-	if ((equal && j.Name != o.Name) ||
-		(!equal && j.Name == o.Name)) &&
-		!strmangle.HasElement("name", blacklist) {
-		return errors.New(fmt.Sprintf("Expected name columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Name, j.Name))
-	}
-
-	if ((equal && j.Hash != o.Hash) ||
-		(!equal && j.Hash == o.Hash)) &&
-		!strmangle.HasElement("hash", blacklist) {
-		return errors.New(fmt.Sprintf("Expected hash columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Hash, j.Hash))
-	}
-
-	if ((equal && j.Type != o.Type) ||
-		(!equal && j.Type == o.Type)) &&
-		!strmangle.HasElement("type", blacklist) {
-		return errors.New(fmt.Sprintf("Expected type columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Type, j.Type))
-	}
-
-	if ((equal && o.CreatedAt.Format("02/01/2006") != j.CreatedAt.Format("02/01/2006")) ||
-		(!equal && o.CreatedAt.Format("02/01/2006") == j.CreatedAt.Format("02/01/2006"))) &&
-		!strmangle.HasElement("created_at", blacklist) {
-		return errors.New(fmt.Sprintf("Time created_at unexpected value, got:\nStruct: %#v\nResponse: %#v\n\n", o.CreatedAt.Format("02/01/2006"), j.CreatedAt.Format("02/01/2006")))
-	}
-
-	if ((equal && o.UpdatedAt.Format("02/01/2006") != j.UpdatedAt.Format("02/01/2006")) ||
-		(!equal && o.UpdatedAt.Format("02/01/2006") == j.UpdatedAt.Format("02/01/2006"))) &&
-		!strmangle.HasElement("updated_at", blacklist) {
-		return errors.New(fmt.Sprintf("Time updated_at unexpected value, got:\nStruct: %#v\nResponse: %#v\n\n", o.UpdatedAt.Format("02/01/2006"), j.UpdatedAt.Format("02/01/2006")))
-	}
-
-	if ((equal && j.Slug != o.Slug) ||
-		(!equal && j.Slug == o.Slug)) &&
-		!strmangle.HasElement("slug", blacklist) {
-		return errors.New(fmt.Sprintf("Expected slug columns to match, got:\nStruct: %#v\nResponse: %#v\n\n", o.Slug, j.Slug))
-	}
-	return nil
-}
-
-func TestFilesInPrimaryKeyArgs(t *testing.T) {
 	var err error
 	var o File
 	o = File{}
 
-	if err = boil.RandomizeStruct(&o, fileDBTypes, true); err != nil {
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &o, fileDBTypes, true); err != nil {
 		t.Errorf("Could not randomize struct: %s", err)
 	}
 
@@ -516,12 +297,18 @@ func TestFilesInPrimaryKeyArgs(t *testing.T) {
 	}
 }
 
-func TestFilesSliceInPrimaryKeyArgs(t *testing.T) {
+func testFilesSliceInPrimaryKeyArgs(t *testing.T) {
+	t.Parallel()
+
 	var err error
 	o := make(FileSlice, 3)
 
-	if err = boil.RandomizeSlice(&o, fileDBTypes, true); err != nil {
-		t.Errorf("Could not randomize slice: %s", err)
+	seed := randomize.NewSeed()
+	for i := range o {
+		o[i] = &File{}
+		if err = randomize.Struct(seed, o[i], fileDBTypes, true); err != nil {
+			t.Errorf("Could not randomize struct: %s", err)
+		}
 	}
 
 	args := o.inPrimaryKeyArgs()
@@ -530,11 +317,13 @@ func TestFilesSliceInPrimaryKeyArgs(t *testing.T) {
 		t.Errorf("Expected args to be len %d, but got %d", len(filePrimaryKeyColumns)*3, len(args))
 	}
 
-	for i := 0; i < len(filePrimaryKeyColumns)*3; i++ {
+	argC := 0
+	for i := 0; i < 3; i++ {
 
-		if o[i].ID != args[i] {
+		if o[i].ID != args[argC] {
 			t.Errorf("Expected args[%d] to be value of o.ID, but got %#v", i, args[i])
 		}
+		argC++
 	}
 }
 
@@ -558,13 +347,16 @@ func fileAfterUpdateHook(o *File) error {
 	return nil
 }
 
-func TestFilesHooks(t *testing.T) {
+func testFilesHooks(t *testing.T) {
+	t.Parallel()
+
 	var err error
 
 	empty := &File{}
 	o := &File{}
 
-	if err = boil.RandomizeStruct(o, fileDBTypes, false); err != nil {
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, o, fileDBTypes, false); err != nil {
 		t.Errorf("Unable to randomize File object: %s", err)
 	}
 
@@ -577,123 +369,61 @@ func TestFilesHooks(t *testing.T) {
 	}
 
 	fileBeforeCreateHooks = []FileHook{}
-	filesDeleteAllRows(t)
 }
 
-func TestFilesInsert(t *testing.T) {
+func testFilesInsert(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
 	var err error
-
-	var errs []error
-	_ = errs
-
-	emptyTime := time.Time{}.String()
-	_ = emptyTime
-
-	nullTime := null.NewTime(time.Time{}, true)
-	_ = nullTime
-
-	o := make(FileSlice, 3)
-	if err = boil.RandomizeSlice(&o, fileDBTypes, true); err != nil {
-		t.Errorf("Unable to randomize File slice: %s", err)
+	file := &File{}
+	if err = randomize.Struct(seed, file, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	for i := 0; i < len(o); i++ {
-		if err = o[i].InsertG(); err != nil {
-			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
-		}
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = file.Insert(tx); err != nil {
+		t.Error(err)
 	}
 
-	j := make(FileSlice, 3)
-	// Perform all Find queries and assign result objects to slice for comparison
-	for i := 0; i < len(o); i++ {
-		j[i], err = FileFindG(o[i].ID)
-		if err != nil {
-			t.Errorf("Unable to find File row: %s", err)
-		}
-		err = fileCompareVals(o[i], j[i], true)
-		if err != nil {
-			t.Error(err)
-		}
+	count, err := Files(tx).Count()
+	if err != nil {
+		t.Error(err)
 	}
 
-	filesDeleteAllRows(t)
-
-	item := &File{}
-	boil.RandomizeValidatedStruct(item, fileValidatedColumns, fileDBTypes)
-	if err = item.InsertG(); err != nil {
-		t.Errorf("Unable to insert zero-value item File:\n%#v\nErr: %s", item, err)
+	if count != 1 {
+		t.Error("want one record, got:", count)
 	}
-
-	for _, c := range fileAutoIncrementColumns {
-		// Ensure the auto increment columns are returned in the object.
-		if errs = boil.IsZeroValue(item, false, c); errs != nil {
-			for _, e := range errs {
-				t.Errorf("Expected auto-increment columns to be greater than 0, err: %s\n", e)
-			}
-		}
-	}
-
-	defaultValues := []interface{}{}
-
-	// Ensure the simple default column values are returned correctly.
-	if len(fileColumnsWithSimpleDefault) > 0 && len(defaultValues) > 0 {
-		if len(fileColumnsWithSimpleDefault) != len(defaultValues) {
-			t.Fatalf("Mismatch between slice lengths: %d, %d", len(fileColumnsWithSimpleDefault), len(defaultValues))
-		}
-
-		if errs = boil.IsValueMatch(item, fileColumnsWithSimpleDefault, defaultValues); errs != nil {
-			for _, e := range errs {
-				t.Errorf("Expected default value to match column value, err: %s\n", e)
-			}
-		}
-	}
-
-	regularCols := []string{"size", "num_chunks", "state", "name", "hash", "type", "created_at", "updated_at"}
-
-	// Remove the validated columns, they can never be zero values
-	regularCols = boil.SetComplement(regularCols, fileValidatedColumns)
-
-	// Ensure the non-defaultvalue columns and non-autoincrement columns are stored correctly as zero or null values.
-	for _, c := range regularCols {
-		rv := reflect.Indirect(reflect.ValueOf(item))
-		field := rv.FieldByName(strmangle.TitleCase(c))
-
-		zv := reflect.Zero(field.Type()).Interface()
-		fv := field.Interface()
-
-		if !reflect.DeepEqual(zv, fv) {
-			t.Errorf("Expected column %s to be zero value, got: %v, wanted: %v", c, fv, zv)
-		}
-	}
-
-	item = &File{}
-
-	wl, rc := item.generateInsertColumns()
-	if !reflect.DeepEqual(rc, fileColumnsWithDefault) {
-		t.Errorf("Expected return columns to contain all columns with default values:\n\nGot: %v\nWanted: %v", rc, fileColumnsWithDefault)
-	}
-
-	if !reflect.DeepEqual(wl, fileColumnsWithoutDefault) {
-		t.Errorf("Expected whitelist to contain all columns without default values:\n\nGot: %v\nWanted: %v", wl, fileColumnsWithoutDefault)
-	}
-
-	if err = boil.RandomizeStruct(item, fileDBTypes, false); err != nil {
-		t.Errorf("Unable to randomize item: %s", err)
-	}
-
-	wl, rc = item.generateInsertColumns()
-	if len(rc) > 0 {
-		t.Errorf("Expected return columns to contain no columns:\n\nGot: %v", rc)
-	}
-
-	if !reflect.DeepEqual(wl, fileColumns) {
-		t.Errorf("Expected whitelist to contain all columns values:\n\nGot: %v\nWanted: %v", wl, fileColumns)
-	}
-
-	filesDeleteAllRows(t)
 }
 
-func TestFileToManyChunks(t *testing.T) {
+func testFilesInsertWhitelist(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
+	var err error
+	file := &File{}
+	if err = randomize.Struct(seed, file, fileDBTypes, true); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
+	}
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = file.Insert(tx, fileColumns...); err != nil {
+		t.Error(err)
+	}
+
+	count, err := Files(tx).Count()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if count != 1 {
+		t.Error("want one record, got:", count)
+	}
+}
+
+func testFileToManyChunks(t *testing.T) {
 	var err error
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
@@ -705,8 +435,9 @@ func TestFileToManyChunks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	boil.RandomizeStruct(&b, chunkDBTypes, true, "file_id")
-	boil.RandomizeStruct(&c, chunkDBTypes, true, "file_id")
+	seed := randomize.NewSeed()
+	randomize.Struct(seed, &b, chunkDBTypes, false, "file_id")
+	randomize.Struct(seed, &c, chunkDBTypes, false, "file_id")
 
 	b.FileID = a.ID
 	c.FileID = a.ID
@@ -717,13 +448,13 @@ func TestFileToManyChunks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	chunks, err := a.Chunks(tx)
+	chunk, err := a.Chunks(tx).All()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	bFound, cFound := false, false
-	for _, v := range chunks {
+	for _, v := range chunk {
 		if v.FileID == b.FileID {
 			bFound = true
 		}
@@ -739,12 +470,28 @@ func TestFileToManyChunks(t *testing.T) {
 		t.Error("expected to find c")
 	}
 
+	slice := FileSlice{&a}
+	if err = a.Loaded.LoadChunks(tx, false, &slice); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.Loaded.Chunks); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.Loaded.Chunks = nil
+	if err = a.Loaded.LoadChunks(tx, true, &a); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.Loaded.Chunks); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
 	if t.Failed() {
-		t.Logf("%#v", chunks)
+		t.Logf("%#v", chunk)
 	}
 }
 
-func TestFileToManyThumbnails(t *testing.T) {
+func testFileToManyThumbnails(t *testing.T) {
 	var err error
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
@@ -756,8 +503,9 @@ func TestFileToManyThumbnails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	boil.RandomizeStruct(&b, thumbnailDBTypes, true, "file_id")
-	boil.RandomizeStruct(&c, thumbnailDBTypes, true, "file_id")
+	seed := randomize.NewSeed()
+	randomize.Struct(seed, &b, thumbnailDBTypes, false, "file_id")
+	randomize.Struct(seed, &c, thumbnailDBTypes, false, "file_id")
 
 	b.FileID = a.ID
 	c.FileID = a.ID
@@ -768,13 +516,13 @@ func TestFileToManyThumbnails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	thumbnails, err := a.Thumbnails(tx)
+	thumbnail, err := a.Thumbnails(tx).All()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	bFound, cFound := false, false
-	for _, v := range thumbnails {
+	for _, v := range thumbnail {
 		if v.FileID == b.FileID {
 			bFound = true
 		}
@@ -790,339 +538,235 @@ func TestFileToManyThumbnails(t *testing.T) {
 		t.Error("expected to find c")
 	}
 
+	slice := FileSlice{&a}
+	if err = a.Loaded.LoadThumbnails(tx, false, &slice); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.Loaded.Thumbnails); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.Loaded.Thumbnails = nil
+	if err = a.Loaded.LoadThumbnails(tx, true, &a); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.Loaded.Thumbnails); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
 	if t.Failed() {
-		t.Logf("%#v", thumbnails)
+		t.Logf("%#v", thumbnail)
 	}
 }
 
 
 
-func TestFilesReload(t *testing.T) {
-	var err error
+func testFilesReload(t *testing.T) {
+	t.Parallel()
 
-	o := File{}
-	if err = boil.RandomizeStruct(&o, fileDBTypes, true); err != nil {
+	seed := randomize.NewSeed()
+	var err error
+	file := &File{}
+	if err = randomize.Struct(seed, file, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	if err = o.InsertG(); err != nil {
-		t.Errorf("Unable to insert File:\n%#v\nErr: %s", o, err)
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = file.Insert(tx); err != nil {
+		t.Error(err)
 	}
 
-	// Create another copy of the object
-	o1, err := FileFindG(o.ID)
-	if err != nil {
-		t.Errorf("Unable to find File row.")
+	if err = file.Reload(tx); err != nil {
+		t.Error(err)
+	}
+}
+
+func testFilesReloadAll(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
+	var err error
+	file := &File{}
+	if err = randomize.Struct(seed, file, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	// Randomize the struct values again, except for the primary key values, so we can call update.
-	err = boil.RandomizeStruct(&o, fileDBTypes, true, filePrimaryKeyColumns...)
-	if err != nil {
-		t.Errorf("Unable to randomize File struct members excluding primary keys: %s", err)
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = file.Insert(tx); err != nil {
+		t.Error(err)
 	}
 
-	colsWithoutPrimKeys := boil.SetComplement(fileColumns, filePrimaryKeyColumns)
+	slice := FileSlice{file}
 
-	if err = o.UpdateG(colsWithoutPrimKeys...); err != nil {
-		t.Errorf("Unable to update the File row: %s", err)
+	if err = slice.ReloadAll(tx); err != nil {
+		t.Error(err)
+	}
+}
+
+func testFilesSelect(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
+	var err error
+	file := &File{}
+	if err = randomize.Struct(seed, file, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	if err = o1.ReloadG(); err != nil {
-		t.Errorf("Unable to reload File object: %s", err)
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = file.Insert(tx); err != nil {
+		t.Error(err)
 	}
-	err = fileCompareVals(&o, o1, true)
+
+	slice, err := Files(tx).All()
 	if err != nil {
 		t.Error(err)
 	}
 
-	filesDeleteAllRows(t)
+	if len(slice) != 1 {
+		t.Error("want one record, got:", len(slice))
+	}
 }
 
-func TestFilesReloadAll(t *testing.T) {
+func testFilesUpdate(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
 	var err error
-
-	o1 := make(FileSlice, 3)
-	o2 := make(FileSlice, 3)
-	if err = boil.RandomizeSlice(&o1, fileDBTypes, false); err != nil {
-		t.Errorf("Unable to randomize File slice: %s", err)
-	}
-
-	for i := 0; i < len(o1); i++ {
-		if err = o1[i].InsertG(); err != nil {
-			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o1[i], err)
-		}
-	}
-
-	for i := 0; i < len(o1); i++ {
-		o2[i], err = FileFindG(o1[i].ID)
-		if err != nil {
-			t.Errorf("Unable to find File row.")
-		}
-		err = fileCompareVals(o1[i], o2[i], true)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	// Randomize the struct values again, except for the primary key values, so we can call update.
-	err = boil.RandomizeSlice(&o1, fileDBTypes, false, filePrimaryKeyColumns...)
-	if err != nil {
-		t.Errorf("Unable to randomize File slice excluding primary keys: %s", err)
-	}
-
-	colsWithoutPrimKeys := boil.SetComplement(fileColumns, filePrimaryKeyColumns)
-
-	for i := 0; i < len(o1); i++ {
-		if err = o1[i].UpdateG(colsWithoutPrimKeys...); err != nil {
-			t.Errorf("Unable to update the File row: %s", err)
-		}
-	}
-
-	if err = o2.ReloadAllG(); err != nil {
-		t.Errorf("Unable to reload File object: %s", err)
-	}
-
-	for i := 0; i < len(o1); i++ {
-		err = fileCompareVals(o2[i], o1[i], true)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	filesDeleteAllRows(t)
-}
-
-func TestFilesSelect(t *testing.T) {
-	// Only run this test if there are ample cols to test on
-	if len(fileAutoIncrementColumns) == 0 {
-		return
-	}
-
-	var err error
-
-	x := &struct {
-	}{}
-
-	item := File{}
-
-	blacklistCols := boil.SetMerge(fileAutoIncrementColumns, filePrimaryKeyColumns)
-	if err = boil.RandomizeStruct(&item, fileDBTypes, false, blacklistCols...); err != nil {
+	file := &File{}
+	if err = randomize.Struct(seed, file, fileDBTypes, true); err != nil {
 		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	if err = item.InsertG(); err != nil {
-		t.Errorf("Unable to insert item File:\n%#v\nErr: %s", item, err)
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = file.Insert(tx); err != nil {
+		t.Error(err)
 	}
 
-	err = FilesG(qm.Select(fileAutoIncrementColumns...), qm.Where(`"id"=$1`, item.ID)).Bind(x)
-	if err != nil {
-		t.Errorf("Unable to select insert results with bind: %s", err)
-	}
-
-	filesDeleteAllRows(t)
-}
-
-func TestFilesUpdate(t *testing.T) {
-	var err error
-
-	item := File{}
-	boil.RandomizeValidatedStruct(&item, fileValidatedColumns, fileDBTypes)
-	if err = item.InsertG(); err != nil {
-		t.Errorf("Unable to insert zero-value item File:\n%#v\nErr: %s", item, err)
-	}
-
-	blacklistCols := boil.SetMerge(fileAutoIncrementColumns, filePrimaryKeyColumns)
-	if err = boil.RandomizeStruct(&item, fileDBTypes, false, blacklistCols...); err != nil {
-		t.Errorf("Unable to randomize File struct: %s", err)
-	}
-
-	whitelist := boil.SetComplement(fileColumns, fileAutoIncrementColumns)
-	if err = item.UpdateG(whitelist...); err != nil {
-		t.Errorf("Unable to update File: %s", err)
-	}
-
-	var j *File
-	j, err = FileFindG(item.ID)
-	if err != nil {
-		t.Errorf("Unable to find File row: %s", err)
-	}
-
-	err = fileCompareVals(&item, j, true)
+	count, err := Files(tx).Count()
 	if err != nil {
 		t.Error(err)
 	}
 
-	wl := item.generateUpdateColumns("test")
-	if len(wl) != 1 && wl[0] != "test" {
-		t.Errorf("Expected generateUpdateColumns whitelist to match expected whitelist")
+	if count != 1 {
+		t.Error("want one record, got:", count)
 	}
 
-	wl = item.generateUpdateColumns()
-	if len(wl) == 0 && len(fileColumnsWithoutDefault) > 0 {
-		t.Errorf("Expected generateUpdateColumns to build a whitelist for File, but got 0 results")
+	if err = randomize.Struct(seed, file, fileDBTypes, true, filePrimaryKeyColumns...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	filesDeleteAllRows(t)
-}
-
-func TestFilesSliceUpdateAll(t *testing.T) {
-	var err error
-
-	// insert random columns to test UpdateAll
-	o := make(FileSlice, 3)
-	j := make(FileSlice, 3)
-
-	if err = boil.RandomizeSlice(&o, fileDBTypes, false); err != nil {
-		t.Errorf("Unable to randomize File slice: %s", err)
-	}
-
-	for i := 0; i < len(o); i++ {
-		if err = o[i].InsertG(); err != nil {
-			t.Errorf("Unable to insert File:\n%#v\nErr: %s", o[i], err)
+	// If table only contains primary key columns, we need to pass
+	// them into a whitelist to get a valid test result,
+	// otherwise the Update method will error because it will not be able to
+	// generate a whitelist (due to it excluding primary key columns).
+	if strmangle.StringSliceMatch(fileColumns, filePrimaryKeyColumns) {
+		if err = file.Update(tx, filePrimaryKeyColumns...); err != nil {
+			t.Error(err)
 		}
-	}
-
-	vals := M{}
-
-	tmp := File{}
-	blacklist := boil.SetMerge(filePrimaryKeyColumns, fileUniqueColumns)
-	if err = boil.RandomizeStruct(&tmp, fileDBTypes, false, blacklist...); err != nil {
-		t.Errorf("Unable to randomize struct File: %s", err)
-	}
-
-	// Build the columns and column values from the randomized struct
-	tmpVal := reflect.Indirect(reflect.ValueOf(tmp))
-	nonBlacklist := boil.SetComplement(fileColumns, blacklist)
-	for _, col := range nonBlacklist {
-		vals[col] = tmpVal.FieldByName(strmangle.TitleCase(col)).Interface()
-	}
-
-	err = o.UpdateAllG(vals)
-	if err != nil {
-		t.Errorf("Failed to update all for File: %s", err)
-	}
-
-	for i := 0; i < len(o); i++ {
-		j[i], err = FileFindG(o[i].ID)
-		if err != nil {
-			t.Errorf("Unable to find File row: %s", err)
-		}
-
-		err = fileCompareVals(j[i], &tmp, true, blacklist...)
-		if err != nil {
+	} else {
+		if err = file.Update(tx); err != nil {
 			t.Error(err)
 		}
 	}
-
-	for i := 0; i < len(o); i++ {
-		// Ensure Find found the correct primary key ID's
-		orig := boil.GetStructValues(o[i], filePrimaryKeyColumns...)
-		new := boil.GetStructValues(j[i], filePrimaryKeyColumns...)
-
-		if !reflect.DeepEqual(orig, new) {
-			t.Errorf("object %d): primary keys do not match:\n\n%#v\n%#v", i, orig, new)
-		}
-	}
-
-	filesDeleteAllRows(t)
 }
 
-func TestFilesUpsert(t *testing.T) {
+func testFilesSliceUpdateAll(t *testing.T) {
+	t.Parallel()
+
+	seed := randomize.NewSeed()
 	var err error
-
-	o := File{}
-
-	columns := o.generateUpsertColumns([]string{"one", "two"}, []string{"three", "four"}, []string{"five", "six"})
-	if columns.conflict[0] != "one" || columns.conflict[1] != "two" {
-		t.Errorf("Expected conflict to be %v, got %v", []string{"one", "two"}, columns.conflict)
+	file := &File{}
+	if err = randomize.Struct(seed, file, fileDBTypes, true); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	if columns.update[0] != "three" || columns.update[1] != "four" {
-		t.Errorf("Expected update to be %v, got %v", []string{"three", "four"}, columns.update)
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = file.Insert(tx); err != nil {
+		t.Error(err)
 	}
 
-	if columns.whitelist[0] != "five" || columns.whitelist[1] != "six" {
-		t.Errorf("Expected whitelist to be %v, got %v", []string{"five", "six"}, columns.whitelist)
+	count, err := Files(tx).Count()
+	if err != nil {
+		t.Error(err)
 	}
 
-	columns = o.generateUpsertColumns(nil, nil, nil)
-	if len(columns.whitelist) == 0 {
-		t.Errorf("Expected whitelist to contain columns, but got len 0")
+	if count != 1 {
+		t.Error("want one record, got:", count)
 	}
 
-	if len(columns.conflict) == 0 {
-		t.Errorf("Expected conflict to contain columns, but got len 0")
+	if err = randomize.Struct(seed, file, fileDBTypes, true, filePrimaryKeyColumns...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	if len(columns.update) == 0 {
-		t.Errorf("expected update to contain columns, but got len 0")
+	// Remove Primary keys and unique columns from what we plan to update
+	var fields []string
+	if strmangle.StringSliceMatch(fileColumns, filePrimaryKeyColumns) {
+		fields = fileColumns
+	} else {
+		fields = strmangle.SetComplement(
+			fileColumns,
+			filePrimaryKeyColumns,
+		)
 	}
 
-	upsertCols := upsertData{
-		conflict:  []string{"key1", `"key2"`},
-		update:    []string{"aaa", `"bbb"`},
-		whitelist: []string{"thing", `"stuff"`},
-		returning: []string{},
+	value := reflect.Indirect(reflect.ValueOf(file))
+	updateMap := M{}
+	for _, col := range fields {
+		updateMap[col] = value.FieldByName(strmangle.TitleCase(col)).Interface()
 	}
 
-	query := o.generateUpsertQuery(false, upsertCols)
-	expectedQuery := `INSERT INTO files ("thing", "stuff") VALUES ($1, $2) ON CONFLICT DO NOTHING`
-
-	if query != expectedQuery {
-		t.Errorf("Expected query mismatch:\n\n%s\n%s\n", query, expectedQuery)
+	slice := FileSlice{file}
+	if err = slice.UpdateAll(tx, updateMap); err != nil {
+		t.Error(err)
 	}
+}
 
-	query = o.generateUpsertQuery(true, upsertCols)
-	expectedQuery = `INSERT INTO files ("thing", "stuff") VALUES ($1, $2) ON CONFLICT ("key1", "key2") DO UPDATE SET "aaa" = EXCLUDED."aaa", "bbb" = EXCLUDED."bbb"`
+func testFilesUpsert(t *testing.T) {
+	t.Parallel()
 
-	if query != expectedQuery {
-		t.Errorf("Expected query mismatch:\n\n%s\n%s\n", query, expectedQuery)
-	}
-
-	upsertCols.returning = []string{"stuff"}
-	query = o.generateUpsertQuery(true, upsertCols)
-	expectedQuery = expectedQuery + ` RETURNING "stuff"`
-
-	if query != expectedQuery {
-		t.Errorf("Expected query mismatch:\n\n%s\n%s\n", query, expectedQuery)
-	}
-
+	seed := randomize.NewSeed()
+	var err error
 	// Attempt the INSERT side of an UPSERT
-	if err = boil.RandomizeStruct(&o, fileDBTypes, true); err != nil {
+	file := File{}
+	if err = randomize.Struct(seed, &file, fileDBTypes, true); err != nil {
 		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	if err = o.UpsertG(false, nil, nil); err != nil {
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+	if err = file.Upsert(tx, false, nil, nil); err != nil {
 		t.Errorf("Unable to upsert File: %s", err)
 	}
 
-	compare, err := FileFindG(o.ID)
-	if err != nil {
-		t.Errorf("Unable to find File: %s", err)
-	}
-	err = fileCompareVals(&o, compare, true)
+	count, err := Files(tx).Count()
 	if err != nil {
 		t.Error(err)
+	}
+	if count != 1 {
+		t.Error("want one record, got:", count)
 	}
 
 	// Attempt the UPDATE side of an UPSERT
-	if err = boil.RandomizeStruct(&o, fileDBTypes, false, filePrimaryKeyColumns...); err != nil {
+	if err = randomize.Struct(seed, &file, fileDBTypes, false, filePrimaryKeyColumns...); err != nil {
 		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	if err = o.UpsertG(true, nil, nil); err != nil {
+	if err = file.Upsert(tx, true, nil, nil); err != nil {
 		t.Errorf("Unable to upsert File: %s", err)
 	}
 
-	compare, err = FileFindG(o.ID)
-	if err != nil {
-		t.Errorf("Unable to find File: %s", err)
-	}
-	err = fileCompareVals(&o, compare, true)
+	count, err = Files(tx).Count()
 	if err != nil {
 		t.Error(err)
 	}
-
-	filesDeleteAllRows(t)
+	if count != 1 {
+		t.Error("want one record, got:", count)
+	}
 }
 
