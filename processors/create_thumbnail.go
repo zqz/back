@@ -17,6 +17,88 @@ import (
 	"github.com/zqzca/back/lib"
 )
 
+func rotate(img image.Image, orientation int) image.Image {
+	fmt.Println("orientation:", orientation)
+	// 1        2       3      4         5            6           7          8
+
+	// 888888  888888      88  88      8888888888  88                  88  8888888888
+	// 88          88      88  88      88  88      88  88          88  88      88  88
+	// 8888      8888    8888  8888    88          8888888888  8888888888          88
+	// 88          88      88  88
+	// 88          88  888888  888888
+
+	// func Rotate180(img image.Image) *image.NRGBA
+	// func Rotate270(img image.Image) *image.NRGBA
+	// func Rotate90(img image.Image) *image.NRGBA
+	// func FlipH(img image.Image) *image.NRGBA
+	// func FlipV(img image.Image) *image.NRGBA
+
+	var out image.Image
+	switch orientation {
+	case 1:
+		out = img
+		// nothing;
+	case 2:
+		out = imaging.FlipH(img)
+		// flip Horiz L to R
+	case 3:
+		out = imaging.Rotate180(img)
+		// rotate 180 ccw
+	case 4:
+		out = imaging.FlipV(img)
+		// flip Vert T to B
+	case 5:
+		out = imaging.Transpose(img)
+		// transpose
+	case 6:
+		out = imaging.Rotate90(img)
+		// rotate 90
+	case 7:
+		out = imaging.Transverse(img)
+		// transverse
+	case 8:
+		out = imaging.Rotate270(img)
+		// rotate 270
+	default:
+		out = img
+		// nothing;
+	}
+
+	return out
+}
+
+func readOrientation(r io.ReadSeeker) (int, error) {
+	_, err := r.Seek(0, os.SEEK_SET)
+
+	if err != nil {
+		fmt.Println("Failed to seek to begginning of stream")
+		return 0, err
+	}
+
+	x, err := exif.Decode(r)
+
+	if err != nil {
+		fmt.Println("Failed to decode EXIF", err)
+		return 0, err
+	}
+
+	orientationData, err := x.Get(exif.Orientation)
+
+	if err != nil {
+		fmt.Println("Failed to read orientation property")
+		return 0, err
+	}
+
+	orientation, err := orientationData.Int(0)
+
+	if err != nil {
+		fmt.Println("Failed to decode orientation")
+		return 0, err
+	}
+
+	return orientation, nil
+}
+
 func CreateThumbnail(deps controllers.Dependencies, r io.ReadSeeker) (string, int, error) {
 	raw, format, err := image.Decode(r)
 
@@ -25,57 +107,12 @@ func CreateThumbnail(deps controllers.Dependencies, r io.ReadSeeker) (string, in
 	}
 
 	if format == "jpeg" || format == "jpg" {
+		fmt.Println("Got JPG")
+		orientation, err := readOrientation(r)
 
-		r.Seek(0, os.SEEK_SET)
-
-		// 1        2       3      4         5            6           7          8
-
-		// 888888  888888      88  88      8888888888  88                  88  8888888888
-		// 88          88      88  88      88  88      88  88          88  88      88  88
-		// 8888      8888    8888  8888    88          8888888888  8888888888          88
-		// 88          88      88  88
-		// 88          88  888888  888888
-
-		// func Rotate180(img image.Image) *image.NRGBA
-		// func Rotate270(img image.Image) *image.NRGBA
-		// func Rotate90(img image.Image) *image.NRGBA
-		// func FlipH(img image.Image) *image.NRGBA
-		// func FlipV(img image.Image) *image.NRGBA
-
-		fmt.Println("Rotateing")
-		x, err := exif.Decode(r)
-		if err != nil {
-			fmt.Println("failed to decode", err)
-			return "", 0, err
+		if err == nil {
+			raw = rotate(raw, orientation)
 		}
-
-		rawo, _ := x.Get(exif.Orientation)
-
-		orientation, err := rawo.Int(0)
-
-		switch orientation {
-		case 1:
-			// nothing;
-		case 2:
-			// flip Horiz L to R
-		case 3:
-			raw = imaging.Rotate180(raw)
-			// rotate 180 ccw
-		case 4:
-			// flip Vert T to B
-		case 5:
-			// transpose
-		case 6:
-			// rotate 90
-		case 7:
-			// transverse
-		case 8:
-			// rotate 270
-		default:
-			// nothing;
-		}
-
-		fmt.Println("orientation:", orientation)
 	}
 
 	// var jpgData bytes.Buffer

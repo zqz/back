@@ -18,7 +18,7 @@ func CompleteFile(deps controllers.Dependencies, f *models.File) error {
 		return errors.Wrap(err, "Failed to create thumbnail")
 	}
 
-	if thumbSize == 0 {
+	if len(thumbHash) == 0 {
 		return nil
 	}
 
