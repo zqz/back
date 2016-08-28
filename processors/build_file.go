@@ -12,7 +12,7 @@ import (
 )
 
 // BuildFile builds a file from chunks.
-func BuildFile(deps controllers.Dependencies, f *models.File) (io.Reader, error) {
+func BuildFile(deps controllers.Dependencies, f *models.File) (io.ReadSeeker, error) {
 	chunks, err := models.Chunks(
 		deps.DB,
 		Where("file_id=$1", f.ID),
@@ -27,13 +27,12 @@ func BuildFile(deps controllers.Dependencies, f *models.File) (io.Reader, error)
 	fs := deps.Fs
 	fullFilePath := filepath.Join("files", f.Hash)
 	fullFile, err := fs.Create(fullFilePath)
-	fullFileBuffer := &bytes.Buffer{}
 	defer fullFile.Close()
-
 	if err != nil {
 		fmt.Println("Failed because", err)
 		return nil, err
 	}
+	fullFileBuffer := &bytes.Buffer{}
 
 	mw := io.MultiWriter(fullFile, fullFileBuffer)
 
@@ -42,6 +41,10 @@ func BuildFile(deps controllers.Dependencies, f *models.File) (io.Reader, error)
 		path := filepath.Join("files", "chunks", c.Hash)
 		chunkData, err := fs.Open(path)
 
+		if err != nil {
+			fmt.Println("chunk Failed because", err)
+			return nil, err
+		}
 		_, err = io.Copy(mw, chunkData)
 		chunkData.Close()
 
@@ -60,5 +63,7 @@ func BuildFile(deps controllers.Dependencies, f *models.File) (io.Reader, error)
 		fs.Remove(path)
 	}
 
-	return fullFileBuffer, nil
+	bs := bytes.NewReader(fullFileBuffer.Bytes())
+
+	return bs, nil
 }
