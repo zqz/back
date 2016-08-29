@@ -25,11 +25,11 @@ type User struct {
 	UpdatedAt time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	Banned    bool      `boil:"banned" json:"banned" toml:"banned" yaml:"banned"`
 
-	Loaded *UserLoaded `boil:"-" json:"-" toml:"-" yaml:"-"`
+	R *UserR `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
-// UserLoaded are where relationships are eagerly loaded.
-type UserLoaded struct {
+// UserR is where relationships are stored.
+type UserR struct {
 }
 
 var (
@@ -53,24 +53,31 @@ var (
 
 type (
 	UserSlice []*User
-	UserHook  func(*User) error
+	UserHook  func(boil.Executor, *User) error
 
 	userQuery struct {
 		*boil.Query
 	}
 )
 
-var userBeforeCreateHooks []UserHook
+// Force time package dependency for automated UpdatedAt/CreatedAt.
+var _ = time.Second
+
+var userBeforeInsertHooks []UserHook
 var userBeforeUpdateHooks []UserHook
+var userBeforeDeleteHooks []UserHook
 var userBeforeUpsertHooks []UserHook
-var userAfterCreateHooks []UserHook
+
+var userAfterInsertHooks []UserHook
+var userAfterSelectHooks []UserHook
 var userAfterUpdateHooks []UserHook
+var userAfterDeleteHooks []UserHook
 var userAfterUpsertHooks []UserHook
 
-// doBeforeCreateHooks executes all "before create" hooks.
-func (o *User) doBeforeCreateHooks() (err error) {
-	for _, hook := range userBeforeCreateHooks {
-		if err := hook(o); err != nil {
+// doBeforeInsertHooks executes all "before insert" hooks.
+func (o *User) doBeforeInsertHooks(exec boil.Executor) (err error) {
+	for _, hook := range userBeforeInsertHooks {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -79,9 +86,20 @@ func (o *User) doBeforeCreateHooks() (err error) {
 }
 
 // doBeforeUpdateHooks executes all "before Update" hooks.
-func (o *User) doBeforeUpdateHooks() (err error) {
+func (o *User) doBeforeUpdateHooks(exec boil.Executor) (err error) {
 	for _, hook := range userBeforeUpdateHooks {
-		if err := hook(o); err != nil {
+		if err := hook(exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doBeforeDeleteHooks executes all "before Delete" hooks.
+func (o *User) doBeforeDeleteHooks(exec boil.Executor) (err error) {
+	for _, hook := range userBeforeDeleteHooks {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -90,9 +108,9 @@ func (o *User) doBeforeUpdateHooks() (err error) {
 }
 
 // doBeforeUpsertHooks executes all "before Upsert" hooks.
-func (o *User) doBeforeUpsertHooks() (err error) {
+func (o *User) doBeforeUpsertHooks(exec boil.Executor) (err error) {
 	for _, hook := range userBeforeUpsertHooks {
-		if err := hook(o); err != nil {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -100,10 +118,21 @@ func (o *User) doBeforeUpsertHooks() (err error) {
 	return nil
 }
 
-// doAfterCreateHooks executes all "after create" hooks.
-func (o *User) doAfterCreateHooks() (err error) {
-	for _, hook := range userAfterCreateHooks {
-		if err := hook(o); err != nil {
+// doAfterInsertHooks executes all "after Insert" hooks.
+func (o *User) doAfterInsertHooks(exec boil.Executor) (err error) {
+	for _, hook := range userAfterInsertHooks {
+		if err := hook(exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterSelectHooks executes all "after Select" hooks.
+func (o *User) doAfterSelectHooks(exec boil.Executor) (err error) {
+	for _, hook := range userAfterSelectHooks {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -112,9 +141,20 @@ func (o *User) doAfterCreateHooks() (err error) {
 }
 
 // doAfterUpdateHooks executes all "after Update" hooks.
-func (o *User) doAfterUpdateHooks() (err error) {
+func (o *User) doAfterUpdateHooks(exec boil.Executor) (err error) {
 	for _, hook := range userAfterUpdateHooks {
-		if err := hook(o); err != nil {
+		if err := hook(exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterDeleteHooks executes all "after Delete" hooks.
+func (o *User) doAfterDeleteHooks(exec boil.Executor) (err error) {
+	for _, hook := range userAfterDeleteHooks {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -123,9 +163,9 @@ func (o *User) doAfterUpdateHooks() (err error) {
 }
 
 // doAfterUpsertHooks executes all "after Upsert" hooks.
-func (o *User) doAfterUpsertHooks() (err error) {
+func (o *User) doAfterUpsertHooks(exec boil.Executor) (err error) {
 	for _, hook := range userAfterUpsertHooks {
-		if err := hook(o); err != nil {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -135,16 +175,22 @@ func (o *User) doAfterUpsertHooks() (err error) {
 
 func UserAddHook(hookPoint boil.HookPoint, userHook UserHook) {
 	switch hookPoint {
-	case boil.HookBeforeCreate:
-		userBeforeCreateHooks = append(userBeforeCreateHooks, userHook)
+	case boil.HookBeforeInsert:
+		userBeforeInsertHooks = append(userBeforeInsertHooks, userHook)
 	case boil.HookBeforeUpdate:
 		userBeforeUpdateHooks = append(userBeforeUpdateHooks, userHook)
+	case boil.HookBeforeDelete:
+		userBeforeDeleteHooks = append(userBeforeDeleteHooks, userHook)
 	case boil.HookBeforeUpsert:
 		userBeforeUpsertHooks = append(userBeforeUpsertHooks, userHook)
-	case boil.HookAfterCreate:
-		userAfterCreateHooks = append(userAfterCreateHooks, userHook)
+	case boil.HookAfterInsert:
+		userAfterInsertHooks = append(userAfterInsertHooks, userHook)
+	case boil.HookAfterSelect:
+		userAfterSelectHooks = append(userAfterSelectHooks, userHook)
 	case boil.HookAfterUpdate:
 		userAfterUpdateHooks = append(userAfterUpdateHooks, userHook)
+	case boil.HookAfterDelete:
+		userAfterDeleteHooks = append(userAfterDeleteHooks, userHook)
 	case boil.HookAfterUpsert:
 		userAfterUpsertHooks = append(userAfterUpsertHooks, userHook)
 	}
@@ -174,6 +220,10 @@ func (q userQuery) One() (*User, error) {
 		return nil, errors.Wrap(err, "models: failed to execute a one query for users")
 	}
 
+	if err := o.doAfterSelectHooks(boil.GetExecutor(q.Query)); err != nil {
+		return o, err
+	}
+
 	return o, nil
 }
 
@@ -194,6 +244,14 @@ func (q userQuery) All() (UserSlice, error) {
 	err := q.BindFast(&o, userTitleCases)
 	if err != nil {
 		return nil, errors.Wrap(err, "models: failed to assign all query results to User slice")
+	}
+
+	if len(userAfterSelectHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doAfterSelectHooks(boil.GetExecutor(q.Query)); err != nil {
+				return o, err
+			}
+		}
 	}
 
 	return o, nil
@@ -253,6 +311,7 @@ func (q userQuery) Exists() (bool, error) {
 
 
 
+
 // UsersG retrieves all records.
 func UsersG(mods ...qm.QueryMod) userQuery {
 	return Users(boil.GetDB(), mods...)
@@ -292,8 +351,7 @@ func UserFind(exec boil.Executor, id string, selectCols ...string) (*User, error
 		`select %s from "users" where "id"=$1`, sel,
 	)
 
-	q := boil.SQL(query, id)
-	boil.SetExecutor(q, exec)
+	q := boil.SQL(exec, query, id)
 
 	err := q.BindFast(userObj, userTitleCases)
 	if err != nil {
@@ -347,6 +405,26 @@ func (o *User) Insert(exec boil.Executor, whitelist ...string) error {
 		return errors.New("models: no users provided for insertion")
 	}
 
+	var err error
+	loc := boil.GetLocation()
+	currTime := time.Time{}
+	if loc != nil {
+		currTime = time.Now().In(boil.GetLocation())
+	} else {
+		currTime = time.Now()
+	}
+
+	if o.CreatedAt.IsZero() {
+		o.CreatedAt = currTime
+	}
+	if o.UpdatedAt.IsZero() {
+		o.UpdatedAt = currTime
+	}
+
+	if err := o.doBeforeInsertHooks(exec); err != nil {
+		return err
+	}
+
 	wl, returnColumns := strmangle.InsertColumnSet(
 		userColumns,
 		userColumnsWithDefault,
@@ -354,11 +432,6 @@ func (o *User) Insert(exec boil.Executor, whitelist ...string) error {
 		boil.NonZeroDefaultSet(userColumnsWithDefault, userTitleCases, o),
 		whitelist,
 	)
-
-	var err error
-	if err := o.doBeforeCreateHooks(); err != nil {
-		return err
-	}
 
 	ins := fmt.Sprintf(`INSERT INTO users ("%s") VALUES (%s)`, strings.Join(wl, `","`), strmangle.Placeholders(len(wl), 1, 1))
 
@@ -378,7 +451,7 @@ func (o *User) Insert(exec boil.Executor, whitelist ...string) error {
 		return errors.Wrap(err, "models: unable to insert into users")
 	}
 
-	return o.doAfterCreateHooks()
+	return o.doAfterInsertHooks(exec)
 }
 
 // UpdateG a single User record. See Update for
@@ -413,7 +486,17 @@ func (o *User) UpdateP(exec boil.Executor, whitelist ...string) {
 // Update does not automatically update the record in case of default values. Use .Reload()
 // to refresh the records.
 func (o *User) Update(exec boil.Executor, whitelist ...string) error {
-	if err := o.doBeforeUpdateHooks(); err != nil {
+	loc := boil.GetLocation()
+	currTime := time.Time{}
+	if loc != nil {
+		currTime = time.Now().In(boil.GetLocation())
+	} else {
+		currTime = time.Now()
+	}
+
+	o.UpdatedAt = currTime
+
+	if err := o.doBeforeUpdateHooks(exec); err != nil {
 		return err
 	}
 
@@ -444,7 +527,7 @@ func (o *User) Update(exec boil.Executor, whitelist ...string) error {
 		return errors.Errorf("failed to update single row, updated %d rows", r)
 	}
 
-	return o.doAfterUpdateHooks()
+	return o.doAfterUpdateHooks(exec)
 }
 
 // UpdateAllP updates all rows with matching column names, and panics on error.
@@ -559,7 +642,24 @@ func (o *User) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns
 	if o == nil {
 		return errors.New("models: no users provided for upsert")
 	}
+	loc := boil.GetLocation()
+	currTime := time.Time{}
+	if loc != nil {
+		currTime = time.Now().In(boil.GetLocation())
+	} else {
+		currTime = time.Now()
+	}
 
+	if o.CreatedAt.IsZero() {
+		o.CreatedAt = currTime
+	}
+	o.UpdatedAt = currTime
+
+	if err := o.doBeforeUpsertHooks(exec); err != nil {
+		return err
+	}
+
+	var err error
 	var ret []string
 	whitelist, ret = strmangle.InsertColumnSet(
 		userColumns,
@@ -581,11 +681,6 @@ func (o *User) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns
 
 	query := generateUpsertQuery("users", updateOnConflict, ret, update, conflict, whitelist)
 
-	var err error
-	if err := o.doBeforeUpsertHooks(); err != nil {
-		return err
-	}
-
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, query)
 		fmt.Fprintln(boil.DebugWriter, boil.GetStructValues(o, userTitleCases, whitelist...))
@@ -600,7 +695,7 @@ func (o *User) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns
 		return errors.Wrap(err, "models: unable to upsert for users")
 	}
 
-	if err := o.doAfterUpsertHooks(); err != nil {
+	if err := o.doAfterUpsertHooks(exec); err != nil {
 		return err
 	}
 
@@ -642,6 +737,10 @@ func (o *User) Delete(exec boil.Executor) error {
 		return errors.New("models: no User provided for delete")
 	}
 
+	if err := o.doBeforeDeleteHooks(exec); err != nil {
+		return err
+	}
+
 	args := o.inPrimaryKeyArgs()
 
 	sql := `DELETE FROM users WHERE "id"=$1`
@@ -654,6 +753,10 @@ func (o *User) Delete(exec boil.Executor) error {
 	_, err := exec.Exec(sql, args...)
 	if err != nil {
 		return errors.Wrap(err, "models: unable to delete from users")
+	}
+
+	if err := o.doAfterDeleteHooks(exec); err != nil {
+		return err
 	}
 
 	return nil
@@ -714,6 +817,14 @@ func (o UserSlice) DeleteAll(exec boil.Executor) error {
 		return nil
 	}
 
+	if len(userBeforeDeleteHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doBeforeDeleteHooks(exec); err != nil {
+				return err
+			}
+		}
+	}
+
 	args := o.inPrimaryKeyArgs()
 
 	sql := fmt.Sprintf(
@@ -730,6 +841,14 @@ func (o UserSlice) DeleteAll(exec boil.Executor) error {
 	_, err := exec.Exec(sql, args...)
 	if err != nil {
 		return errors.Wrap(err, "models: unable to delete all from user slice")
+	}
+
+	if len(userAfterDeleteHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doAfterDeleteHooks(exec); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -806,8 +925,7 @@ func (o *UserSlice) ReloadAll(exec boil.Executor) error {
 		strmangle.Placeholders(len(*o)*len(userPrimaryKeyColumns), 1, len(userPrimaryKeyColumns)),
 	)
 
-	q := boil.SQL(sql, args...)
-	boil.SetExecutor(q, exec)
+	q := boil.SQL(exec, sql, args...)
 
 	err := q.BindFast(&users, userTitleCases)
 	if err != nil {
@@ -880,4 +998,7 @@ func (o UserSlice) inPrimaryKeyArgs() []interface{} {
 
 	return args
 }
+
+
+
 

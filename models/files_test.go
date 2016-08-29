@@ -272,7 +272,7 @@ func testFilesCount(t *testing.T) {
 	}
 }
 
-var fileDBTypes = map[string]string{"NumChunks": "integer", "State": "integer", "Name": "text", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "ID": "uuid", "Size": "integer", "Slug": "text", "Hash": "text", "Type": "text"}
+var fileDBTypes = map[string]string{"ID": "uuid", "Size": "integer", "State": "integer", "Hash": "text", "UpdatedAt": "timestamp without time zone", "Slug": "text", "NumChunks": "integer", "Name": "text", "Type": "text", "CreatedAt": "timestamp without time zone"}
 
 func testFilesInPrimaryKeyArgs(t *testing.T) {
 	t.Parallel()
@@ -327,22 +327,47 @@ func testFilesSliceInPrimaryKeyArgs(t *testing.T) {
 	}
 }
 
-func fileBeforeCreateHook(o *File) error {
+func fileBeforeInsertHook(e boil.Executor, o *File) error {
 	*o = File{}
 	return nil
 }
 
-func fileAfterCreateHook(o *File) error {
+func fileAfterInsertHook(e boil.Executor, o *File) error {
 	*o = File{}
 	return nil
 }
 
-func fileBeforeUpdateHook(o *File) error {
+func fileAfterSelectHook(e boil.Executor, o *File) error {
 	*o = File{}
 	return nil
 }
 
-func fileAfterUpdateHook(o *File) error {
+func fileBeforeUpdateHook(e boil.Executor, o *File) error {
+	*o = File{}
+	return nil
+}
+
+func fileAfterUpdateHook(e boil.Executor, o *File) error {
+	*o = File{}
+	return nil
+}
+
+func fileBeforeDeleteHook(e boil.Executor, o *File) error {
+	*o = File{}
+	return nil
+}
+
+func fileAfterDeleteHook(e boil.Executor, o *File) error {
+	*o = File{}
+	return nil
+}
+
+func fileBeforeUpsertHook(e boil.Executor, o *File) error {
+	*o = File{}
+	return nil
+}
+
+func fileAfterUpsertHook(e boil.Executor, o *File) error {
 	*o = File{}
 	return nil
 }
@@ -360,15 +385,86 @@ func testFilesHooks(t *testing.T) {
 		t.Errorf("Unable to randomize File object: %s", err)
 	}
 
-	FileAddHook(boil.HookBeforeCreate, fileBeforeCreateHook)
-	if err = o.doBeforeCreateHooks(); err != nil {
-		t.Errorf("Unable to execute doBeforeCreateHooks: %s", err)
+	FileAddHook(boil.HookBeforeInsert, fileBeforeInsertHook)
+	if err = o.doBeforeInsertHooks(nil); err != nil {
+		t.Errorf("Unable to execute doBeforeInsertHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
-		t.Errorf("Expected BeforeCreateHook function to empty object, but got: %#v", o)
+		t.Errorf("Expected BeforeInsertHook function to empty object, but got: %#v", o)
 	}
+	fileBeforeInsertHooks = []FileHook{}
 
-	fileBeforeCreateHooks = []FileHook{}
+	FileAddHook(boil.HookAfterInsert, fileAfterInsertHook)
+	if err = o.doAfterInsertHooks(nil); err != nil {
+		t.Errorf("Unable to execute doAfterInsertHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected AfterInsertHook function to empty object, but got: %#v", o)
+	}
+	fileAfterInsertHooks = []FileHook{}
+
+	FileAddHook(boil.HookAfterSelect, fileAfterSelectHook)
+	if err = o.doAfterSelectHooks(nil); err != nil {
+		t.Errorf("Unable to execute doAfterSelectHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected AfterSelectHook function to empty object, but got: %#v", o)
+	}
+	fileAfterSelectHooks = []FileHook{}
+
+	FileAddHook(boil.HookBeforeUpdate, fileBeforeUpdateHook)
+	if err = o.doBeforeUpdateHooks(nil); err != nil {
+		t.Errorf("Unable to execute doBeforeUpdateHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected BeforeUpdateHook function to empty object, but got: %#v", o)
+	}
+	fileBeforeUpdateHooks = []FileHook{}
+
+	FileAddHook(boil.HookAfterUpdate, fileAfterUpdateHook)
+	if err = o.doAfterUpdateHooks(nil); err != nil {
+		t.Errorf("Unable to execute doAfterUpdateHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected AfterUpdateHook function to empty object, but got: %#v", o)
+	}
+	fileAfterUpdateHooks = []FileHook{}
+
+	FileAddHook(boil.HookBeforeDelete, fileBeforeDeleteHook)
+	if err = o.doBeforeDeleteHooks(nil); err != nil {
+		t.Errorf("Unable to execute doBeforeDeleteHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected BeforeDeleteHook function to empty object, but got: %#v", o)
+	}
+	fileBeforeDeleteHooks = []FileHook{}
+
+	FileAddHook(boil.HookAfterDelete, fileAfterDeleteHook)
+	if err = o.doAfterDeleteHooks(nil); err != nil {
+		t.Errorf("Unable to execute doAfterDeleteHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected AfterDeleteHook function to empty object, but got: %#v", o)
+	}
+	fileAfterDeleteHooks = []FileHook{}
+
+	FileAddHook(boil.HookBeforeUpsert, fileBeforeUpsertHook)
+	if err = o.doBeforeUpsertHooks(nil); err != nil {
+		t.Errorf("Unable to execute doBeforeUpsertHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected BeforeUpsertHook function to empty object, but got: %#v", o)
+	}
+	fileBeforeUpsertHooks = []FileHook{}
+
+	FileAddHook(boil.HookAfterUpsert, fileAfterUpsertHook)
+	if err = o.doAfterUpsertHooks(nil); err != nil {
+		t.Errorf("Unable to execute doAfterUpsertHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected AfterUpsertHook function to empty object, but got: %#v", o)
+	}
+	fileAfterUpsertHooks = []FileHook{}
 }
 
 func testFilesInsert(t *testing.T) {
@@ -471,18 +567,18 @@ func testFileToManyChunks(t *testing.T) {
 	}
 
 	slice := FileSlice{&a}
-	if err = a.Loaded.LoadChunks(tx, false, &slice); err != nil {
+	if err = a.R.LoadChunks(tx, false, &slice); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.Loaded.Chunks); got != 2 {
+	if got := len(a.R.Chunks); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
-	a.Loaded.Chunks = nil
-	if err = a.Loaded.LoadChunks(tx, true, &a); err != nil {
+	a.R.Chunks = nil
+	if err = a.R.LoadChunks(tx, true, &a); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.Loaded.Chunks); got != 2 {
+	if got := len(a.R.Chunks); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
@@ -539,23 +635,176 @@ func testFileToManyThumbnails(t *testing.T) {
 	}
 
 	slice := FileSlice{&a}
-	if err = a.Loaded.LoadThumbnails(tx, false, &slice); err != nil {
+	if err = a.R.LoadThumbnails(tx, false, &slice); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.Loaded.Thumbnails); got != 2 {
+	if got := len(a.R.Thumbnails); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
-	a.Loaded.Thumbnails = nil
-	if err = a.Loaded.LoadThumbnails(tx, true, &a); err != nil {
+	a.R.Thumbnails = nil
+	if err = a.R.LoadThumbnails(tx, true, &a); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.Loaded.Thumbnails); got != 2 {
+	if got := len(a.R.Thumbnails); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
 	if t.Failed() {
 		t.Logf("%#v", thumbnail)
+	}
+}
+
+
+
+
+func testFileToManyAddOpChunks(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a File
+	var b, c, d, e Chunk
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, fileDBTypes, false, filePrimaryKeyColumns...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Chunk{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, chunkDBTypes, false, chunkPrimaryKeyColumns...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*Chunk{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddChunks(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if a.ID != first.FileID {
+			t.Error("foreign key was wrong value", a.ID, first.FileID)
+		}
+		if a.ID != second.FileID {
+			t.Error("foreign key was wrong value", a.ID, second.FileID)
+		}
+
+		if first.R.File != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.File != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.Chunks[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.Chunks[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.Chunks(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
+
+func testFileToManyAddOpThumbnails(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a File
+	var b, c, d, e Thumbnail
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, fileDBTypes, false, filePrimaryKeyColumns...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Thumbnail{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, thumbnailDBTypes, false, thumbnailPrimaryKeyColumns...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*Thumbnail{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddThumbnails(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if a.ID != first.FileID {
+			t.Error("foreign key was wrong value", a.ID, first.FileID)
+		}
+		if a.ID != second.FileID {
+			t.Error("foreign key was wrong value", a.ID, second.FileID)
+		}
+
+		if first.R.File != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.File != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.Thumbnails[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.Thumbnails[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.Thumbnails(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
 	}
 }
 

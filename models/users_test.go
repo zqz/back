@@ -272,7 +272,7 @@ func testUsersCount(t *testing.T) {
 	}
 }
 
-var userDBTypes = map[string]string{"FirstName": "character varying", "Username": "character varying", "Email": "character varying", "Hash": "character varying", "CreatedAt": "timestamp without time zone", "Banned": "boolean", "ID": "uuid", "LastName": "character varying", "Phone": "character varying", "UpdatedAt": "timestamp without time zone"}
+var userDBTypes = map[string]string{"FirstName": "character varying", "Phone": "character varying", "Email": "character varying", "Hash": "character varying", "UpdatedAt": "timestamp without time zone", "Banned": "boolean", "ID": "uuid", "LastName": "character varying", "Username": "character varying", "CreatedAt": "timestamp without time zone"}
 
 func testUsersInPrimaryKeyArgs(t *testing.T) {
 	t.Parallel()
@@ -327,22 +327,47 @@ func testUsersSliceInPrimaryKeyArgs(t *testing.T) {
 	}
 }
 
-func userBeforeCreateHook(o *User) error {
+func userBeforeInsertHook(e boil.Executor, o *User) error {
 	*o = User{}
 	return nil
 }
 
-func userAfterCreateHook(o *User) error {
+func userAfterInsertHook(e boil.Executor, o *User) error {
 	*o = User{}
 	return nil
 }
 
-func userBeforeUpdateHook(o *User) error {
+func userAfterSelectHook(e boil.Executor, o *User) error {
 	*o = User{}
 	return nil
 }
 
-func userAfterUpdateHook(o *User) error {
+func userBeforeUpdateHook(e boil.Executor, o *User) error {
+	*o = User{}
+	return nil
+}
+
+func userAfterUpdateHook(e boil.Executor, o *User) error {
+	*o = User{}
+	return nil
+}
+
+func userBeforeDeleteHook(e boil.Executor, o *User) error {
+	*o = User{}
+	return nil
+}
+
+func userAfterDeleteHook(e boil.Executor, o *User) error {
+	*o = User{}
+	return nil
+}
+
+func userBeforeUpsertHook(e boil.Executor, o *User) error {
+	*o = User{}
+	return nil
+}
+
+func userAfterUpsertHook(e boil.Executor, o *User) error {
 	*o = User{}
 	return nil
 }
@@ -360,15 +385,86 @@ func testUsersHooks(t *testing.T) {
 		t.Errorf("Unable to randomize User object: %s", err)
 	}
 
-	UserAddHook(boil.HookBeforeCreate, userBeforeCreateHook)
-	if err = o.doBeforeCreateHooks(); err != nil {
-		t.Errorf("Unable to execute doBeforeCreateHooks: %s", err)
+	UserAddHook(boil.HookBeforeInsert, userBeforeInsertHook)
+	if err = o.doBeforeInsertHooks(nil); err != nil {
+		t.Errorf("Unable to execute doBeforeInsertHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
-		t.Errorf("Expected BeforeCreateHook function to empty object, but got: %#v", o)
+		t.Errorf("Expected BeforeInsertHook function to empty object, but got: %#v", o)
 	}
+	userBeforeInsertHooks = []UserHook{}
 
-	userBeforeCreateHooks = []UserHook{}
+	UserAddHook(boil.HookAfterInsert, userAfterInsertHook)
+	if err = o.doAfterInsertHooks(nil); err != nil {
+		t.Errorf("Unable to execute doAfterInsertHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected AfterInsertHook function to empty object, but got: %#v", o)
+	}
+	userAfterInsertHooks = []UserHook{}
+
+	UserAddHook(boil.HookAfterSelect, userAfterSelectHook)
+	if err = o.doAfterSelectHooks(nil); err != nil {
+		t.Errorf("Unable to execute doAfterSelectHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected AfterSelectHook function to empty object, but got: %#v", o)
+	}
+	userAfterSelectHooks = []UserHook{}
+
+	UserAddHook(boil.HookBeforeUpdate, userBeforeUpdateHook)
+	if err = o.doBeforeUpdateHooks(nil); err != nil {
+		t.Errorf("Unable to execute doBeforeUpdateHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected BeforeUpdateHook function to empty object, but got: %#v", o)
+	}
+	userBeforeUpdateHooks = []UserHook{}
+
+	UserAddHook(boil.HookAfterUpdate, userAfterUpdateHook)
+	if err = o.doAfterUpdateHooks(nil); err != nil {
+		t.Errorf("Unable to execute doAfterUpdateHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected AfterUpdateHook function to empty object, but got: %#v", o)
+	}
+	userAfterUpdateHooks = []UserHook{}
+
+	UserAddHook(boil.HookBeforeDelete, userBeforeDeleteHook)
+	if err = o.doBeforeDeleteHooks(nil); err != nil {
+		t.Errorf("Unable to execute doBeforeDeleteHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected BeforeDeleteHook function to empty object, but got: %#v", o)
+	}
+	userBeforeDeleteHooks = []UserHook{}
+
+	UserAddHook(boil.HookAfterDelete, userAfterDeleteHook)
+	if err = o.doAfterDeleteHooks(nil); err != nil {
+		t.Errorf("Unable to execute doAfterDeleteHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected AfterDeleteHook function to empty object, but got: %#v", o)
+	}
+	userAfterDeleteHooks = []UserHook{}
+
+	UserAddHook(boil.HookBeforeUpsert, userBeforeUpsertHook)
+	if err = o.doBeforeUpsertHooks(nil); err != nil {
+		t.Errorf("Unable to execute doBeforeUpsertHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected BeforeUpsertHook function to empty object, but got: %#v", o)
+	}
+	userBeforeUpsertHooks = []UserHook{}
+
+	UserAddHook(boil.HookAfterUpsert, userAfterUpsertHook)
+	if err = o.doAfterUpsertHooks(nil); err != nil {
+		t.Errorf("Unable to execute doAfterUpsertHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected AfterUpsertHook function to empty object, but got: %#v", o)
+	}
+	userAfterUpsertHooks = []UserHook{}
 }
 
 func testUsersInsert(t *testing.T) {
@@ -422,6 +518,8 @@ func testUsersInsertWhitelist(t *testing.T) {
 		t.Error("want one record, got:", count)
 	}
 }
+
+
 
 
 

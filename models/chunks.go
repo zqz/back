@@ -22,11 +22,11 @@ type Chunk struct {
 	CreatedAt time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 
-	Loaded *ChunkLoaded `boil:"-" json:"-" toml:"-" yaml:"-"`
+	R *ChunkR `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
-// ChunkLoaded are where relationships are eagerly loaded.
-type ChunkLoaded struct {
+// ChunkR is where relationships are stored.
+type ChunkR struct {
 	File *File
 }
 
@@ -48,24 +48,31 @@ var (
 
 type (
 	ChunkSlice []*Chunk
-	ChunkHook  func(*Chunk) error
+	ChunkHook  func(boil.Executor, *Chunk) error
 
 	chunkQuery struct {
 		*boil.Query
 	}
 )
 
-var chunkBeforeCreateHooks []ChunkHook
+// Force time package dependency for automated UpdatedAt/CreatedAt.
+var _ = time.Second
+
+var chunkBeforeInsertHooks []ChunkHook
 var chunkBeforeUpdateHooks []ChunkHook
+var chunkBeforeDeleteHooks []ChunkHook
 var chunkBeforeUpsertHooks []ChunkHook
-var chunkAfterCreateHooks []ChunkHook
+
+var chunkAfterInsertHooks []ChunkHook
+var chunkAfterSelectHooks []ChunkHook
 var chunkAfterUpdateHooks []ChunkHook
+var chunkAfterDeleteHooks []ChunkHook
 var chunkAfterUpsertHooks []ChunkHook
 
-// doBeforeCreateHooks executes all "before create" hooks.
-func (o *Chunk) doBeforeCreateHooks() (err error) {
-	for _, hook := range chunkBeforeCreateHooks {
-		if err := hook(o); err != nil {
+// doBeforeInsertHooks executes all "before insert" hooks.
+func (o *Chunk) doBeforeInsertHooks(exec boil.Executor) (err error) {
+	for _, hook := range chunkBeforeInsertHooks {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -74,9 +81,20 @@ func (o *Chunk) doBeforeCreateHooks() (err error) {
 }
 
 // doBeforeUpdateHooks executes all "before Update" hooks.
-func (o *Chunk) doBeforeUpdateHooks() (err error) {
+func (o *Chunk) doBeforeUpdateHooks(exec boil.Executor) (err error) {
 	for _, hook := range chunkBeforeUpdateHooks {
-		if err := hook(o); err != nil {
+		if err := hook(exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doBeforeDeleteHooks executes all "before Delete" hooks.
+func (o *Chunk) doBeforeDeleteHooks(exec boil.Executor) (err error) {
+	for _, hook := range chunkBeforeDeleteHooks {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -85,9 +103,9 @@ func (o *Chunk) doBeforeUpdateHooks() (err error) {
 }
 
 // doBeforeUpsertHooks executes all "before Upsert" hooks.
-func (o *Chunk) doBeforeUpsertHooks() (err error) {
+func (o *Chunk) doBeforeUpsertHooks(exec boil.Executor) (err error) {
 	for _, hook := range chunkBeforeUpsertHooks {
-		if err := hook(o); err != nil {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -95,10 +113,21 @@ func (o *Chunk) doBeforeUpsertHooks() (err error) {
 	return nil
 }
 
-// doAfterCreateHooks executes all "after create" hooks.
-func (o *Chunk) doAfterCreateHooks() (err error) {
-	for _, hook := range chunkAfterCreateHooks {
-		if err := hook(o); err != nil {
+// doAfterInsertHooks executes all "after Insert" hooks.
+func (o *Chunk) doAfterInsertHooks(exec boil.Executor) (err error) {
+	for _, hook := range chunkAfterInsertHooks {
+		if err := hook(exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterSelectHooks executes all "after Select" hooks.
+func (o *Chunk) doAfterSelectHooks(exec boil.Executor) (err error) {
+	for _, hook := range chunkAfterSelectHooks {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -107,9 +136,20 @@ func (o *Chunk) doAfterCreateHooks() (err error) {
 }
 
 // doAfterUpdateHooks executes all "after Update" hooks.
-func (o *Chunk) doAfterUpdateHooks() (err error) {
+func (o *Chunk) doAfterUpdateHooks(exec boil.Executor) (err error) {
 	for _, hook := range chunkAfterUpdateHooks {
-		if err := hook(o); err != nil {
+		if err := hook(exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterDeleteHooks executes all "after Delete" hooks.
+func (o *Chunk) doAfterDeleteHooks(exec boil.Executor) (err error) {
+	for _, hook := range chunkAfterDeleteHooks {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -118,9 +158,9 @@ func (o *Chunk) doAfterUpdateHooks() (err error) {
 }
 
 // doAfterUpsertHooks executes all "after Upsert" hooks.
-func (o *Chunk) doAfterUpsertHooks() (err error) {
+func (o *Chunk) doAfterUpsertHooks(exec boil.Executor) (err error) {
 	for _, hook := range chunkAfterUpsertHooks {
-		if err := hook(o); err != nil {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -130,16 +170,22 @@ func (o *Chunk) doAfterUpsertHooks() (err error) {
 
 func ChunkAddHook(hookPoint boil.HookPoint, chunkHook ChunkHook) {
 	switch hookPoint {
-	case boil.HookBeforeCreate:
-		chunkBeforeCreateHooks = append(chunkBeforeCreateHooks, chunkHook)
+	case boil.HookBeforeInsert:
+		chunkBeforeInsertHooks = append(chunkBeforeInsertHooks, chunkHook)
 	case boil.HookBeforeUpdate:
 		chunkBeforeUpdateHooks = append(chunkBeforeUpdateHooks, chunkHook)
+	case boil.HookBeforeDelete:
+		chunkBeforeDeleteHooks = append(chunkBeforeDeleteHooks, chunkHook)
 	case boil.HookBeforeUpsert:
 		chunkBeforeUpsertHooks = append(chunkBeforeUpsertHooks, chunkHook)
-	case boil.HookAfterCreate:
-		chunkAfterCreateHooks = append(chunkAfterCreateHooks, chunkHook)
+	case boil.HookAfterInsert:
+		chunkAfterInsertHooks = append(chunkAfterInsertHooks, chunkHook)
+	case boil.HookAfterSelect:
+		chunkAfterSelectHooks = append(chunkAfterSelectHooks, chunkHook)
 	case boil.HookAfterUpdate:
 		chunkAfterUpdateHooks = append(chunkAfterUpdateHooks, chunkHook)
+	case boil.HookAfterDelete:
+		chunkAfterDeleteHooks = append(chunkAfterDeleteHooks, chunkHook)
 	case boil.HookAfterUpsert:
 		chunkAfterUpsertHooks = append(chunkAfterUpsertHooks, chunkHook)
 	}
@@ -169,6 +215,10 @@ func (q chunkQuery) One() (*Chunk, error) {
 		return nil, errors.Wrap(err, "models: failed to execute a one query for chunks")
 	}
 
+	if err := o.doAfterSelectHooks(boil.GetExecutor(q.Query)); err != nil {
+		return o, err
+	}
+
 	return o, nil
 }
 
@@ -189,6 +239,14 @@ func (q chunkQuery) All() (ChunkSlice, error) {
 	err := q.BindFast(&o, chunkTitleCases)
 	if err != nil {
 		return nil, errors.Wrap(err, "models: failed to assign all query results to Chunk slice")
+	}
+
+	if len(chunkAfterSelectHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doAfterSelectHooks(boil.GetExecutor(q.Query)); err != nil {
+				return o, err
+			}
+		}
 	}
 
 	return o, nil
@@ -266,7 +324,7 @@ func (c *Chunk) File(exec boil.Executor, mods ...qm.QueryMod) fileQuery {
 
 // LoadFile allows an eager lookup of values, cached into the
 // loaded structs of the objects.
-func (r *ChunkLoaded) LoadFile(e boil.Executor, singular bool, maybeChunk interface{}) error {
+func (r *ChunkR) LoadFile(e boil.Executor, singular bool, maybeChunk interface{}) error {
 	var slice []*Chunk
 	var object *Chunk
 
@@ -303,25 +361,33 @@ func (r *ChunkLoaded) LoadFile(e boil.Executor, singular bool, maybeChunk interf
 	defer results.Close()
 
 	var resultSlice []*File
-	if err = boil.BindFast(results, &resultSlice, chunkTitleCases); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice {File Files files ID id}")
+	if err = boil.BindFast(results, &resultSlice, fileTitleCases); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice File")
+	}
+
+	if len(fileAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(e); err != nil {
+				return err
+			}
+		}
 	}
 
 	if singular && len(resultSlice) != 0 {
-		if object.Loaded == nil {
-			object.Loaded = &ChunkLoaded{}
+		if object.R == nil {
+			object.R = &ChunkR{}
 		}
-		object.Loaded.File = resultSlice[0]
+		object.R.File = resultSlice[0]
 		return nil
 	}
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
 			if local.FileID == foreign.ID {
-				if local.Loaded == nil {
-					local.Loaded = &ChunkLoaded{}
+				if local.R == nil {
+					local.R = &ChunkR{}
 				}
-				local.Loaded.File = foreign
+				local.R.File = foreign
 				break
 			}
 		}
@@ -371,8 +437,7 @@ func ChunkFind(exec boil.Executor, id string, selectCols ...string) (*Chunk, err
 		`select %s from "chunks" where "id"=$1`, sel,
 	)
 
-	q := boil.SQL(query, id)
-	boil.SetExecutor(q, exec)
+	q := boil.SQL(exec, query, id)
 
 	err := q.BindFast(chunkObj, chunkTitleCases)
 	if err != nil {
@@ -426,6 +491,26 @@ func (o *Chunk) Insert(exec boil.Executor, whitelist ...string) error {
 		return errors.New("models: no chunks provided for insertion")
 	}
 
+	var err error
+	loc := boil.GetLocation()
+	currTime := time.Time{}
+	if loc != nil {
+		currTime = time.Now().In(boil.GetLocation())
+	} else {
+		currTime = time.Now()
+	}
+
+	if o.CreatedAt.IsZero() {
+		o.CreatedAt = currTime
+	}
+	if o.UpdatedAt.IsZero() {
+		o.UpdatedAt = currTime
+	}
+
+	if err := o.doBeforeInsertHooks(exec); err != nil {
+		return err
+	}
+
 	wl, returnColumns := strmangle.InsertColumnSet(
 		chunkColumns,
 		chunkColumnsWithDefault,
@@ -433,11 +518,6 @@ func (o *Chunk) Insert(exec boil.Executor, whitelist ...string) error {
 		boil.NonZeroDefaultSet(chunkColumnsWithDefault, chunkTitleCases, o),
 		whitelist,
 	)
-
-	var err error
-	if err := o.doBeforeCreateHooks(); err != nil {
-		return err
-	}
 
 	ins := fmt.Sprintf(`INSERT INTO chunks ("%s") VALUES (%s)`, strings.Join(wl, `","`), strmangle.Placeholders(len(wl), 1, 1))
 
@@ -457,7 +537,7 @@ func (o *Chunk) Insert(exec boil.Executor, whitelist ...string) error {
 		return errors.Wrap(err, "models: unable to insert into chunks")
 	}
 
-	return o.doAfterCreateHooks()
+	return o.doAfterInsertHooks(exec)
 }
 
 // UpdateG a single Chunk record. See Update for
@@ -492,7 +572,17 @@ func (o *Chunk) UpdateP(exec boil.Executor, whitelist ...string) {
 // Update does not automatically update the record in case of default values. Use .Reload()
 // to refresh the records.
 func (o *Chunk) Update(exec boil.Executor, whitelist ...string) error {
-	if err := o.doBeforeUpdateHooks(); err != nil {
+	loc := boil.GetLocation()
+	currTime := time.Time{}
+	if loc != nil {
+		currTime = time.Now().In(boil.GetLocation())
+	} else {
+		currTime = time.Now()
+	}
+
+	o.UpdatedAt = currTime
+
+	if err := o.doBeforeUpdateHooks(exec); err != nil {
 		return err
 	}
 
@@ -523,7 +613,7 @@ func (o *Chunk) Update(exec boil.Executor, whitelist ...string) error {
 		return errors.Errorf("failed to update single row, updated %d rows", r)
 	}
 
-	return o.doAfterUpdateHooks()
+	return o.doAfterUpdateHooks(exec)
 }
 
 // UpdateAllP updates all rows with matching column names, and panics on error.
@@ -638,7 +728,24 @@ func (o *Chunk) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumn
 	if o == nil {
 		return errors.New("models: no chunks provided for upsert")
 	}
+	loc := boil.GetLocation()
+	currTime := time.Time{}
+	if loc != nil {
+		currTime = time.Now().In(boil.GetLocation())
+	} else {
+		currTime = time.Now()
+	}
 
+	if o.CreatedAt.IsZero() {
+		o.CreatedAt = currTime
+	}
+	o.UpdatedAt = currTime
+
+	if err := o.doBeforeUpsertHooks(exec); err != nil {
+		return err
+	}
+
+	var err error
 	var ret []string
 	whitelist, ret = strmangle.InsertColumnSet(
 		chunkColumns,
@@ -660,11 +767,6 @@ func (o *Chunk) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumn
 
 	query := generateUpsertQuery("chunks", updateOnConflict, ret, update, conflict, whitelist)
 
-	var err error
-	if err := o.doBeforeUpsertHooks(); err != nil {
-		return err
-	}
-
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, query)
 		fmt.Fprintln(boil.DebugWriter, boil.GetStructValues(o, chunkTitleCases, whitelist...))
@@ -679,7 +781,7 @@ func (o *Chunk) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumn
 		return errors.Wrap(err, "models: unable to upsert for chunks")
 	}
 
-	if err := o.doAfterUpsertHooks(); err != nil {
+	if err := o.doAfterUpsertHooks(exec); err != nil {
 		return err
 	}
 
@@ -721,6 +823,10 @@ func (o *Chunk) Delete(exec boil.Executor) error {
 		return errors.New("models: no Chunk provided for delete")
 	}
 
+	if err := o.doBeforeDeleteHooks(exec); err != nil {
+		return err
+	}
+
 	args := o.inPrimaryKeyArgs()
 
 	sql := `DELETE FROM chunks WHERE "id"=$1`
@@ -733,6 +839,10 @@ func (o *Chunk) Delete(exec boil.Executor) error {
 	_, err := exec.Exec(sql, args...)
 	if err != nil {
 		return errors.Wrap(err, "models: unable to delete from chunks")
+	}
+
+	if err := o.doAfterDeleteHooks(exec); err != nil {
+		return err
 	}
 
 	return nil
@@ -793,6 +903,14 @@ func (o ChunkSlice) DeleteAll(exec boil.Executor) error {
 		return nil
 	}
 
+	if len(chunkBeforeDeleteHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doBeforeDeleteHooks(exec); err != nil {
+				return err
+			}
+		}
+	}
+
 	args := o.inPrimaryKeyArgs()
 
 	sql := fmt.Sprintf(
@@ -809,6 +927,14 @@ func (o ChunkSlice) DeleteAll(exec boil.Executor) error {
 	_, err := exec.Exec(sql, args...)
 	if err != nil {
 		return errors.Wrap(err, "models: unable to delete all from chunk slice")
+	}
+
+	if len(chunkAfterDeleteHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doAfterDeleteHooks(exec); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -885,8 +1011,7 @@ func (o *ChunkSlice) ReloadAll(exec boil.Executor) error {
 		strmangle.Placeholders(len(*o)*len(chunkPrimaryKeyColumns), 1, len(chunkPrimaryKeyColumns)),
 	)
 
-	q := boil.SQL(sql, args...)
-	boil.SetExecutor(q, exec)
+	q := boil.SQL(exec, sql, args...)
 
 	err := q.BindFast(&chunks, chunkTitleCases)
 	if err != nil {
@@ -960,3 +1085,42 @@ func (o ChunkSlice) inPrimaryKeyArgs() []interface{} {
 	return args
 }
 
+
+
+
+
+// SetFile of the chunk to the related item.
+// Sets c.R.File to related.
+// Adds c to related.R.Chunks.
+func (c *Chunk) SetFile(exec boil.Executor, insert bool, related *File) error {
+	var err error
+	if insert {
+		if err = related.Insert(exec); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	oldVal := c.FileID
+	c.FileID = related.ID
+	if err = c.Update(exec, "file_id"); err != nil {
+		c.FileID = oldVal
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	if c.R == nil {
+		c.R = &ChunkR{
+			File: related,
+		}
+	} else {
+		c.R.File = related
+	}
+
+	if related.R == nil {
+		related.R = &FileR{
+			Chunks: ChunkSlice{c},
+		}
+	} else {
+		related.R.Chunks = append(related.R.Chunks, c)
+	}
+	return nil
+}

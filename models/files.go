@@ -25,11 +25,11 @@ type File struct {
 	UpdatedAt time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	Slug      string    `boil:"slug" json:"slug" toml:"slug" yaml:"slug"`
 
-	Loaded *FileLoaded `boil:"-" json:"-" toml:"-" yaml:"-"`
+	R *FileR `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
-// FileLoaded are where relationships are eagerly loaded.
-type FileLoaded struct {
+// FileR is where relationships are stored.
+type FileR struct {
 	Chunks     ChunkSlice
 	Thumbnails ThumbnailSlice
 }
@@ -55,24 +55,31 @@ var (
 
 type (
 	FileSlice []*File
-	FileHook  func(*File) error
+	FileHook  func(boil.Executor, *File) error
 
 	fileQuery struct {
 		*boil.Query
 	}
 )
 
-var fileBeforeCreateHooks []FileHook
+// Force time package dependency for automated UpdatedAt/CreatedAt.
+var _ = time.Second
+
+var fileBeforeInsertHooks []FileHook
 var fileBeforeUpdateHooks []FileHook
+var fileBeforeDeleteHooks []FileHook
 var fileBeforeUpsertHooks []FileHook
-var fileAfterCreateHooks []FileHook
+
+var fileAfterInsertHooks []FileHook
+var fileAfterSelectHooks []FileHook
 var fileAfterUpdateHooks []FileHook
+var fileAfterDeleteHooks []FileHook
 var fileAfterUpsertHooks []FileHook
 
-// doBeforeCreateHooks executes all "before create" hooks.
-func (o *File) doBeforeCreateHooks() (err error) {
-	for _, hook := range fileBeforeCreateHooks {
-		if err := hook(o); err != nil {
+// doBeforeInsertHooks executes all "before insert" hooks.
+func (o *File) doBeforeInsertHooks(exec boil.Executor) (err error) {
+	for _, hook := range fileBeforeInsertHooks {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -81,9 +88,20 @@ func (o *File) doBeforeCreateHooks() (err error) {
 }
 
 // doBeforeUpdateHooks executes all "before Update" hooks.
-func (o *File) doBeforeUpdateHooks() (err error) {
+func (o *File) doBeforeUpdateHooks(exec boil.Executor) (err error) {
 	for _, hook := range fileBeforeUpdateHooks {
-		if err := hook(o); err != nil {
+		if err := hook(exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doBeforeDeleteHooks executes all "before Delete" hooks.
+func (o *File) doBeforeDeleteHooks(exec boil.Executor) (err error) {
+	for _, hook := range fileBeforeDeleteHooks {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -92,9 +110,9 @@ func (o *File) doBeforeUpdateHooks() (err error) {
 }
 
 // doBeforeUpsertHooks executes all "before Upsert" hooks.
-func (o *File) doBeforeUpsertHooks() (err error) {
+func (o *File) doBeforeUpsertHooks(exec boil.Executor) (err error) {
 	for _, hook := range fileBeforeUpsertHooks {
-		if err := hook(o); err != nil {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -102,10 +120,21 @@ func (o *File) doBeforeUpsertHooks() (err error) {
 	return nil
 }
 
-// doAfterCreateHooks executes all "after create" hooks.
-func (o *File) doAfterCreateHooks() (err error) {
-	for _, hook := range fileAfterCreateHooks {
-		if err := hook(o); err != nil {
+// doAfterInsertHooks executes all "after Insert" hooks.
+func (o *File) doAfterInsertHooks(exec boil.Executor) (err error) {
+	for _, hook := range fileAfterInsertHooks {
+		if err := hook(exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterSelectHooks executes all "after Select" hooks.
+func (o *File) doAfterSelectHooks(exec boil.Executor) (err error) {
+	for _, hook := range fileAfterSelectHooks {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -114,9 +143,20 @@ func (o *File) doAfterCreateHooks() (err error) {
 }
 
 // doAfterUpdateHooks executes all "after Update" hooks.
-func (o *File) doAfterUpdateHooks() (err error) {
+func (o *File) doAfterUpdateHooks(exec boil.Executor) (err error) {
 	for _, hook := range fileAfterUpdateHooks {
-		if err := hook(o); err != nil {
+		if err := hook(exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterDeleteHooks executes all "after Delete" hooks.
+func (o *File) doAfterDeleteHooks(exec boil.Executor) (err error) {
+	for _, hook := range fileAfterDeleteHooks {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -125,9 +165,9 @@ func (o *File) doAfterUpdateHooks() (err error) {
 }
 
 // doAfterUpsertHooks executes all "after Upsert" hooks.
-func (o *File) doAfterUpsertHooks() (err error) {
+func (o *File) doAfterUpsertHooks(exec boil.Executor) (err error) {
 	for _, hook := range fileAfterUpsertHooks {
-		if err := hook(o); err != nil {
+		if err := hook(exec, o); err != nil {
 			return err
 		}
 	}
@@ -137,16 +177,22 @@ func (o *File) doAfterUpsertHooks() (err error) {
 
 func FileAddHook(hookPoint boil.HookPoint, fileHook FileHook) {
 	switch hookPoint {
-	case boil.HookBeforeCreate:
-		fileBeforeCreateHooks = append(fileBeforeCreateHooks, fileHook)
+	case boil.HookBeforeInsert:
+		fileBeforeInsertHooks = append(fileBeforeInsertHooks, fileHook)
 	case boil.HookBeforeUpdate:
 		fileBeforeUpdateHooks = append(fileBeforeUpdateHooks, fileHook)
+	case boil.HookBeforeDelete:
+		fileBeforeDeleteHooks = append(fileBeforeDeleteHooks, fileHook)
 	case boil.HookBeforeUpsert:
 		fileBeforeUpsertHooks = append(fileBeforeUpsertHooks, fileHook)
-	case boil.HookAfterCreate:
-		fileAfterCreateHooks = append(fileAfterCreateHooks, fileHook)
+	case boil.HookAfterInsert:
+		fileAfterInsertHooks = append(fileAfterInsertHooks, fileHook)
+	case boil.HookAfterSelect:
+		fileAfterSelectHooks = append(fileAfterSelectHooks, fileHook)
 	case boil.HookAfterUpdate:
 		fileAfterUpdateHooks = append(fileAfterUpdateHooks, fileHook)
+	case boil.HookAfterDelete:
+		fileAfterDeleteHooks = append(fileAfterDeleteHooks, fileHook)
 	case boil.HookAfterUpsert:
 		fileAfterUpsertHooks = append(fileAfterUpsertHooks, fileHook)
 	}
@@ -176,6 +222,10 @@ func (q fileQuery) One() (*File, error) {
 		return nil, errors.Wrap(err, "models: failed to execute a one query for files")
 	}
 
+	if err := o.doAfterSelectHooks(boil.GetExecutor(q.Query)); err != nil {
+		return o, err
+	}
+
 	return o, nil
 }
 
@@ -196,6 +246,14 @@ func (q fileQuery) All() (FileSlice, error) {
 	err := q.BindFast(&o, fileTitleCases)
 	if err != nil {
 		return nil, errors.Wrap(err, "models: failed to assign all query results to File slice")
+	}
+
+	if len(fileAfterSelectHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doAfterSelectHooks(boil.GetExecutor(q.Query)); err != nil {
+				return o, err
+			}
+		}
 	}
 
 	return o, nil
@@ -301,9 +359,10 @@ func (f *File) Thumbnails(exec boil.Executor, mods ...qm.QueryMod) thumbnailQuer
 
 
 
+
 // LoadChunks allows an eager lookup of values, cached into the
 // loaded structs of the objects.
-func (r *FileLoaded) LoadChunks(e boil.Executor, singular bool, maybeFile interface{}) error {
+func (r *FileR) LoadChunks(e boil.Executor, singular bool, maybeFile interface{}) error {
 	var slice []*File
 	var object *File
 
@@ -339,25 +398,32 @@ func (r *FileLoaded) LoadChunks(e boil.Executor, singular bool, maybeFile interf
 	defer results.Close()
 
 	var resultSlice []*Chunk
-	if err = boil.BindFast(results, &resultSlice, fileTitleCases); err != nil {
+	if err = boil.BindFast(results, &resultSlice, chunkTitleCases); err != nil {
 		return errors.Wrap(err, "failed to bind eager loaded slice chunks")
 	}
 
-	if singular {
-		if object.Loaded == nil {
-			object.Loaded = &FileLoaded{}
+	if len(chunkAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(e); err != nil {
+				return err
+			}
 		}
-		object.Loaded.Chunks = resultSlice
+	}
+	if singular {
+		if object.R == nil {
+			object.R = &FileR{}
+		}
+		object.R.Chunks = resultSlice
 		return nil
 	}
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
 			if local.ID == foreign.FileID {
-				if local.Loaded == nil {
-					local.Loaded = &FileLoaded{}
+				if local.R == nil {
+					local.R = &FileR{}
 				}
-				local.Loaded.Chunks = append(local.Loaded.Chunks, foreign)
+				local.R.Chunks = append(local.R.Chunks, foreign)
 				break
 			}
 		}
@@ -368,7 +434,7 @@ func (r *FileLoaded) LoadChunks(e boil.Executor, singular bool, maybeFile interf
 
 // LoadThumbnails allows an eager lookup of values, cached into the
 // loaded structs of the objects.
-func (r *FileLoaded) LoadThumbnails(e boil.Executor, singular bool, maybeFile interface{}) error {
+func (r *FileR) LoadThumbnails(e boil.Executor, singular bool, maybeFile interface{}) error {
 	var slice []*File
 	var object *File
 
@@ -404,25 +470,32 @@ func (r *FileLoaded) LoadThumbnails(e boil.Executor, singular bool, maybeFile in
 	defer results.Close()
 
 	var resultSlice []*Thumbnail
-	if err = boil.BindFast(results, &resultSlice, fileTitleCases); err != nil {
+	if err = boil.BindFast(results, &resultSlice, thumbnailTitleCases); err != nil {
 		return errors.Wrap(err, "failed to bind eager loaded slice thumbnails")
 	}
 
-	if singular {
-		if object.Loaded == nil {
-			object.Loaded = &FileLoaded{}
+	if len(thumbnailAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(e); err != nil {
+				return err
+			}
 		}
-		object.Loaded.Thumbnails = resultSlice
+	}
+	if singular {
+		if object.R == nil {
+			object.R = &FileR{}
+		}
+		object.R.Thumbnails = resultSlice
 		return nil
 	}
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
 			if local.ID == foreign.FileID {
-				if local.Loaded == nil {
-					local.Loaded = &FileLoaded{}
+				if local.R == nil {
+					local.R = &FileR{}
 				}
-				local.Loaded.Thumbnails = append(local.Loaded.Thumbnails, foreign)
+				local.R.Thumbnails = append(local.R.Thumbnails, foreign)
 				break
 			}
 		}
@@ -472,8 +545,7 @@ func FileFind(exec boil.Executor, id string, selectCols ...string) (*File, error
 		`select %s from "files" where "id"=$1`, sel,
 	)
 
-	q := boil.SQL(query, id)
-	boil.SetExecutor(q, exec)
+	q := boil.SQL(exec, query, id)
 
 	err := q.BindFast(fileObj, fileTitleCases)
 	if err != nil {
@@ -527,6 +599,26 @@ func (o *File) Insert(exec boil.Executor, whitelist ...string) error {
 		return errors.New("models: no files provided for insertion")
 	}
 
+	var err error
+	loc := boil.GetLocation()
+	currTime := time.Time{}
+	if loc != nil {
+		currTime = time.Now().In(boil.GetLocation())
+	} else {
+		currTime = time.Now()
+	}
+
+	if o.CreatedAt.IsZero() {
+		o.CreatedAt = currTime
+	}
+	if o.UpdatedAt.IsZero() {
+		o.UpdatedAt = currTime
+	}
+
+	if err := o.doBeforeInsertHooks(exec); err != nil {
+		return err
+	}
+
 	wl, returnColumns := strmangle.InsertColumnSet(
 		fileColumns,
 		fileColumnsWithDefault,
@@ -534,11 +626,6 @@ func (o *File) Insert(exec boil.Executor, whitelist ...string) error {
 		boil.NonZeroDefaultSet(fileColumnsWithDefault, fileTitleCases, o),
 		whitelist,
 	)
-
-	var err error
-	if err := o.doBeforeCreateHooks(); err != nil {
-		return err
-	}
 
 	ins := fmt.Sprintf(`INSERT INTO files ("%s") VALUES (%s)`, strings.Join(wl, `","`), strmangle.Placeholders(len(wl), 1, 1))
 
@@ -558,7 +645,7 @@ func (o *File) Insert(exec boil.Executor, whitelist ...string) error {
 		return errors.Wrap(err, "models: unable to insert into files")
 	}
 
-	return o.doAfterCreateHooks()
+	return o.doAfterInsertHooks(exec)
 }
 
 // UpdateG a single File record. See Update for
@@ -593,7 +680,17 @@ func (o *File) UpdateP(exec boil.Executor, whitelist ...string) {
 // Update does not automatically update the record in case of default values. Use .Reload()
 // to refresh the records.
 func (o *File) Update(exec boil.Executor, whitelist ...string) error {
-	if err := o.doBeforeUpdateHooks(); err != nil {
+	loc := boil.GetLocation()
+	currTime := time.Time{}
+	if loc != nil {
+		currTime = time.Now().In(boil.GetLocation())
+	} else {
+		currTime = time.Now()
+	}
+
+	o.UpdatedAt = currTime
+
+	if err := o.doBeforeUpdateHooks(exec); err != nil {
 		return err
 	}
 
@@ -624,7 +721,7 @@ func (o *File) Update(exec boil.Executor, whitelist ...string) error {
 		return errors.Errorf("failed to update single row, updated %d rows", r)
 	}
 
-	return o.doAfterUpdateHooks()
+	return o.doAfterUpdateHooks(exec)
 }
 
 // UpdateAllP updates all rows with matching column names, and panics on error.
@@ -739,7 +836,24 @@ func (o *File) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns
 	if o == nil {
 		return errors.New("models: no files provided for upsert")
 	}
+	loc := boil.GetLocation()
+	currTime := time.Time{}
+	if loc != nil {
+		currTime = time.Now().In(boil.GetLocation())
+	} else {
+		currTime = time.Now()
+	}
 
+	if o.CreatedAt.IsZero() {
+		o.CreatedAt = currTime
+	}
+	o.UpdatedAt = currTime
+
+	if err := o.doBeforeUpsertHooks(exec); err != nil {
+		return err
+	}
+
+	var err error
 	var ret []string
 	whitelist, ret = strmangle.InsertColumnSet(
 		fileColumns,
@@ -761,11 +875,6 @@ func (o *File) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns
 
 	query := generateUpsertQuery("files", updateOnConflict, ret, update, conflict, whitelist)
 
-	var err error
-	if err := o.doBeforeUpsertHooks(); err != nil {
-		return err
-	}
-
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, query)
 		fmt.Fprintln(boil.DebugWriter, boil.GetStructValues(o, fileTitleCases, whitelist...))
@@ -780,7 +889,7 @@ func (o *File) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns
 		return errors.Wrap(err, "models: unable to upsert for files")
 	}
 
-	if err := o.doAfterUpsertHooks(); err != nil {
+	if err := o.doAfterUpsertHooks(exec); err != nil {
 		return err
 	}
 
@@ -822,6 +931,10 @@ func (o *File) Delete(exec boil.Executor) error {
 		return errors.New("models: no File provided for delete")
 	}
 
+	if err := o.doBeforeDeleteHooks(exec); err != nil {
+		return err
+	}
+
 	args := o.inPrimaryKeyArgs()
 
 	sql := `DELETE FROM files WHERE "id"=$1`
@@ -834,6 +947,10 @@ func (o *File) Delete(exec boil.Executor) error {
 	_, err := exec.Exec(sql, args...)
 	if err != nil {
 		return errors.Wrap(err, "models: unable to delete from files")
+	}
+
+	if err := o.doAfterDeleteHooks(exec); err != nil {
+		return err
 	}
 
 	return nil
@@ -894,6 +1011,14 @@ func (o FileSlice) DeleteAll(exec boil.Executor) error {
 		return nil
 	}
 
+	if len(fileBeforeDeleteHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doBeforeDeleteHooks(exec); err != nil {
+				return err
+			}
+		}
+	}
+
 	args := o.inPrimaryKeyArgs()
 
 	sql := fmt.Sprintf(
@@ -910,6 +1035,14 @@ func (o FileSlice) DeleteAll(exec boil.Executor) error {
 	_, err := exec.Exec(sql, args...)
 	if err != nil {
 		return errors.Wrap(err, "models: unable to delete all from file slice")
+	}
+
+	if len(fileAfterDeleteHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doAfterDeleteHooks(exec); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -986,8 +1119,7 @@ func (o *FileSlice) ReloadAll(exec boil.Executor) error {
 		strmangle.Placeholders(len(*o)*len(filePrimaryKeyColumns), 1, len(filePrimaryKeyColumns)),
 	)
 
-	q := boil.SQL(sql, args...)
-	boil.SetExecutor(q, exec)
+	q := boil.SQL(exec, sql, args...)
 
 	err := q.BindFast(&files, fileTitleCases)
 	if err != nil {
@@ -1059,5 +1191,86 @@ func (o FileSlice) inPrimaryKeyArgs() []interface{} {
 	}
 
 	return args
+}
+
+
+
+
+// AddChunks adds the given related objects to the existing relationships
+// of the file, optionally inserting them as new records.
+// Appends related to f.R.Chunks.
+// Sets related.R.File appropriately.
+func (f *File) AddChunks(exec boil.Executor, insert bool, related ...*Chunk) error {
+	var err error
+	for _, rel := range related {
+		rel.FileID = f.ID
+		if insert {
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			if err = rel.Update(exec, "file_id"); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+		}
+	}
+
+	if f.R == nil {
+		f.R = &FileR{
+			Chunks: related,
+		}
+	} else {
+		f.R.Chunks = append(f.R.Chunks, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &ChunkR{
+				File: f,
+			}
+		} else {
+			rel.R.File = f
+		}
+	}
+	return nil
+}
+
+// AddThumbnails adds the given related objects to the existing relationships
+// of the file, optionally inserting them as new records.
+// Appends related to f.R.Thumbnails.
+// Sets related.R.File appropriately.
+func (f *File) AddThumbnails(exec boil.Executor, insert bool, related ...*Thumbnail) error {
+	var err error
+	for _, rel := range related {
+		rel.FileID = f.ID
+		if insert {
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			if err = rel.Update(exec, "file_id"); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+		}
+	}
+
+	if f.R == nil {
+		f.R = &FileR{
+			Thumbnails: related,
+		}
+	} else {
+		f.R.Thumbnails = append(f.R.Thumbnails, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &ThumbnailR{
+				File: f,
+			}
+		} else {
+			rel.R.File = f
+		}
+	}
+	return nil
 }
 

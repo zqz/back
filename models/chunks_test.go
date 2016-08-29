@@ -327,22 +327,47 @@ func testChunksSliceInPrimaryKeyArgs(t *testing.T) {
 	}
 }
 
-func chunkBeforeCreateHook(o *Chunk) error {
+func chunkBeforeInsertHook(e boil.Executor, o *Chunk) error {
 	*o = Chunk{}
 	return nil
 }
 
-func chunkAfterCreateHook(o *Chunk) error {
+func chunkAfterInsertHook(e boil.Executor, o *Chunk) error {
 	*o = Chunk{}
 	return nil
 }
 
-func chunkBeforeUpdateHook(o *Chunk) error {
+func chunkAfterSelectHook(e boil.Executor, o *Chunk) error {
 	*o = Chunk{}
 	return nil
 }
 
-func chunkAfterUpdateHook(o *Chunk) error {
+func chunkBeforeUpdateHook(e boil.Executor, o *Chunk) error {
+	*o = Chunk{}
+	return nil
+}
+
+func chunkAfterUpdateHook(e boil.Executor, o *Chunk) error {
+	*o = Chunk{}
+	return nil
+}
+
+func chunkBeforeDeleteHook(e boil.Executor, o *Chunk) error {
+	*o = Chunk{}
+	return nil
+}
+
+func chunkAfterDeleteHook(e boil.Executor, o *Chunk) error {
+	*o = Chunk{}
+	return nil
+}
+
+func chunkBeforeUpsertHook(e boil.Executor, o *Chunk) error {
+	*o = Chunk{}
+	return nil
+}
+
+func chunkAfterUpsertHook(e boil.Executor, o *Chunk) error {
 	*o = Chunk{}
 	return nil
 }
@@ -360,15 +385,86 @@ func testChunksHooks(t *testing.T) {
 		t.Errorf("Unable to randomize Chunk object: %s", err)
 	}
 
-	ChunkAddHook(boil.HookBeforeCreate, chunkBeforeCreateHook)
-	if err = o.doBeforeCreateHooks(); err != nil {
-		t.Errorf("Unable to execute doBeforeCreateHooks: %s", err)
+	ChunkAddHook(boil.HookBeforeInsert, chunkBeforeInsertHook)
+	if err = o.doBeforeInsertHooks(nil); err != nil {
+		t.Errorf("Unable to execute doBeforeInsertHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
-		t.Errorf("Expected BeforeCreateHook function to empty object, but got: %#v", o)
+		t.Errorf("Expected BeforeInsertHook function to empty object, but got: %#v", o)
 	}
+	chunkBeforeInsertHooks = []ChunkHook{}
 
-	chunkBeforeCreateHooks = []ChunkHook{}
+	ChunkAddHook(boil.HookAfterInsert, chunkAfterInsertHook)
+	if err = o.doAfterInsertHooks(nil); err != nil {
+		t.Errorf("Unable to execute doAfterInsertHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected AfterInsertHook function to empty object, but got: %#v", o)
+	}
+	chunkAfterInsertHooks = []ChunkHook{}
+
+	ChunkAddHook(boil.HookAfterSelect, chunkAfterSelectHook)
+	if err = o.doAfterSelectHooks(nil); err != nil {
+		t.Errorf("Unable to execute doAfterSelectHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected AfterSelectHook function to empty object, but got: %#v", o)
+	}
+	chunkAfterSelectHooks = []ChunkHook{}
+
+	ChunkAddHook(boil.HookBeforeUpdate, chunkBeforeUpdateHook)
+	if err = o.doBeforeUpdateHooks(nil); err != nil {
+		t.Errorf("Unable to execute doBeforeUpdateHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected BeforeUpdateHook function to empty object, but got: %#v", o)
+	}
+	chunkBeforeUpdateHooks = []ChunkHook{}
+
+	ChunkAddHook(boil.HookAfterUpdate, chunkAfterUpdateHook)
+	if err = o.doAfterUpdateHooks(nil); err != nil {
+		t.Errorf("Unable to execute doAfterUpdateHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected AfterUpdateHook function to empty object, but got: %#v", o)
+	}
+	chunkAfterUpdateHooks = []ChunkHook{}
+
+	ChunkAddHook(boil.HookBeforeDelete, chunkBeforeDeleteHook)
+	if err = o.doBeforeDeleteHooks(nil); err != nil {
+		t.Errorf("Unable to execute doBeforeDeleteHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected BeforeDeleteHook function to empty object, but got: %#v", o)
+	}
+	chunkBeforeDeleteHooks = []ChunkHook{}
+
+	ChunkAddHook(boil.HookAfterDelete, chunkAfterDeleteHook)
+	if err = o.doAfterDeleteHooks(nil); err != nil {
+		t.Errorf("Unable to execute doAfterDeleteHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected AfterDeleteHook function to empty object, but got: %#v", o)
+	}
+	chunkAfterDeleteHooks = []ChunkHook{}
+
+	ChunkAddHook(boil.HookBeforeUpsert, chunkBeforeUpsertHook)
+	if err = o.doBeforeUpsertHooks(nil); err != nil {
+		t.Errorf("Unable to execute doBeforeUpsertHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected BeforeUpsertHook function to empty object, but got: %#v", o)
+	}
+	chunkBeforeUpsertHooks = []ChunkHook{}
+
+	ChunkAddHook(boil.HookAfterUpsert, chunkAfterUpsertHook)
+	if err = o.doAfterUpsertHooks(nil); err != nil {
+		t.Errorf("Unable to execute doAfterUpsertHooks: %s", err)
+	}
+	if !reflect.DeepEqual(o, empty) {
+		t.Errorf("Expected AfterUpsertHook function to empty object, but got: %#v", o)
+	}
+	chunkAfterUpsertHooks = []ChunkHook{}
 }
 
 func testChunksInsert(t *testing.T) {
@@ -425,6 +521,7 @@ func testChunksInsertWhitelist(t *testing.T) {
 
 
 
+
 func testChunkToOneFile_File(t *testing.T) {
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
@@ -450,23 +547,81 @@ func testChunkToOneFile_File(t *testing.T) {
 	}
 
 	slice := ChunkSlice{&local}
-	if err = local.Loaded.LoadFile(tx, false, &slice); err != nil {
+	if err = local.R.LoadFile(tx, false, &slice); err != nil {
 		t.Fatal(err)
 	}
-	if local.Loaded.File == nil {
+	if local.R.File == nil {
 		t.Error("struct should have been eager loaded")
 	}
 
-	local.Loaded.File = nil
-	if err = local.Loaded.LoadFile(tx, true, &local); err != nil {
+	local.R.File = nil
+	if err = local.R.LoadFile(tx, true, &local); err != nil {
 		t.Fatal(err)
 	}
-	if local.Loaded.File == nil {
+	if local.R.File == nil {
 		t.Error("struct should have been eager loaded")
 	}
 }
 
 
+
+
+func testChunkToOneSetOpFile_File(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a Chunk
+	var b, c File
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, chunkDBTypes, false, chunkPrimaryKeyColumns...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &b, fileDBTypes, false, filePrimaryKeyColumns...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &c, fileDBTypes, false, filePrimaryKeyColumns...); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	for i, x := range []*File{&b, &c} {
+		err = a.SetFile(tx, i != 0, x)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if a.FileID != x.ID {
+			t.Error("foreign key was wrong value", a.FileID)
+		}
+		if a.R.File != x {
+			t.Error("relationship struct not set to correct value")
+		}
+
+		zero := reflect.Zero(reflect.TypeOf(a.FileID))
+		reflect.Indirect(reflect.ValueOf(&a.FileID)).Set(zero)
+
+		if err = a.Reload(tx); err != nil {
+			t.Fatal("failed to reload", err)
+		}
+
+		if a.FileID != x.ID {
+			t.Error("foreign key was wrong value", a.FileID, x.ID)
+		}
+
+		if x.R.Chunks[0] != &a {
+			t.Error("failed to append to foreign relationship struct")
+		}
+	}
+}
 func testChunksReload(t *testing.T) {
 	t.Parallel()
 
