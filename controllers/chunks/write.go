@@ -181,7 +181,9 @@ func (c ChunkController) checkFinished(f *models.File) {
 		err = processors.CompleteFile(c.Dependencies, f)
 
 		if err != nil {
-			c.Error("Failed to finish file", "error", err)
+			c.Error("Failed to finish file", "error", err, "name", f.Name, "id", f.ID)
+			return
 		}
+		c.Info("Finished File", "name", f.Name, "id", f.ID)
 	}()
 }

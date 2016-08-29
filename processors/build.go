@@ -4,12 +4,25 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 
 	. "github.com/vattle/sqlboiler/boil/qm"
 	"github.com/zqzca/back/controllers"
 	"github.com/zqzca/back/models"
 )
+
+func chunksExist(hashes []string) (bool, error) {
+	for _, hash := range hashes {
+		path := filepath.Join("files", "chunks", hash)
+
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			return false, err
+		}
+	}
+
+	return true, nil
+}
 
 // BuildFile builds a file from chunks.
 func BuildFile(deps controllers.Dependencies, f *models.File) (io.ReadSeeker, error) {
@@ -18,6 +31,16 @@ func BuildFile(deps controllers.Dependencies, f *models.File) (io.ReadSeeker, er
 		Where("file_id=$1", f.ID),
 		OrderBy("position asc"),
 	).All()
+
+	var hashes []string
+	for _, c := range chunks {
+		hashes = append(hashes, c.Hash)
+	}
+
+	if ok, err := chunksExist(hashes); !ok {
+		deps.Error("Missing chunks!", "id", f.ID, "name", f.Name)
+		return nil, err
+	}
 
 	if err != nil {
 		fmt.Println("Failed to find chunks for file:", f.ID)
@@ -55,13 +78,13 @@ func BuildFile(deps controllers.Dependencies, f *models.File) (io.ReadSeeker, er
 
 	fmt.Println("Finished building file")
 
-	for _, c := range chunks {
-		path := filepath.Join("files", "chunks", c.Hash)
-		if err != nil {
-			fmt.Println("Failed to delete chunk entry:", c.ID)
-		}
-		fs.Remove(path)
-	}
+	// for _, c := range chunks {
+	// 	path := filepath.Join("files", "chunks", c.Hash)
+	// 	if err != nil {
+	// 		fmt.Println("Failed to delete chunk entry:", c.ID)
+	// 	}
+	// 	fs.Remove(path)
+	// }
 
 	bs := bytes.NewReader(fullFileBuffer.Bytes())
 
