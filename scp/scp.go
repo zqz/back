@@ -1,67 +1,21 @@
 package scp
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/davecgh/go-spew/spew"
 
 	"golang.org/x/crypto/ssh"
 )
 
-// type scpServer struct {
-// 	ssh     easyssh.Server
-// 	keyPath string
-// }
-
-// func NewSCPServer() *scpServer {
-// 	s := easyssh.Server{Addr: ":2022"}
-
-// 	privateBytes, err := ioutil.ReadFile("keys/id_rsa")
-// 	if err != nil {
-// 		fmt.Println("failed to load private key")
-// 	}
-// 	private, err := ssh.ParsePrivateKey(privateBytes)
-// 	if err != nil {
-// 		fmt.Println("failed to parse private key")
-// 	}
-// 	config := &ssh.ServerConfig{
-// 		PasswordCallback: func(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
-// 			return nil, nil
-// 		},
-// 	}
-
-// 	config.AddHostKey(private)
-// 	s.Config = config
-
-// 	handler := easyssh.NewSessionServerHandler()
-// 	channelHandler := easyssh.NewChannelsMux()
-
-// 	channelHandler.HandleChannel(easyssh.SessionRequest, SessionHandler())
-
-// 	handler.MultipleChannelsHandler = channelHandler
-// 	s.Handler = handler
-
-// 	x := &scpServer{
-// 		ssh: s,
-// 	}
-
-// 	return x
-// }
-
-// func (s *scpServer) ListenAndServe() {
-// 	s.ssh.ListenAndServe()
-// }
-
 func SCPSERVER() {
-
-	//https://gist.githubusercontent.com/jedy/3357393/raw/e8e671080a8a04964d1a352fda167777aa163f1f/go_scp.go
-
-	// An SSH server is represented by a ServerConfig, which holds
-	// certificate details and handles authentication of ServerConns.
 	config := &ssh.ServerConfig{
 		NoClientAuth: true,
 	}
@@ -111,27 +65,52 @@ func handleChannels(chans <-chan ssh.NewChannel) {
 	}
 }
 
-func handleChannel(newChannel ssh.NewChannel) {
-	fmt.Println("Handling Channel: ", newChannel.ChannelType())
-	if newChannel.ChannelType() != "session" {
-		newChannel.Reject(ssh.UnknownChannelType, "unknown channel type")
+// only create messages are supported for now. scp can preserve file attributes
+// but that doesnt really make sense for us.
+func parseHeader(header string) (int, string, error) {
+	// C0644 4 test
+	perm := ""
+	size := 0
+	name := ""
+	_, err := fmt.Sscanf(header, "%s %d %s", &perm, &size, &name)
+
+	if err != nil {
+		return 0, "", err
+	}
+
+	return size, name, nil
+}
+
+// parses the ssh exec payload arguments. since only scp is supported the only
+// things that are important are the file name and the command scp.
+func parsePayload(payload []byte) (string, error) {
+	// XXXXscp -t foobar
+	// first four bytes are the length of the command.
+	p := string(payload[4:])
+	parts := strings.Split(p, " ")
+	cmd := strings.Trim(parts[0], " ")
+	fileName := strings.Trim(parts[len(parts)-1], " ")
+
+	if cmd != "scp" {
+		spew.Dump(cmd)
+		return "", errors.New("Only scp is supported")
+	}
+
+	return fileName, nil
+}
+
+func handleChannel(ch ssh.NewChannel) {
+	fmt.Println("Handling Channel: ", ch.ChannelType())
+	if ch.ChannelType() != "session" {
+		ch.Reject(ssh.UnknownChannelType, "unknown channel type")
 		return
 	}
 
-	connection, requests, err := newChannel.Accept()
+	connection, requests, err := ch.Accept()
 	if err != nil {
 		fmt.Println("Can not accept channel:", err)
 		return
 	}
-
-	// 	bash := exec.Command("scp -t scptest")
-	// 	close := func() {
-	// 		connection.Close()
-	// 		if err != nil {
-	// 			log.Printf("Failed to exit scp (%s)", err)
-	// 		}
-	// 		log.Println("session closed")
-	// 	}
 
 	log.Print("Creating File to write to...")
 	x, err := os.OpenFile("foobartest", os.O_CREATE|os.O_WRONLY, 0777)
@@ -142,114 +121,101 @@ func handleChannel(newChannel ssh.NewChannel) {
 		fmt.Println("closeed")
 	}
 
-	fmt.Println("extra: ")
-	spew.Dump(newChannel.ExtraData())
-
 	if err != nil {
 		log.Printf("Could not opne file (%s)", err)
 		close()
 		return
 	}
 
-	// connection.Write(
-	// bashf, err := pty.Start(bash)
-	// if err != nil {
-	// 	log.Printf("Could not start pty (%s)", err)
-	// 	close()
-	// 	return
-	// }
-
-	// var b bytes.Buffer
-
-	// var once sync.Once
-	// go func() {
-	// 	io.Copy(connection, x)
-	// 	once.Do(close)
-	// }()
-	// go func() {
-	// 	io.Copy(x, connection)
-	// 	once.Do(close)
-	// }()
-
-	//o. defer connection.Close()
-
 	go func() {
+		defer connection.Close()
+
 		for req := range requests {
 			spew.Dump(req.Type)
 			switch req.Type {
 			case "exec":
-				fmt.Println("payload", req.Payload)
-				fmt.Println("want reply", req.WantReply)
-
-				// buf := make([]byte, 256)
-
-				// scanner := bufio.NewScanner(connection)
-
-				// for {
-
-				n, err := connection.Write([]byte{0})
-				fmt.Println("wrote", n, "bytes to connection")
+				dstName, err := parsePayload(req.Payload)
 
 				if err != nil {
-					fmt.Println("error writing bytes", err)
-				}
-
-				buf := make([]byte, 256)
-				n, err = connection.Read(buf)
-
-				if err != nil {
-					fmt.Println("Failed to receive from connection", err)
+					fmt.Println(err)
+					fmt.Fprintf(connection, err.Error())
 					return
 				}
 
-				fmt.Println("buf:")
-				spew.Dump(buf)
+				// Acknowledge payload.
+				n, err := connection.Write([]byte{0})
+				if err != nil {
+					fmt.Println("error writing bytes", err)
+				}
+				fmt.Println("wrote", n, "bytes to connection")
 
+				// Receive SCP Header
+				scpHeader := make([]byte, 2048) // size of buf in openssh
+				n, err = connection.Read(scpHeader)
+				if err != nil {
+					fmt.Println("Failed to read header", err)
+					return
+				}
+
+				size, originalName, err := parseHeader(string(scpHeader))
+				if err != nil {
+					fmt.Println("Failed to parse header")
+					fmt.Fprintln(connection, "Failed to understand your scp command")
+					return
+				}
+
+				if len(dstName) == 0 {
+					dstName = originalName
+				}
+
+				if len(dstName) < 3 {
+					fmt.Fprintln(connection, "filename:", dstName, "is too short (minimum length = 3)")
+					return
+				}
+
+				if size > 5*1024*1024 {
+					fmt.Fprintf(connection, "File is over 1000 bytes\n")
+					return
+				}
+
+				fmt.Println("Creating a file with the name", dstName, "with size", size)
+
+				// Acknowledge We have received the SCP Header
 				n, err = connection.Write([]byte{0})
 				if err != nil {
 					fmt.Println("Failed to reply", err)
 					return
 				}
-
 				fmt.Println("Wrote", n, "bytes")
 
-				buf = make([]byte, 10)
-
-				fmt.Println("b4 read")
-				n, err = connection.Read(buf)
-				fmt.Println("after read")
-
+				// Read content of file
+				fileDataBuf := make([]byte, size)
+				n, err = io.ReadFull(connection, fileDataBuf)
 				if err != nil {
 					fmt.Println("Failed to read", err)
 					return
 				}
-
 				fmt.Println("Read", n, "Bytes")
 
-				spew.Dump(buf)
+				// Set exit status
+				connection.SendRequest("exit-status", false, []byte{0, 0, 0, 0})
 
-				// }
-				err = req.Reply(true, []byte(""))
 				if err != nil {
-					fmt.Println("reply err", err)
+					fmt.Println("reply error", err)
+					return
 				}
 
-				// connection.Write([]byte("\n\n"))
+				// at this point we're good.
+				fmt.Fprintf(connection, "\x00")
+				err = req.Reply(true, nil)
 
-				// connection.Read(buf)
-				// spew.Dump("buf")
-				// spew.Dump(buf)
-				// // fmt.Println("before peek")
-				// spew.Dump(newChannel.ExtraData())
-				// stuff := bufio.NewReader(newChannel)
-				// bitz, err := stuff.Peek(5)
-				// fmt.Println("after peek")
-
-				// if err != nil {
-				// 	fmt.Println("failed to peek", err)
-				// }
-
-				// fmt.Println("bitz: ", bitz)
+				// Write the data to a file
+				n, err = x.Write(fileDataBuf)
+				if err != nil {
+					fmt.Println("error writing bytes", err)
+				}
+				fmt.Println("Wrote", n, "bytes to disk")
+				return
 			}
 		}
 	}()
