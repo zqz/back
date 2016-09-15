@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	"github.com/vattle/sqlboiler/boil/qm"
 	"github.com/zqzca/back/controllers"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
@@ -24,6 +25,8 @@ func CompleteFile(deps controllers.Dependencies, f *models.File) error {
 		fmt.Println("Something else already processing the file")
 		return nil
 	}
+
+	models.Thumbnails(tx, qm.Where("file_id=$1", f.ID)).DeleteAll()
 
 	f.State = lib.FileProcessing
 	f.Update(tx, "state")

@@ -50,11 +50,11 @@ func BuildFile(deps controllers.Dependencies, f *models.File) (io.ReadSeeker, er
 	fs := deps.Fs
 	fullFilePath := filepath.Join("files", f.Hash)
 	fullFile, err := fs.Create(fullFilePath)
-	defer fullFile.Close()
 	if err != nil {
 		fmt.Println("Failed because", err)
 		return nil, err
 	}
+	defer fullFile.Close()
 	fullFileBuffer := &bytes.Buffer{}
 
 	mw := io.MultiWriter(fullFile, fullFileBuffer)
