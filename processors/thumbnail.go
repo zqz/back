@@ -12,7 +12,6 @@ import (
 
 	"github.com/disintegration/imaging"
 	"github.com/rwcarlsen/goexif/exif"
-	"github.com/spf13/afero"
 	"github.com/zqzca/back/controllers"
 	"github.com/zqzca/back/lib"
 )
@@ -107,32 +106,29 @@ func CreateThumbnail(deps controllers.Dependencies, r io.ReadSeeker) (string, in
 	}
 
 	if format == "jpeg" || format == "jpg" {
-		fmt.Println("Got JPG")
+		deps.Debug("Received JPG")
 		orientation, err := readOrientation(r)
 
 		if err == nil {
+			deps.Debug("Rotating JPG", "orientation", orientation)
 			raw = rotate(raw, orientation)
 		}
 	}
 
-	// var jpgData bytes.Buffer
-
-	// err = jpeg.Encode(jpgData, raw, &jpeg.Options{90})
-
-	// if err != nil {
-	// 	fmt.Println("failed to create a jpg")
-	// 	return "", 0, err
-	// }
-
-	fmt.Println("format:", format)
+	deps.Debug("Thumbnail format", "fmt", format)
 
 	if err != nil {
-		fmt.Println("failed to decode image", err)
+		deps.Error("Failed to decode image")
 		return "", 0, err
 	}
 
 	fs := deps.Fs
-	tmpFile, err := afero.TempFile(fs, ".", "thumbnail")
+	tmpFilePath := lib.TempFilePath("thumbnail")
+	tmpFile, err := fs.Create(tmpFilePath)
+	if err != nil {
+		deps.Error("Failed to create temp file", "path", tmpFilePath)
+		return "", 0, err
+	}
 
 	// Make sure we close.
 	closeTmpFile := func() {
@@ -144,38 +140,36 @@ func CreateThumbnail(deps controllers.Dependencies, r io.ReadSeeker) (string, in
 
 	defer closeTmpFile()
 
-	if err != nil {
-		fmt.Println("Failed to create temp file", err)
-		return "", 0, err
-	}
-
 	h := sha1.New()
 	var wc writeCounter
 	mw := io.MultiWriter(tmpFile, h, wc)
 
+	// Generate Thumbnail image data
 	dst := imaging.Fill(raw, 200, 200, imaging.Center, imaging.Lanczos)
+	// Write it
 	err = imaging.Encode(mw, dst, imaging.JPEG)
 	if err != nil {
-		fmt.Println("failed to encode data", err)
+		deps.Error("Failed to encode data")
 		return "", 0, err
 	}
 
 	hash := fmt.Sprintf("%x", h.Sum(nil))
-
 	deps.Debug("Thumbnail hash", "hash:", hash)
 	newPath := lib.LocalPath(hash)
 
-	err = fs.Rename(tmpFile.Name(), newPath)
+	// Move temp thumbnail to final destination.
+	err = os.Rename(tmpFilePath, newPath)
 	if err != nil {
-		fmt.Println("Failed to rename file!?", err)
+		deps.Error("Failed to rename file")
 
 		// Todo delete file
 		return hash, int(wc), err
 	}
 
+	// Set permissons
 	err = fs.Chmod(newPath, 0644)
 	if err != nil {
-		fmt.Println("Failed to set permissions on", newPath, err)
+		deps.Error("Failed to set permissions", "path", newPath)
 		// Todo delete file
 		return hash, int(wc), err
 	}
