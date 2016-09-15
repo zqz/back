@@ -5,9 +5,11 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"gopkg.in/nullbio/null.v4"
 
@@ -24,6 +26,7 @@ import (
 	"github.com/zqzca/back/controllers/thumbnails"
 	"github.com/zqzca/back/controllers/users"
 	"github.com/zqzca/back/lib"
+	"github.com/zqzca/back/scp"
 	"github.com/zqzca/echo"
 
 	"github.com/rsc/letsencrypt"
@@ -40,6 +43,10 @@ import (
 // 	s := scp.NewSCPServer()
 // 	s.ListenAndServe()
 // }
+
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
+}
 
 func redirect() {
 	http.ListenAndServe(":3001", http.HandlerFunc(
@@ -181,7 +188,7 @@ func main() {
 	v1.Get("/files/:slug", files.Read)
 	v1.Get("/files/:slug/data", files.Download)
 	v1.Post("/files", files.Create)
-	v1.Post("/files/:id/process", files.Process)
+	v1.Get("/files/:slug/process", files.Process)
 
 	// Thumbnail
 	thumbnails := thumbnails.ThumbnailsController{deps}
@@ -230,6 +237,8 @@ func main() {
 
 	var s *standard.Server
 
+	bindAddr := ":3001"
+
 	if *secure == true {
 		fmt.Println("Running in Secure Mode")
 		var m letsencrypt.Manager
@@ -242,18 +251,25 @@ func main() {
 		}
 
 		config := engine.Config{
-			Address:   ":3002",
+			Address:   bindAddr,
 			TLSConfig: cfg,
 		}
 
 		s = standard.WithConfig(config)
-
 		http2.ConfigureServer(s.Server, &http2.Server{})
+		deps.Info("Listening for HTTP2 connections", "addr", bindAddr)
 		go redirect()
 	} else {
-		fmt.Println("Running in Insecure Mode")
-		s = standard.New(":3001")
+		deps.Info("Listening for HTTP connections", "addr", bindAddr)
+		s = standard.New(bindAddr)
 	}
+
+	scpServer := scp.SCPServer{}
+	scpServer.DB = deps.DB
+	scpServer.Logger = deps.Logger
+	scpServer.CertPath = "certs/scp.rsa"
+
+	go scpServer.ListenAndServe()
 
 	// Start server
 	e.Run(s)

@@ -65,4 +65,3 @@ func generateUpsertQuery(tableName string, updateOnConflict bool, ret, update, c
 
 	return buf.String()
 }
-

@@ -1,8 +1,8 @@
 package models
 
 import (
-	"testing"
 	"reflect"
+	"testing"
 
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/vattle/sqlboiler/boil/randomize"
@@ -519,9 +519,6 @@ func testChunksInsertWhitelist(t *testing.T) {
 	}
 }
 
-
-
-
 func testChunkToOneFile_File(t *testing.T) {
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
@@ -562,9 +559,6 @@ func testChunkToOneFile_File(t *testing.T) {
 		t.Error("struct should have been eager loaded")
 	}
 }
-
-
-
 
 func testChunkToOneSetOpFile_File(t *testing.T) {
 	var err error
@@ -830,4 +824,3 @@ func testChunksUpsert(t *testing.T) {
 		t.Error("want one record, got:", count)
 	}
 }
-
