@@ -2,6 +2,7 @@ package scp
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -205,6 +206,7 @@ type scpRequest struct {
 	size     int64
 	original string
 	filename string
+	hash     string
 	db       db.Executor
 }
 
@@ -250,9 +252,11 @@ func (s *scpRequest) DownloadFile(channel ssh.Channel, req *ssh.Request) error {
 		return errors.Wrap(err, "failed to open file for downloading")
 	}
 
+	h := sha1.New()
+	mw := io.MultiWriter(f, h)
 	// Read file contents
 	var n int64
-	if n, err = io.CopyN(f, channel, s.size); err != nil {
+	if n, err = io.CopyN(mw, channel, s.size); err != nil {
 		return errors.Wrap(err, "failed to download file")
 	}
 	log.Println("copied", n, "bytes")
@@ -260,6 +264,10 @@ func (s *scpRequest) DownloadFile(channel ssh.Channel, req *ssh.Request) error {
 	if err = f.Close(); err != nil {
 		return errors.Wrap(err, "failed to close file")
 	}
+
+	s.hash = fmt.Sprintf("%x", h.Sum(nil))
+
+	fmt.Println("Sha'd file", s.hash)
 
 	return nil
 }
