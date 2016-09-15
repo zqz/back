@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/vattle/sqlboiler/boil/qm"
+	. "github.com/vattle/sqlboiler/queries/qm"
 	"github.com/zqzca/back/controllers"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
@@ -26,7 +26,7 @@ func CompleteFile(deps controllers.Dependencies, f *models.File) error {
 		return nil
 	}
 
-	models.Thumbnails(tx, qm.Where("file_id=$1", f.ID)).DeleteAll()
+	models.Thumbnails(tx, Where("file_id=$1", f.ID)).DeleteAll()
 
 	f.State = lib.FileProcessing
 	f.Update(tx, "state")

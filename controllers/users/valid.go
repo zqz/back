@@ -7,7 +7,7 @@ import (
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
 
-	. "github.com/vattle/sqlboiler/boil/qm"
+	. "github.com/vattle/sqlboiler/queries/qm"
 )
 
 func (u UsersController) ValidateUsername(e echo.Context) error {

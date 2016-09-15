@@ -10,7 +10,7 @@ import (
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
 
-	. "github.com/vattle/sqlboiler/boil/qm"
+	. "github.com/vattle/sqlboiler/queries/qm"
 )
 
 // Download sends the entire file to the client.

@@ -5,7 +5,7 @@ import (
 	"reflect"
 
 	"github.com/vattle/sqlboiler/boil"
-	"github.com/vattle/sqlboiler/boil/randomize"
+	"github.com/vattle/sqlboiler/randomize"
 	"github.com/vattle/sqlboiler/strmangle"
 )
 
@@ -152,7 +152,7 @@ func testUsersFind(t *testing.T) {
 		t.Error(err)
 	}
 
-	userFound, err := UserFind(tx, user.ID)
+	userFound, err := FindUser(tx, user.ID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -272,7 +272,7 @@ func testUsersCount(t *testing.T) {
 	}
 }
 
-var userDBTypes = map[string]string{"FirstName": "character varying", "Phone": "character varying", "Email": "character varying", "Hash": "character varying", "UpdatedAt": "timestamp without time zone", "Banned": "boolean", "ID": "uuid", "LastName": "character varying", "Username": "character varying", "CreatedAt": "timestamp without time zone"}
+var userDBTypes = map[string]string{"UpdatedAt": "timestamp without time zone", "FirstName": "character varying", "LastName": "character varying", "Username": "character varying", "Email": "character varying", "Hash": "character varying", "CreatedAt": "timestamp without time zone", "ID": "uuid", "Phone": "character varying", "Banned": "boolean"}
 
 func testUsersInPrimaryKeyArgs(t *testing.T) {
 	t.Parallel()
@@ -385,7 +385,7 @@ func testUsersHooks(t *testing.T) {
 		t.Errorf("Unable to randomize User object: %s", err)
 	}
 
-	UserAddHook(boil.HookBeforeInsert, userBeforeInsertHook)
+	AddUserHook(boil.BeforeInsertHook, userBeforeInsertHook)
 	if err = o.doBeforeInsertHooks(nil); err != nil {
 		t.Errorf("Unable to execute doBeforeInsertHooks: %s", err)
 	}
@@ -394,7 +394,7 @@ func testUsersHooks(t *testing.T) {
 	}
 	userBeforeInsertHooks = []UserHook{}
 
-	UserAddHook(boil.HookAfterInsert, userAfterInsertHook)
+	AddUserHook(boil.AfterInsertHook, userAfterInsertHook)
 	if err = o.doAfterInsertHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterInsertHooks: %s", err)
 	}
@@ -403,7 +403,7 @@ func testUsersHooks(t *testing.T) {
 	}
 	userAfterInsertHooks = []UserHook{}
 
-	UserAddHook(boil.HookAfterSelect, userAfterSelectHook)
+	AddUserHook(boil.AfterSelectHook, userAfterSelectHook)
 	if err = o.doAfterSelectHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterSelectHooks: %s", err)
 	}
@@ -412,7 +412,7 @@ func testUsersHooks(t *testing.T) {
 	}
 	userAfterSelectHooks = []UserHook{}
 
-	UserAddHook(boil.HookBeforeUpdate, userBeforeUpdateHook)
+	AddUserHook(boil.BeforeUpdateHook, userBeforeUpdateHook)
 	if err = o.doBeforeUpdateHooks(nil); err != nil {
 		t.Errorf("Unable to execute doBeforeUpdateHooks: %s", err)
 	}
@@ -421,7 +421,7 @@ func testUsersHooks(t *testing.T) {
 	}
 	userBeforeUpdateHooks = []UserHook{}
 
-	UserAddHook(boil.HookAfterUpdate, userAfterUpdateHook)
+	AddUserHook(boil.AfterUpdateHook, userAfterUpdateHook)
 	if err = o.doAfterUpdateHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterUpdateHooks: %s", err)
 	}
@@ -430,7 +430,7 @@ func testUsersHooks(t *testing.T) {
 	}
 	userAfterUpdateHooks = []UserHook{}
 
-	UserAddHook(boil.HookBeforeDelete, userBeforeDeleteHook)
+	AddUserHook(boil.BeforeDeleteHook, userBeforeDeleteHook)
 	if err = o.doBeforeDeleteHooks(nil); err != nil {
 		t.Errorf("Unable to execute doBeforeDeleteHooks: %s", err)
 	}
@@ -439,7 +439,7 @@ func testUsersHooks(t *testing.T) {
 	}
 	userBeforeDeleteHooks = []UserHook{}
 
-	UserAddHook(boil.HookAfterDelete, userAfterDeleteHook)
+	AddUserHook(boil.AfterDeleteHook, userAfterDeleteHook)
 	if err = o.doAfterDeleteHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterDeleteHooks: %s", err)
 	}
@@ -448,7 +448,7 @@ func testUsersHooks(t *testing.T) {
 	}
 	userAfterDeleteHooks = []UserHook{}
 
-	UserAddHook(boil.HookBeforeUpsert, userBeforeUpsertHook)
+	AddUserHook(boil.BeforeUpsertHook, userBeforeUpsertHook)
 	if err = o.doBeforeUpsertHooks(nil); err != nil {
 		t.Errorf("Unable to execute doBeforeUpsertHooks: %s", err)
 	}
@@ -457,7 +457,7 @@ func testUsersHooks(t *testing.T) {
 	}
 	userBeforeUpsertHooks = []UserHook{}
 
-	UserAddHook(boil.HookAfterUpsert, userAfterUpsertHook)
+	AddUserHook(boil.AfterUpsertHook, userAfterUpsertHook)
 	if err = o.doAfterUpsertHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterUpsertHooks: %s", err)
 	}

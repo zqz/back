@@ -3,12 +3,15 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/vattle/sqlboiler/boil"
-	"github.com/vattle/sqlboiler/boil/qm"
+	"github.com/vattle/sqlboiler/queries"
+	"github.com/vattle/sqlboiler/queries/qm"
 	"github.com/vattle/sqlboiler/strmangle"
 )
 
@@ -21,36 +24,47 @@ type Thumbnail struct {
 	CreatedAt time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 
-	R *ThumbnailR `boil:"-" json:"-" toml:"-" yaml:"-"`
+	R *thumbnailR `boil:"-" json:"-" toml:"-" yaml:"-"`
+	L thumbnailL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
-// ThumbnailR is where relationships are stored.
-type ThumbnailR struct {
+// thumbnailR is where relationships are stored.
+type thumbnailR struct {
 	File *File
 }
+
+// thumbnailL is where Load methods for each relationship are stored.
+type thumbnailL struct{}
 
 var (
 	thumbnailColumns               = []string{"id", "file_id", "size", "hash", "created_at", "updated_at"}
 	thumbnailColumnsWithoutDefault = []string{"file_id", "size", "hash", "created_at", "updated_at"}
 	thumbnailColumnsWithDefault    = []string{"id"}
 	thumbnailPrimaryKeyColumns     = []string{"id"}
-	thumbnailTitleCases            = map[string]string{
-		"id":         "ID",
-		"file_id":    "FileID",
-		"size":       "Size",
-		"hash":       "Hash",
-		"created_at": "CreatedAt",
-		"updated_at": "UpdatedAt",
-	}
 )
 
 type (
+	// ThumbnailSlice is an alias for a slice of pointers to Thumbnail.
+	// This should generally be used opposed to []Thumbnail.
 	ThumbnailSlice []*Thumbnail
-	ThumbnailHook  func(boil.Executor, *Thumbnail) error
+	// ThumbnailHook is the signature for custom Thumbnail hook methods
+	ThumbnailHook func(boil.Executor, *Thumbnail) error
 
 	thumbnailQuery struct {
-		*boil.Query
+		*queries.Query
 	}
+)
+
+// Cache for insert, update and upsert
+var (
+	thumbnailType           = reflect.TypeOf(&Thumbnail{})
+	thumbnailMapping        = queries.MakeStructMapping(thumbnailType)
+	thumbnailInsertCacheMut sync.RWMutex
+	thumbnailInsertCache    = make(map[string]insertCache)
+	thumbnailUpdateCacheMut sync.RWMutex
+	thumbnailUpdateCache    = make(map[string]updateCache)
+	thumbnailUpsertCacheMut sync.RWMutex
+	thumbnailUpsertCache    = make(map[string]insertCache)
 )
 
 // Force time package dependency for automated UpdatedAt/CreatedAt.
@@ -166,25 +180,26 @@ func (o *Thumbnail) doAfterUpsertHooks(exec boil.Executor) (err error) {
 	return nil
 }
 
-func ThumbnailAddHook(hookPoint boil.HookPoint, thumbnailHook ThumbnailHook) {
+// AddThumbnailHook registers your hook function for all future operations.
+func AddThumbnailHook(hookPoint boil.HookPoint, thumbnailHook ThumbnailHook) {
 	switch hookPoint {
-	case boil.HookBeforeInsert:
+	case boil.BeforeInsertHook:
 		thumbnailBeforeInsertHooks = append(thumbnailBeforeInsertHooks, thumbnailHook)
-	case boil.HookBeforeUpdate:
+	case boil.BeforeUpdateHook:
 		thumbnailBeforeUpdateHooks = append(thumbnailBeforeUpdateHooks, thumbnailHook)
-	case boil.HookBeforeDelete:
+	case boil.BeforeDeleteHook:
 		thumbnailBeforeDeleteHooks = append(thumbnailBeforeDeleteHooks, thumbnailHook)
-	case boil.HookBeforeUpsert:
+	case boil.BeforeUpsertHook:
 		thumbnailBeforeUpsertHooks = append(thumbnailBeforeUpsertHooks, thumbnailHook)
-	case boil.HookAfterInsert:
+	case boil.AfterInsertHook:
 		thumbnailAfterInsertHooks = append(thumbnailAfterInsertHooks, thumbnailHook)
-	case boil.HookAfterSelect:
+	case boil.AfterSelectHook:
 		thumbnailAfterSelectHooks = append(thumbnailAfterSelectHooks, thumbnailHook)
-	case boil.HookAfterUpdate:
+	case boil.AfterUpdateHook:
 		thumbnailAfterUpdateHooks = append(thumbnailAfterUpdateHooks, thumbnailHook)
-	case boil.HookAfterDelete:
+	case boil.AfterDeleteHook:
 		thumbnailAfterDeleteHooks = append(thumbnailAfterDeleteHooks, thumbnailHook)
-	case boil.HookAfterUpsert:
+	case boil.AfterUpsertHook:
 		thumbnailAfterUpsertHooks = append(thumbnailAfterUpsertHooks, thumbnailHook)
 	}
 }
@@ -203,9 +218,9 @@ func (q thumbnailQuery) OneP() *Thumbnail {
 func (q thumbnailQuery) One() (*Thumbnail, error) {
 	o := &Thumbnail{}
 
-	boil.SetLimit(q.Query, 1)
+	queries.SetLimit(q.Query, 1)
 
-	err := q.BindFast(o, thumbnailTitleCases)
+	err := q.Bind(o)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
 			return nil, sql.ErrNoRows
@@ -213,7 +228,7 @@ func (q thumbnailQuery) One() (*Thumbnail, error) {
 		return nil, errors.Wrap(err, "models: failed to execute a one query for thumbnails")
 	}
 
-	if err := o.doAfterSelectHooks(boil.GetExecutor(q.Query)); err != nil {
+	if err := o.doAfterSelectHooks(queries.GetExecutor(q.Query)); err != nil {
 		return o, err
 	}
 
@@ -234,14 +249,14 @@ func (q thumbnailQuery) AllP() ThumbnailSlice {
 func (q thumbnailQuery) All() (ThumbnailSlice, error) {
 	var o ThumbnailSlice
 
-	err := q.BindFast(&o, thumbnailTitleCases)
+	err := q.Bind(&o)
 	if err != nil {
 		return nil, errors.Wrap(err, "models: failed to assign all query results to Thumbnail slice")
 	}
 
 	if len(thumbnailAfterSelectHooks) != 0 {
 		for _, obj := range o {
-			if err := obj.doAfterSelectHooks(boil.GetExecutor(q.Query)); err != nil {
+			if err := obj.doAfterSelectHooks(queries.GetExecutor(q.Query)); err != nil {
 				return o, err
 			}
 		}
@@ -264,9 +279,10 @@ func (q thumbnailQuery) CountP() int64 {
 func (q thumbnailQuery) Count() (int64, error) {
 	var count int64
 
-	boil.SetCount(q.Query)
+	queries.SetSelect(q.Query, nil)
+	queries.SetCount(q.Query)
 
-	err := boil.ExecQueryOne(q.Query).Scan(&count)
+	err := q.Query.QueryRow().Scan(&count)
 	if err != nil {
 		return 0, errors.Wrap(err, "models: failed to count thumbnails rows")
 	}
@@ -288,10 +304,10 @@ func (q thumbnailQuery) ExistsP() bool {
 func (q thumbnailQuery) Exists() (bool, error) {
 	var count int64
 
-	boil.SetCount(q.Query)
-	boil.SetLimit(q.Query, 1)
+	queries.SetCount(q.Query)
+	queries.SetLimit(q.Query, 1)
 
-	err := boil.ExecQueryOne(q.Query).Scan(&count)
+	err := q.Query.QueryRow().Scan(&count)
 	if err != nil {
 		return false, errors.Wrap(err, "models: failed to check if thumbnails exists")
 	}
@@ -313,16 +329,15 @@ func (t *Thumbnail) File(exec boil.Executor, mods ...qm.QueryMod) fileQuery {
 	queryMods = append(queryMods, mods...)
 
 	query := Files(exec, queryMods...)
-	boil.SetFrom(query.Query, "files")
+	queries.SetFrom(query.Query, "\"files\"")
 
 	return query
 }
 
 
-
 // LoadFile allows an eager lookup of values, cached into the
 // loaded structs of the objects.
-func (r *ThumbnailR) LoadFile(e boil.Executor, singular bool, maybeThumbnail interface{}) error {
+func (thumbnailL) LoadFile(e boil.Executor, singular bool, maybeThumbnail interface{}) error {
 	var slice []*Thumbnail
 	var object *Thumbnail
 
@@ -344,8 +359,8 @@ func (r *ThumbnailR) LoadFile(e boil.Executor, singular bool, maybeThumbnail int
 	}
 
 	query := fmt.Sprintf(
-		`select * from "files" where "id" in (%s)`,
-		strmangle.Placeholders(count, 1, 1),
+		"select * from \"files\" where \"id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
 	)
 
 	if boil.DebugMode {
@@ -359,7 +374,7 @@ func (r *ThumbnailR) LoadFile(e boil.Executor, singular bool, maybeThumbnail int
 	defer results.Close()
 
 	var resultSlice []*File
-	if err = boil.BindFast(results, &resultSlice, fileTitleCases); err != nil {
+	if err = queries.Bind(results, &resultSlice); err != nil {
 		return errors.Wrap(err, "failed to bind eager loaded slice File")
 	}
 
@@ -373,7 +388,7 @@ func (r *ThumbnailR) LoadFile(e boil.Executor, singular bool, maybeThumbnail int
 
 	if singular && len(resultSlice) != 0 {
 		if object.R == nil {
-			object.R = &ThumbnailR{}
+			object.R = &thumbnailR{}
 		}
 		object.R.File = resultSlice[0]
 		return nil
@@ -383,7 +398,7 @@ func (r *ThumbnailR) LoadFile(e boil.Executor, singular bool, maybeThumbnail int
 		for _, local := range slice {
 			if local.FileID == foreign.ID {
 				if local.R == nil {
-					local.R = &ThumbnailR{}
+					local.R = &thumbnailR{}
 				}
 				local.R.File = foreign
 				break
@@ -396,6 +411,44 @@ func (r *ThumbnailR) LoadFile(e boil.Executor, singular bool, maybeThumbnail int
 
 
 
+
+// SetFile of the thumbnail to the related item.
+// Sets t.R.File to related.
+// Adds t to related.R.Thumbnails.
+func (t *Thumbnail) SetFile(exec boil.Executor, insert bool, related *File) error {
+	var err error
+	if insert {
+		if err = related.Insert(exec); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	oldVal := t.FileID
+	t.FileID = related.ID
+	if err = t.Update(exec, "file_id"); err != nil {
+		t.FileID = oldVal
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	if t.R == nil {
+		t.R = &thumbnailR{
+			File: related,
+		}
+	} else {
+		t.R.File = related
+	}
+
+	if related.R == nil {
+		related.R = &fileR{
+			Thumbnails: ThumbnailSlice{t},
+		}
+	} else {
+		related.R.Thumbnails = append(related.R.Thumbnails, t)
+	}
+	return nil
+}
+	
+
 // ThumbnailsG retrieves all records.
 func ThumbnailsG(mods ...qm.QueryMod) thumbnailQuery {
 	return Thumbnails(boil.GetDB(), mods...)
@@ -403,18 +456,18 @@ func ThumbnailsG(mods ...qm.QueryMod) thumbnailQuery {
 
 // Thumbnails retrieves all the records using an executor.
 func Thumbnails(exec boil.Executor, mods ...qm.QueryMod) thumbnailQuery {
-	mods = append(mods, qm.From("thumbnails"))
+	mods = append(mods, qm.From("\"thumbnails\""))
 	return thumbnailQuery{NewQuery(exec, mods...)}
 }
 
-// ThumbnailFindG retrieves a single record by ID.
-func ThumbnailFindG(id string, selectCols ...string) (*Thumbnail, error) {
-	return ThumbnailFind(boil.GetDB(), id, selectCols...)
+// FindThumbnailG retrieves a single record by ID.
+func FindThumbnailG(id string, selectCols ...string) (*Thumbnail, error) {
+	return FindThumbnail(boil.GetDB(), id, selectCols...)
 }
 
-// ThumbnailFindGP retrieves a single record by ID, and panics on error.
-func ThumbnailFindGP(id string, selectCols ...string) *Thumbnail {
-	retobj, err := ThumbnailFind(boil.GetDB(), id, selectCols...)
+// FindThumbnailGP retrieves a single record by ID, and panics on error.
+func FindThumbnailGP(id string, selectCols ...string) *Thumbnail {
+	retobj, err := FindThumbnail(boil.GetDB(), id, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -422,22 +475,22 @@ func ThumbnailFindGP(id string, selectCols ...string) *Thumbnail {
 	return retobj
 }
 
-// ThumbnailFind retrieves a single record by ID with an executor.
+// FindThumbnail retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func ThumbnailFind(exec boil.Executor, id string, selectCols ...string) (*Thumbnail, error) {
+func FindThumbnail(exec boil.Executor, id string, selectCols ...string) (*Thumbnail, error) {
 	thumbnailObj := &Thumbnail{}
 
 	sel := "*"
 	if len(selectCols) > 0 {
-		sel = strings.Join(strmangle.IdentQuoteSlice(selectCols), ",")
+		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		`select %s from "thumbnails" where "id"=$1`, sel,
+		"select %s from \"thumbnails\" where \"id\"=$1", sel,
 	)
 
-	q := boil.SQL(exec, query, id)
+	q := queries.Raw(exec, query, id)
 
-	err := q.BindFast(thumbnailObj, thumbnailTitleCases)
+	err := q.Bind(thumbnailObj)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
 			return nil, sql.ErrNoRows
@@ -448,9 +501,9 @@ func ThumbnailFind(exec boil.Executor, id string, selectCols ...string) (*Thumbn
 	return thumbnailObj, nil
 }
 
-// ThumbnailFindP retrieves a single record by ID with an executor, and panics on error.
-func ThumbnailFindP(exec boil.Executor, id string, selectCols ...string) *Thumbnail {
-	retobj, err := ThumbnailFind(exec, id, selectCols...)
+// FindThumbnailP retrieves a single record by ID with an executor, and panics on error.
+func FindThumbnailP(exec boil.Executor, id string, selectCols ...string) *Thumbnail {
+	retobj, err := FindThumbnail(exec, id, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -482,57 +535,72 @@ func (o *Thumbnail) InsertP(exec boil.Executor, whitelist ...string) {
 // Insert a single record using an executor.
 // Whitelist behavior: If a whitelist is provided, only those columns supplied are inserted
 // No whitelist behavior: Without a whitelist, columns are inferred by the following rules:
-// - All columns without a default value are inferred (i.e. name, age)
-// - All columns with a default, but non-zero are inferred (i.e. health = 75)
+// - All columns without a default value are included (i.e. name, age)
+// - All columns with a default, but non-zero are included (i.e. health = 75)
 func (o *Thumbnail) Insert(exec boil.Executor, whitelist ...string) error {
 	if o == nil {
 		return errors.New("models: no thumbnails provided for insertion")
 	}
 
 	var err error
-	loc := boil.GetLocation()
-	currTime := time.Time{}
-	if loc != nil {
-		currTime = time.Now().In(boil.GetLocation())
-	} else {
-		currTime = time.Now()
-	}
-
-	if o.CreatedAt.IsZero() {
-		o.CreatedAt = currTime
-	}
-	if o.UpdatedAt.IsZero() {
-		o.UpdatedAt = currTime
-	}
 
 	if err := o.doBeforeInsertHooks(exec); err != nil {
 		return err
 	}
 
-	wl, returnColumns := strmangle.InsertColumnSet(
-		thumbnailColumns,
-		thumbnailColumnsWithDefault,
-		thumbnailColumnsWithoutDefault,
-		boil.NonZeroDefaultSet(thumbnailColumnsWithDefault, thumbnailTitleCases, o),
-		whitelist,
-	)
+	nzDefaults := queries.NonZeroDefaultSet(thumbnailColumnsWithDefault, o)
 
-	ins := fmt.Sprintf(`INSERT INTO thumbnails ("%s") VALUES (%s)`, strings.Join(wl, `","`), strmangle.Placeholders(len(wl), 1, 1))
+	key := makeCacheKey(whitelist, nzDefaults)
+	thumbnailInsertCacheMut.RLock()
+	cache, cached := thumbnailInsertCache[key]
+	thumbnailInsertCacheMut.RUnlock()
 
-	if len(returnColumns) != 0 {
-		ins = ins + fmt.Sprintf(` RETURNING %s`, strings.Join(returnColumns, ","))
-		err = exec.QueryRow(ins, boil.GetStructValues(o, thumbnailTitleCases, wl...)...).Scan(boil.GetStructPointers(o, thumbnailTitleCases, returnColumns...)...)
+	if !cached {
+		wl, returnColumns := strmangle.InsertColumnSet(
+			thumbnailColumns,
+			thumbnailColumnsWithDefault,
+			thumbnailColumnsWithoutDefault,
+			nzDefaults,
+			whitelist,
+		)
+
+		cache.valueMapping, err = queries.BindMapping(thumbnailType, thumbnailMapping, wl)
+		if err != nil {
+			return err
+		}
+		cache.retMapping, err = queries.BindMapping(thumbnailType, thumbnailMapping, returnColumns)
+		if err != nil {
+			return err
+		}
+		cache.query = fmt.Sprintf("INSERT INTO \"thumbnails\" (\"%s\") VALUES (%s)", strings.Join(wl, "\",\""), strmangle.Placeholders(dialect.IndexPlaceholders, len(wl), 1, 1))
+
+		if len(cache.retMapping) != 0 {
+			cache.query += fmt.Sprintf(" RETURNING \"%s\"", strings.Join(returnColumns, "\",\""))
+		}
+	}
+
+	value := reflect.Indirect(reflect.ValueOf(o))
+	vals := queries.ValuesFromMapping(value, cache.valueMapping)
+
+	if len(cache.retMapping) != 0 {
+		err = exec.QueryRow(cache.query, vals...).Scan(queries.PtrsFromMapping(value, cache.retMapping)...)
 	} else {
-		_, err = exec.Exec(ins, boil.GetStructValues(o, thumbnailTitleCases, wl...)...)
+		_, err = exec.Exec(cache.query, vals...)
 	}
 
 	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, ins)
-		fmt.Fprintln(boil.DebugWriter, boil.GetStructValues(o, thumbnailTitleCases, wl...))
+		fmt.Fprintln(boil.DebugWriter, cache.query)
+		fmt.Fprintln(boil.DebugWriter, vals)
 	}
 
 	if err != nil {
 		return errors.Wrap(err, "models: unable to insert into thumbnails")
+	}
+
+	if !cached {
+		thumbnailInsertCacheMut.Lock()
+		thumbnailInsertCache[key] = cache
+		thumbnailInsertCacheMut.Unlock()
 	}
 
 	return o.doAfterInsertHooks(exec)
@@ -570,45 +638,52 @@ func (o *Thumbnail) UpdateP(exec boil.Executor, whitelist ...string) {
 // Update does not automatically update the record in case of default values. Use .Reload()
 // to refresh the records.
 func (o *Thumbnail) Update(exec boil.Executor, whitelist ...string) error {
-	loc := boil.GetLocation()
-	currTime := time.Time{}
-	if loc != nil {
-		currTime = time.Now().In(boil.GetLocation())
-	} else {
-		currTime = time.Now()
-	}
-
-	o.UpdatedAt = currTime
-
-	if err := o.doBeforeUpdateHooks(exec); err != nil {
+	var err error
+	if err = o.doBeforeUpdateHooks(exec); err != nil {
 		return err
 	}
+	key := makeCacheKey(whitelist, nil)
+	thumbnailUpdateCacheMut.RLock()
+	cache, cached := thumbnailUpdateCache[key]
+	thumbnailUpdateCacheMut.RUnlock()
 
-	var err error
-	var query string
-	var values []interface{}
+	if !cached {
+		wl := strmangle.UpdateColumnSet(thumbnailColumns, thumbnailPrimaryKeyColumns, whitelist)
 
-	wl := strmangle.UpdateColumnSet(thumbnailColumns, thumbnailPrimaryKeyColumns, whitelist)
-	if len(wl) == 0 {
+		cache.query = fmt.Sprintf("UPDATE \"thumbnails\" SET %s WHERE %s",
+			strmangle.SetParamNames("\"", "\"", 1, wl),
+			strmangle.WhereClause("\"", "\"", len(wl)+1, thumbnailPrimaryKeyColumns),
+		)
+		cache.valueMapping, err = queries.BindMapping(thumbnailType, thumbnailMapping, append(wl, thumbnailPrimaryKeyColumns...))
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(cache.valueMapping) == 0 {
 		return errors.New("models: unable to update thumbnails, could not build whitelist")
 	}
 
-	query = fmt.Sprintf(`UPDATE thumbnails SET %s WHERE %s`, strmangle.SetParamNames(wl), strmangle.WhereClause(len(wl)+1, thumbnailPrimaryKeyColumns))
-	values = boil.GetStructValues(o, thumbnailTitleCases, wl...)
-	values = append(values, o.ID)
+	values := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), cache.valueMapping)
 
 	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, cache.query)
 		fmt.Fprintln(boil.DebugWriter, values)
 	}
 
-	result, err := exec.Exec(query, values...)
+	result, err := exec.Exec(cache.query, values...)
 	if err != nil {
 		return errors.Wrap(err, "models: unable to update thumbnails row")
 	}
 
 	if r, err := result.RowsAffected(); err == nil && r != 1 {
 		return errors.Errorf("failed to update single row, updated %d rows", r)
+	}
+
+	if !cached {
+		thumbnailUpdateCacheMut.Lock()
+		thumbnailUpdateCache[key] = cache
+		thumbnailUpdateCacheMut.Unlock()
 	}
 
 	return o.doAfterUpdateHooks(exec)
@@ -623,9 +698,9 @@ func (q thumbnailQuery) UpdateAllP(cols M) {
 
 // UpdateAll updates all rows with the specified column values.
 func (q thumbnailQuery) UpdateAll(cols M) error {
-	boil.SetUpdate(q.Query, cols)
+	queries.SetUpdate(q.Query, cols)
 
-	_, err := boil.ExecQuery(q.Query)
+	_, err := q.Query.Exec()
 	if err != nil {
 		return errors.Wrap(err, "models: unable to update all for thumbnails")
 	}
@@ -668,7 +743,7 @@ func (o ThumbnailSlice) UpdateAll(exec boil.Executor, cols M) error {
 
 	i := 0
 	for name, value := range cols {
-		colNames[i] = strmangle.IdentQuote(name)
+		colNames[i] = name
 		args[i] = value
 		i++
 	}
@@ -677,11 +752,9 @@ func (o ThumbnailSlice) UpdateAll(exec boil.Executor, cols M) error {
 	args = append(args, o.inPrimaryKeyArgs()...)
 
 	sql := fmt.Sprintf(
-		`UPDATE thumbnails SET (%s) = (%s) WHERE (%s) IN (%s)`,
-		strings.Join(colNames, ", "),
-		strmangle.Placeholders(len(colNames), 1, 1),
-		strings.Join(strmangle.IdentQuoteSlice(thumbnailPrimaryKeyColumns), ","),
-		strmangle.Placeholders(len(o)*len(thumbnailPrimaryKeyColumns), len(colNames)+1, len(thumbnailPrimaryKeyColumns)),
+		"UPDATE \"thumbnails\" SET %s WHERE (\"id\") IN (%s)",
+		strmangle.SetParamNames("\"", "\"", 1, colNames),
+		strmangle.Placeholders(dialect.IndexPlaceholders, len(o)*len(thumbnailPrimaryKeyColumns), len(colNames)+1, len(thumbnailPrimaryKeyColumns)),
 	)
 
 	if boil.DebugMode {
@@ -702,21 +775,21 @@ func (o ThumbnailSlice) UpdateAll(exec boil.Executor, cols M) error {
 }
 
 // UpsertG attempts an insert, and does an update or ignore on conflict.
-func (o *Thumbnail) UpsertG(update bool, conflictColumns []string, updateColumns []string, whitelist ...string) error {
-	return o.Upsert(boil.GetDB(), update, conflictColumns, updateColumns, whitelist...)
+func (o *Thumbnail) UpsertG(updateOnConflict bool, conflictColumns []string, updateColumns []string, whitelist ...string) error {
+	return o.Upsert(boil.GetDB(), updateOnConflict, conflictColumns, updateColumns, whitelist...)
 }
 
 // UpsertGP attempts an insert, and does an update or ignore on conflict. Panics on error.
-func (o *Thumbnail) UpsertGP(update bool, conflictColumns []string, updateColumns []string, whitelist ...string) {
-	if err := o.Upsert(boil.GetDB(), update, conflictColumns, updateColumns, whitelist...); err != nil {
+func (o *Thumbnail) UpsertGP(updateOnConflict bool, conflictColumns []string, updateColumns []string, whitelist ...string) {
+	if err := o.Upsert(boil.GetDB(), updateOnConflict, conflictColumns, updateColumns, whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
 // UpsertP attempts an insert using an executor, and does an update or ignore on conflict.
 // UpsertP panics on error.
-func (o *Thumbnail) UpsertP(exec boil.Executor, update bool, conflictColumns []string, updateColumns []string, whitelist ...string) {
-	if err := o.Upsert(exec, update, conflictColumns, updateColumns, whitelist...); err != nil {
+func (o *Thumbnail) UpsertP(exec boil.Executor, updateOnConflict bool, conflictColumns []string, updateColumns []string, whitelist ...string) {
+	if err := o.Upsert(exec, updateOnConflict, conflictColumns, updateColumns, whitelist...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
@@ -726,64 +799,100 @@ func (o *Thumbnail) Upsert(exec boil.Executor, updateOnConflict bool, conflictCo
 	if o == nil {
 		return errors.New("models: no thumbnails provided for upsert")
 	}
-	loc := boil.GetLocation()
-	currTime := time.Time{}
-	if loc != nil {
-		currTime = time.Now().In(boil.GetLocation())
-	} else {
-		currTime = time.Now()
-	}
-
-	if o.CreatedAt.IsZero() {
-		o.CreatedAt = currTime
-	}
-	o.UpdatedAt = currTime
 
 	if err := o.doBeforeUpsertHooks(exec); err != nil {
 		return err
 	}
 
+	// Build cache key in-line uglily - mysql vs postgres problems
+	buf := strmangle.GetBuffer()
+	if updateOnConflict {
+		buf.WriteByte('t')
+	} else {
+		buf.WriteByte('f')
+	}
+	buf.WriteByte('.')
+	for _, c := range conflictColumns {
+		buf.WriteString(c)
+	}
+	buf.WriteByte('.')
+	for _, c := range updateColumns {
+		buf.WriteString(c)
+	}
+	buf.WriteByte('.')
+	for _, c := range whitelist {
+		buf.WriteString(c)
+	}
+	key := buf.String()
+	strmangle.PutBuffer(buf)
+
+	thumbnailUpsertCacheMut.RLock()
+	cache, cached := thumbnailUpsertCache[key]
+	thumbnailUpsertCacheMut.RUnlock()
+
 	var err error
-	var ret []string
-	whitelist, ret = strmangle.InsertColumnSet(
-		thumbnailColumns,
-		thumbnailColumnsWithDefault,
-		thumbnailColumnsWithoutDefault,
-		boil.NonZeroDefaultSet(thumbnailColumnsWithDefault, thumbnailTitleCases, o),
-		whitelist,
-	)
-	update := strmangle.UpdateColumnSet(
-		thumbnailColumns,
-		thumbnailPrimaryKeyColumns,
-		updateColumns,
-	)
-	conflict := conflictColumns
-	if len(conflict) == 0 {
-		conflict = make([]string, len(thumbnailPrimaryKeyColumns))
-		copy(conflict, thumbnailPrimaryKeyColumns)
+
+	if !cached {
+		var ret []string
+		whitelist, ret = strmangle.InsertColumnSet(
+			thumbnailColumns,
+			thumbnailColumnsWithDefault,
+			thumbnailColumnsWithoutDefault,
+			queries.NonZeroDefaultSet(thumbnailColumnsWithDefault, o),
+			whitelist,
+		)
+		update := strmangle.UpdateColumnSet(
+			thumbnailColumns,
+			thumbnailPrimaryKeyColumns,
+			updateColumns,
+		)
+
+		var conflict []string
+		if len(conflictColumns) == 0 {
+			conflict = make([]string, len(thumbnailPrimaryKeyColumns))
+			copy(conflict, thumbnailPrimaryKeyColumns)
+		}
+		cache.query = queries.BuildUpsertQueryPostgres(dialect, "\"thumbnails\"", updateOnConflict, ret, update, conflict, whitelist)
+
+		cache.valueMapping, err = queries.BindMapping(thumbnailType, thumbnailMapping, whitelist)
+		if err != nil {
+			return err
+		}
+		if len(ret) != 0 {
+			cache.retMapping, err = queries.BindMapping(thumbnailType, thumbnailMapping, ret)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
-	query := generateUpsertQuery("thumbnails", updateOnConflict, ret, update, conflict, whitelist)
+	value := reflect.Indirect(reflect.ValueOf(o))
+	values := queries.ValuesFromMapping(value, cache.valueMapping)
+	var returns []interface{}
+	if len(cache.retMapping) != 0 {
+		returns = queries.PtrsFromMapping(value, cache.retMapping)
+	}
 
 	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, query)
-		fmt.Fprintln(boil.DebugWriter, boil.GetStructValues(o, thumbnailTitleCases, whitelist...))
+		fmt.Fprintln(boil.DebugWriter, cache.query)
+		fmt.Fprintln(boil.DebugWriter, values)
 	}
-	if len(ret) != 0 {
-		err = exec.QueryRow(query, boil.GetStructValues(o, thumbnailTitleCases, whitelist...)...).Scan(boil.GetStructPointers(o, thumbnailTitleCases, ret...)...)
+	if len(cache.retMapping) != 0 {
+		err = exec.QueryRow(cache.query, values...).Scan(returns...)
 	} else {
-		_, err = exec.Exec(query, boil.GetStructValues(o, thumbnailTitleCases, whitelist...)...)
+		_, err = exec.Exec(cache.query, values...)
 	}
-
 	if err != nil {
 		return errors.Wrap(err, "models: unable to upsert for thumbnails")
 	}
 
-	if err := o.doAfterUpsertHooks(exec); err != nil {
-		return err
+	if !cached {
+		thumbnailUpsertCacheMut.Lock()
+		thumbnailUpsertCache[key] = cache
+		thumbnailUpsertCacheMut.Unlock()
 	}
 
-	return nil
+	return o.doAfterUpsertHooks(exec)
 }
 
 // DeleteP deletes a single Thumbnail record with an executor.
@@ -827,7 +936,7 @@ func (o *Thumbnail) Delete(exec boil.Executor) error {
 
 	args := o.inPrimaryKeyArgs()
 
-	sql := `DELETE FROM thumbnails WHERE "id"=$1`
+	sql := "DELETE FROM \"thumbnails\" WHERE \"id\"=$1"
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
@@ -859,9 +968,9 @@ func (q thumbnailQuery) DeleteAll() error {
 		return errors.New("models: no thumbnailQuery provided for delete all")
 	}
 
-	boil.SetDelete(q.Query)
+	queries.SetDelete(q.Query)
 
-	_, err := boil.ExecQuery(q.Query)
+	_, err := q.Query.Exec()
 	if err != nil {
 		return errors.Wrap(err, "models: unable to delete all from thumbnails")
 	}
@@ -869,7 +978,7 @@ func (q thumbnailQuery) DeleteAll() error {
 	return nil
 }
 
-// DeleteAll deletes all rows in the slice, and panics on error.
+// DeleteAllGP deletes all rows in the slice, and panics on error.
 func (o ThumbnailSlice) DeleteAllGP() {
 	if err := o.DeleteAllG(); err != nil {
 		panic(boil.WrapErr(err))
@@ -912,9 +1021,9 @@ func (o ThumbnailSlice) DeleteAll(exec boil.Executor) error {
 	args := o.inPrimaryKeyArgs()
 
 	sql := fmt.Sprintf(
-		`DELETE FROM thumbnails WHERE (%s) IN (%s)`,
-		strings.Join(strmangle.IdentQuoteSlice(thumbnailPrimaryKeyColumns), ","),
-		strmangle.Placeholders(len(o)*len(thumbnailPrimaryKeyColumns), 1, len(thumbnailPrimaryKeyColumns)),
+		"DELETE FROM \"thumbnails\" WHERE (%s) IN (%s)",
+		strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, thumbnailPrimaryKeyColumns), ","),
+		strmangle.Placeholders(dialect.IndexPlaceholders, len(o)*len(thumbnailPrimaryKeyColumns), 1, len(thumbnailPrimaryKeyColumns)),
 	)
 
 	if boil.DebugMode {
@@ -964,7 +1073,7 @@ func (o *Thumbnail) ReloadG() error {
 // Reload refetches the object from the database
 // using the primary keys with an executor.
 func (o *Thumbnail) Reload(exec boil.Executor) error {
-	ret, err := ThumbnailFind(exec, o.ID)
+	ret, err := FindThumbnail(exec, o.ID)
 	if err != nil {
 		return err
 	}
@@ -973,18 +1082,26 @@ func (o *Thumbnail) Reload(exec boil.Executor) error {
 	return nil
 }
 
+// ReloadAllGP refetches every row with matching primary key column values
+// and overwrites the original object slice with the newly updated slice.
+// Panics on error.
 func (o *ThumbnailSlice) ReloadAllGP() {
 	if err := o.ReloadAllG(); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
+// ReloadAllP refetches every row with matching primary key column values
+// and overwrites the original object slice with the newly updated slice.
+// Panics on error.
 func (o *ThumbnailSlice) ReloadAllP(exec boil.Executor) {
 	if err := o.ReloadAll(exec); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
+// ReloadAllG refetches every row with matching primary key column values
+// and overwrites the original object slice with the newly updated slice.
 func (o *ThumbnailSlice) ReloadAllG() error {
 	if o == nil {
 		return errors.New("models: empty ThumbnailSlice provided for reload all")
@@ -1004,14 +1121,14 @@ func (o *ThumbnailSlice) ReloadAll(exec boil.Executor) error {
 	args := o.inPrimaryKeyArgs()
 
 	sql := fmt.Sprintf(
-		`SELECT thumbnails.* FROM thumbnails WHERE (%s) IN (%s)`,
-		strings.Join(strmangle.IdentQuoteSlice(thumbnailPrimaryKeyColumns), ","),
-		strmangle.Placeholders(len(*o)*len(thumbnailPrimaryKeyColumns), 1, len(thumbnailPrimaryKeyColumns)),
+		"SELECT \"thumbnails\".* FROM \"thumbnails\" WHERE (%s) IN (%s)",
+		strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, thumbnailPrimaryKeyColumns), ","),
+		strmangle.Placeholders(dialect.IndexPlaceholders, len(*o)*len(thumbnailPrimaryKeyColumns), 1, len(thumbnailPrimaryKeyColumns)),
 	)
 
-	q := boil.SQL(exec, sql, args...)
+	q := queries.Raw(exec, sql, args...)
 
-	err := q.BindFast(&thumbnails, thumbnailTitleCases)
+	err := q.Bind(&thumbnails)
 	if err != nil {
 		return errors.Wrap(err, "models: unable to reload all in ThumbnailSlice")
 	}
@@ -1025,7 +1142,7 @@ func (o *ThumbnailSlice) ReloadAll(exec boil.Executor) error {
 func ThumbnailExists(exec boil.Executor, id string) (bool, error) {
 	var exists bool
 
-	sql := `select exists(select 1 from "thumbnails" where "id"=$1 limit 1)`
+	sql := "select exists(select 1 from \"thumbnails\" where \"id\"=$1 limit 1)"
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
@@ -1084,41 +1201,3 @@ func (o ThumbnailSlice) inPrimaryKeyArgs() []interface{} {
 }
 
 
-
-
-
-// SetFile of the thumbnail to the related item.
-// Sets t.R.File to related.
-// Adds t to related.R.Thumbnails.
-func (t *Thumbnail) SetFile(exec boil.Executor, insert bool, related *File) error {
-	var err error
-	if insert {
-		if err = related.Insert(exec); err != nil {
-			return errors.Wrap(err, "failed to insert into foreign table")
-		}
-	}
-
-	oldVal := t.FileID
-	t.FileID = related.ID
-	if err = t.Update(exec, "file_id"); err != nil {
-		t.FileID = oldVal
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	if t.R == nil {
-		t.R = &ThumbnailR{
-			File: related,
-		}
-	} else {
-		t.R.File = related
-	}
-
-	if related.R == nil {
-		related.R = &FileR{
-			Thumbnails: ThumbnailSlice{t},
-		}
-	} else {
-		related.R.Thumbnails = append(related.R.Thumbnails, t)
-	}
-	return nil
-}

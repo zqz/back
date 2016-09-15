@@ -8,7 +8,7 @@ import (
 	"github.com/zqzca/back/processors"
 	"github.com/zqzca/echo"
 
-	. "github.com/vattle/sqlboiler/boil/qm"
+	. "github.com/vattle/sqlboiler/queries/qm"
 )
 
 // Process builds thumbnails

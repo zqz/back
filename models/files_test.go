@@ -5,7 +5,7 @@ import (
 	"reflect"
 
 	"github.com/vattle/sqlboiler/boil"
-	"github.com/vattle/sqlboiler/boil/randomize"
+	"github.com/vattle/sqlboiler/randomize"
 	"github.com/vattle/sqlboiler/strmangle"
 )
 
@@ -152,7 +152,7 @@ func testFilesFind(t *testing.T) {
 		t.Error(err)
 	}
 
-	fileFound, err := FileFind(tx, file.ID)
+	fileFound, err := FindFile(tx, file.ID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -272,7 +272,7 @@ func testFilesCount(t *testing.T) {
 	}
 }
 
-var fileDBTypes = map[string]string{"ID": "uuid", "Size": "integer", "State": "integer", "Hash": "text", "UpdatedAt": "timestamp without time zone", "Slug": "text", "NumChunks": "integer", "Name": "text", "Type": "text", "CreatedAt": "timestamp without time zone"}
+var fileDBTypes = map[string]string{"ID": "uuid", "NumChunks": "integer", "Name": "text", "Hash": "text", "UpdatedAt": "timestamp without time zone", "Slug": "text", "Size": "integer", "State": "integer", "Type": "text", "CreatedAt": "timestamp without time zone"}
 
 func testFilesInPrimaryKeyArgs(t *testing.T) {
 	t.Parallel()
@@ -385,7 +385,7 @@ func testFilesHooks(t *testing.T) {
 		t.Errorf("Unable to randomize File object: %s", err)
 	}
 
-	FileAddHook(boil.HookBeforeInsert, fileBeforeInsertHook)
+	AddFileHook(boil.BeforeInsertHook, fileBeforeInsertHook)
 	if err = o.doBeforeInsertHooks(nil); err != nil {
 		t.Errorf("Unable to execute doBeforeInsertHooks: %s", err)
 	}
@@ -394,7 +394,7 @@ func testFilesHooks(t *testing.T) {
 	}
 	fileBeforeInsertHooks = []FileHook{}
 
-	FileAddHook(boil.HookAfterInsert, fileAfterInsertHook)
+	AddFileHook(boil.AfterInsertHook, fileAfterInsertHook)
 	if err = o.doAfterInsertHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterInsertHooks: %s", err)
 	}
@@ -403,7 +403,7 @@ func testFilesHooks(t *testing.T) {
 	}
 	fileAfterInsertHooks = []FileHook{}
 
-	FileAddHook(boil.HookAfterSelect, fileAfterSelectHook)
+	AddFileHook(boil.AfterSelectHook, fileAfterSelectHook)
 	if err = o.doAfterSelectHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterSelectHooks: %s", err)
 	}
@@ -412,7 +412,7 @@ func testFilesHooks(t *testing.T) {
 	}
 	fileAfterSelectHooks = []FileHook{}
 
-	FileAddHook(boil.HookBeforeUpdate, fileBeforeUpdateHook)
+	AddFileHook(boil.BeforeUpdateHook, fileBeforeUpdateHook)
 	if err = o.doBeforeUpdateHooks(nil); err != nil {
 		t.Errorf("Unable to execute doBeforeUpdateHooks: %s", err)
 	}
@@ -421,7 +421,7 @@ func testFilesHooks(t *testing.T) {
 	}
 	fileBeforeUpdateHooks = []FileHook{}
 
-	FileAddHook(boil.HookAfterUpdate, fileAfterUpdateHook)
+	AddFileHook(boil.AfterUpdateHook, fileAfterUpdateHook)
 	if err = o.doAfterUpdateHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterUpdateHooks: %s", err)
 	}
@@ -430,7 +430,7 @@ func testFilesHooks(t *testing.T) {
 	}
 	fileAfterUpdateHooks = []FileHook{}
 
-	FileAddHook(boil.HookBeforeDelete, fileBeforeDeleteHook)
+	AddFileHook(boil.BeforeDeleteHook, fileBeforeDeleteHook)
 	if err = o.doBeforeDeleteHooks(nil); err != nil {
 		t.Errorf("Unable to execute doBeforeDeleteHooks: %s", err)
 	}
@@ -439,7 +439,7 @@ func testFilesHooks(t *testing.T) {
 	}
 	fileBeforeDeleteHooks = []FileHook{}
 
-	FileAddHook(boil.HookAfterDelete, fileAfterDeleteHook)
+	AddFileHook(boil.AfterDeleteHook, fileAfterDeleteHook)
 	if err = o.doAfterDeleteHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterDeleteHooks: %s", err)
 	}
@@ -448,7 +448,7 @@ func testFilesHooks(t *testing.T) {
 	}
 	fileAfterDeleteHooks = []FileHook{}
 
-	FileAddHook(boil.HookBeforeUpsert, fileBeforeUpsertHook)
+	AddFileHook(boil.BeforeUpsertHook, fileBeforeUpsertHook)
 	if err = o.doBeforeUpsertHooks(nil); err != nil {
 		t.Errorf("Unable to execute doBeforeUpsertHooks: %s", err)
 	}
@@ -457,7 +457,7 @@ func testFilesHooks(t *testing.T) {
 	}
 	fileBeforeUpsertHooks = []FileHook{}
 
-	FileAddHook(boil.HookAfterUpsert, fileAfterUpsertHook)
+	AddFileHook(boil.AfterUpsertHook, fileAfterUpsertHook)
 	if err = o.doAfterUpsertHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterUpsertHooks: %s", err)
 	}
@@ -567,7 +567,7 @@ func testFileToManyChunks(t *testing.T) {
 	}
 
 	slice := FileSlice{&a}
-	if err = a.R.LoadChunks(tx, false, &slice); err != nil {
+	if err = a.L.LoadChunks(tx, false, &slice); err != nil {
 		t.Fatal(err)
 	}
 	if got := len(a.R.Chunks); got != 2 {
@@ -575,7 +575,7 @@ func testFileToManyChunks(t *testing.T) {
 	}
 
 	a.R.Chunks = nil
-	if err = a.R.LoadChunks(tx, true, &a); err != nil {
+	if err = a.L.LoadChunks(tx, true, &a); err != nil {
 		t.Fatal(err)
 	}
 	if got := len(a.R.Chunks); got != 2 {
@@ -635,7 +635,7 @@ func testFileToManyThumbnails(t *testing.T) {
 	}
 
 	slice := FileSlice{&a}
-	if err = a.R.LoadThumbnails(tx, false, &slice); err != nil {
+	if err = a.L.LoadThumbnails(tx, false, &slice); err != nil {
 		t.Fatal(err)
 	}
 	if got := len(a.R.Thumbnails); got != 2 {
@@ -643,7 +643,7 @@ func testFileToManyThumbnails(t *testing.T) {
 	}
 
 	a.R.Thumbnails = nil
-	if err = a.R.LoadThumbnails(tx, true, &a); err != nil {
+	if err = a.L.LoadThumbnails(tx, true, &a); err != nil {
 		t.Fatal(err)
 	}
 	if got := len(a.R.Thumbnails); got != 2 {
@@ -807,7 +807,6 @@ func testFileToManyAddOpThumbnails(t *testing.T) {
 		}
 	}
 }
-
 
 
 func testFilesReload(t *testing.T) {

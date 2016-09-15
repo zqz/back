@@ -16,7 +16,7 @@ import (
 	"github.com/zqzca/back/processors"
 	"github.com/zqzca/echo"
 
-	. "github.com/vattle/sqlboiler/boil/qm"
+	. "github.com/vattle/sqlboiler/queries/qm"
 )
 
 const maxChunkSize = 5 * 1024 * 1024
@@ -37,7 +37,7 @@ func (c ChunkController) Write(e echo.Context) error {
 
 	// Make sure the file exists.
 	fid := e.Param("file_id")
-	f, err := models.FileFind(c.DB, fid)
+	f, err := models.FindFile(c.DB, fid)
 	if err != nil {
 		c.Debug("File not found", "hash", fid)
 		return e.NoContent(http.StatusNotFound)

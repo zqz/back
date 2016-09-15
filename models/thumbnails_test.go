@@ -5,7 +5,7 @@ import (
 	"reflect"
 
 	"github.com/vattle/sqlboiler/boil"
-	"github.com/vattle/sqlboiler/boil/randomize"
+	"github.com/vattle/sqlboiler/randomize"
 	"github.com/vattle/sqlboiler/strmangle"
 )
 
@@ -152,7 +152,7 @@ func testThumbnailsFind(t *testing.T) {
 		t.Error(err)
 	}
 
-	thumbnailFound, err := ThumbnailFind(tx, thumbnail.ID)
+	thumbnailFound, err := FindThumbnail(tx, thumbnail.ID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -272,7 +272,7 @@ func testThumbnailsCount(t *testing.T) {
 	}
 }
 
-var thumbnailDBTypes = map[string]string{"CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "ID": "uuid", "FileID": "uuid", "Size": "integer", "Hash": "text"}
+var thumbnailDBTypes = map[string]string{"ID": "uuid", "FileID": "uuid", "Size": "integer", "Hash": "text", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone"}
 
 func testThumbnailsInPrimaryKeyArgs(t *testing.T) {
 	t.Parallel()
@@ -385,7 +385,7 @@ func testThumbnailsHooks(t *testing.T) {
 		t.Errorf("Unable to randomize Thumbnail object: %s", err)
 	}
 
-	ThumbnailAddHook(boil.HookBeforeInsert, thumbnailBeforeInsertHook)
+	AddThumbnailHook(boil.BeforeInsertHook, thumbnailBeforeInsertHook)
 	if err = o.doBeforeInsertHooks(nil); err != nil {
 		t.Errorf("Unable to execute doBeforeInsertHooks: %s", err)
 	}
@@ -394,7 +394,7 @@ func testThumbnailsHooks(t *testing.T) {
 	}
 	thumbnailBeforeInsertHooks = []ThumbnailHook{}
 
-	ThumbnailAddHook(boil.HookAfterInsert, thumbnailAfterInsertHook)
+	AddThumbnailHook(boil.AfterInsertHook, thumbnailAfterInsertHook)
 	if err = o.doAfterInsertHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterInsertHooks: %s", err)
 	}
@@ -403,7 +403,7 @@ func testThumbnailsHooks(t *testing.T) {
 	}
 	thumbnailAfterInsertHooks = []ThumbnailHook{}
 
-	ThumbnailAddHook(boil.HookAfterSelect, thumbnailAfterSelectHook)
+	AddThumbnailHook(boil.AfterSelectHook, thumbnailAfterSelectHook)
 	if err = o.doAfterSelectHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterSelectHooks: %s", err)
 	}
@@ -412,7 +412,7 @@ func testThumbnailsHooks(t *testing.T) {
 	}
 	thumbnailAfterSelectHooks = []ThumbnailHook{}
 
-	ThumbnailAddHook(boil.HookBeforeUpdate, thumbnailBeforeUpdateHook)
+	AddThumbnailHook(boil.BeforeUpdateHook, thumbnailBeforeUpdateHook)
 	if err = o.doBeforeUpdateHooks(nil); err != nil {
 		t.Errorf("Unable to execute doBeforeUpdateHooks: %s", err)
 	}
@@ -421,7 +421,7 @@ func testThumbnailsHooks(t *testing.T) {
 	}
 	thumbnailBeforeUpdateHooks = []ThumbnailHook{}
 
-	ThumbnailAddHook(boil.HookAfterUpdate, thumbnailAfterUpdateHook)
+	AddThumbnailHook(boil.AfterUpdateHook, thumbnailAfterUpdateHook)
 	if err = o.doAfterUpdateHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterUpdateHooks: %s", err)
 	}
@@ -430,7 +430,7 @@ func testThumbnailsHooks(t *testing.T) {
 	}
 	thumbnailAfterUpdateHooks = []ThumbnailHook{}
 
-	ThumbnailAddHook(boil.HookBeforeDelete, thumbnailBeforeDeleteHook)
+	AddThumbnailHook(boil.BeforeDeleteHook, thumbnailBeforeDeleteHook)
 	if err = o.doBeforeDeleteHooks(nil); err != nil {
 		t.Errorf("Unable to execute doBeforeDeleteHooks: %s", err)
 	}
@@ -439,7 +439,7 @@ func testThumbnailsHooks(t *testing.T) {
 	}
 	thumbnailBeforeDeleteHooks = []ThumbnailHook{}
 
-	ThumbnailAddHook(boil.HookAfterDelete, thumbnailAfterDeleteHook)
+	AddThumbnailHook(boil.AfterDeleteHook, thumbnailAfterDeleteHook)
 	if err = o.doAfterDeleteHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterDeleteHooks: %s", err)
 	}
@@ -448,7 +448,7 @@ func testThumbnailsHooks(t *testing.T) {
 	}
 	thumbnailAfterDeleteHooks = []ThumbnailHook{}
 
-	ThumbnailAddHook(boil.HookBeforeUpsert, thumbnailBeforeUpsertHook)
+	AddThumbnailHook(boil.BeforeUpsertHook, thumbnailBeforeUpsertHook)
 	if err = o.doBeforeUpsertHooks(nil); err != nil {
 		t.Errorf("Unable to execute doBeforeUpsertHooks: %s", err)
 	}
@@ -457,7 +457,7 @@ func testThumbnailsHooks(t *testing.T) {
 	}
 	thumbnailBeforeUpsertHooks = []ThumbnailHook{}
 
-	ThumbnailAddHook(boil.HookAfterUpsert, thumbnailAfterUpsertHook)
+	AddThumbnailHook(boil.AfterUpsertHook, thumbnailAfterUpsertHook)
 	if err = o.doAfterUpsertHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterUpsertHooks: %s", err)
 	}
@@ -547,7 +547,7 @@ func testThumbnailToOneFile_File(t *testing.T) {
 	}
 
 	slice := ThumbnailSlice{&local}
-	if err = local.R.LoadFile(tx, false, &slice); err != nil {
+	if err = local.L.LoadFile(tx, false, &slice); err != nil {
 		t.Fatal(err)
 	}
 	if local.R.File == nil {
@@ -555,7 +555,7 @@ func testThumbnailToOneFile_File(t *testing.T) {
 	}
 
 	local.R.File = nil
-	if err = local.R.LoadFile(tx, true, &local); err != nil {
+	if err = local.L.LoadFile(tx, true, &local); err != nil {
 		t.Fatal(err)
 	}
 	if local.R.File == nil {

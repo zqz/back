@@ -1,11 +1,11 @@
 package models
 
 import (
-	"reflect"
 	"testing"
+	"reflect"
 
 	"github.com/vattle/sqlboiler/boil"
-	"github.com/vattle/sqlboiler/boil/randomize"
+	"github.com/vattle/sqlboiler/randomize"
 	"github.com/vattle/sqlboiler/strmangle"
 )
 
@@ -152,7 +152,7 @@ func testChunksFind(t *testing.T) {
 		t.Error(err)
 	}
 
-	chunkFound, err := ChunkFind(tx, chunk.ID)
+	chunkFound, err := FindChunk(tx, chunk.ID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -272,7 +272,7 @@ func testChunksCount(t *testing.T) {
 	}
 }
 
-var chunkDBTypes = map[string]string{"ID": "uuid", "FileID": "uuid", "Size": "integer", "Hash": "text", "Position": "integer", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone"}
+var chunkDBTypes = map[string]string{"Hash": "text", "Position": "integer", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "ID": "uuid", "FileID": "uuid", "Size": "integer"}
 
 func testChunksInPrimaryKeyArgs(t *testing.T) {
 	t.Parallel()
@@ -385,7 +385,7 @@ func testChunksHooks(t *testing.T) {
 		t.Errorf("Unable to randomize Chunk object: %s", err)
 	}
 
-	ChunkAddHook(boil.HookBeforeInsert, chunkBeforeInsertHook)
+	AddChunkHook(boil.BeforeInsertHook, chunkBeforeInsertHook)
 	if err = o.doBeforeInsertHooks(nil); err != nil {
 		t.Errorf("Unable to execute doBeforeInsertHooks: %s", err)
 	}
@@ -394,7 +394,7 @@ func testChunksHooks(t *testing.T) {
 	}
 	chunkBeforeInsertHooks = []ChunkHook{}
 
-	ChunkAddHook(boil.HookAfterInsert, chunkAfterInsertHook)
+	AddChunkHook(boil.AfterInsertHook, chunkAfterInsertHook)
 	if err = o.doAfterInsertHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterInsertHooks: %s", err)
 	}
@@ -403,7 +403,7 @@ func testChunksHooks(t *testing.T) {
 	}
 	chunkAfterInsertHooks = []ChunkHook{}
 
-	ChunkAddHook(boil.HookAfterSelect, chunkAfterSelectHook)
+	AddChunkHook(boil.AfterSelectHook, chunkAfterSelectHook)
 	if err = o.doAfterSelectHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterSelectHooks: %s", err)
 	}
@@ -412,7 +412,7 @@ func testChunksHooks(t *testing.T) {
 	}
 	chunkAfterSelectHooks = []ChunkHook{}
 
-	ChunkAddHook(boil.HookBeforeUpdate, chunkBeforeUpdateHook)
+	AddChunkHook(boil.BeforeUpdateHook, chunkBeforeUpdateHook)
 	if err = o.doBeforeUpdateHooks(nil); err != nil {
 		t.Errorf("Unable to execute doBeforeUpdateHooks: %s", err)
 	}
@@ -421,7 +421,7 @@ func testChunksHooks(t *testing.T) {
 	}
 	chunkBeforeUpdateHooks = []ChunkHook{}
 
-	ChunkAddHook(boil.HookAfterUpdate, chunkAfterUpdateHook)
+	AddChunkHook(boil.AfterUpdateHook, chunkAfterUpdateHook)
 	if err = o.doAfterUpdateHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterUpdateHooks: %s", err)
 	}
@@ -430,7 +430,7 @@ func testChunksHooks(t *testing.T) {
 	}
 	chunkAfterUpdateHooks = []ChunkHook{}
 
-	ChunkAddHook(boil.HookBeforeDelete, chunkBeforeDeleteHook)
+	AddChunkHook(boil.BeforeDeleteHook, chunkBeforeDeleteHook)
 	if err = o.doBeforeDeleteHooks(nil); err != nil {
 		t.Errorf("Unable to execute doBeforeDeleteHooks: %s", err)
 	}
@@ -439,7 +439,7 @@ func testChunksHooks(t *testing.T) {
 	}
 	chunkBeforeDeleteHooks = []ChunkHook{}
 
-	ChunkAddHook(boil.HookAfterDelete, chunkAfterDeleteHook)
+	AddChunkHook(boil.AfterDeleteHook, chunkAfterDeleteHook)
 	if err = o.doAfterDeleteHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterDeleteHooks: %s", err)
 	}
@@ -448,7 +448,7 @@ func testChunksHooks(t *testing.T) {
 	}
 	chunkAfterDeleteHooks = []ChunkHook{}
 
-	ChunkAddHook(boil.HookBeforeUpsert, chunkBeforeUpsertHook)
+	AddChunkHook(boil.BeforeUpsertHook, chunkBeforeUpsertHook)
 	if err = o.doBeforeUpsertHooks(nil); err != nil {
 		t.Errorf("Unable to execute doBeforeUpsertHooks: %s", err)
 	}
@@ -457,7 +457,7 @@ func testChunksHooks(t *testing.T) {
 	}
 	chunkBeforeUpsertHooks = []ChunkHook{}
 
-	ChunkAddHook(boil.HookAfterUpsert, chunkAfterUpsertHook)
+	AddChunkHook(boil.AfterUpsertHook, chunkAfterUpsertHook)
 	if err = o.doAfterUpsertHooks(nil); err != nil {
 		t.Errorf("Unable to execute doAfterUpsertHooks: %s", err)
 	}
@@ -519,6 +519,9 @@ func testChunksInsertWhitelist(t *testing.T) {
 	}
 }
 
+
+
+
 func testChunkToOneFile_File(t *testing.T) {
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
@@ -544,7 +547,7 @@ func testChunkToOneFile_File(t *testing.T) {
 	}
 
 	slice := ChunkSlice{&local}
-	if err = local.R.LoadFile(tx, false, &slice); err != nil {
+	if err = local.L.LoadFile(tx, false, &slice); err != nil {
 		t.Fatal(err)
 	}
 	if local.R.File == nil {
@@ -552,13 +555,16 @@ func testChunkToOneFile_File(t *testing.T) {
 	}
 
 	local.R.File = nil
-	if err = local.R.LoadFile(tx, true, &local); err != nil {
+	if err = local.L.LoadFile(tx, true, &local); err != nil {
 		t.Fatal(err)
 	}
 	if local.R.File == nil {
 		t.Error("struct should have been eager loaded")
 	}
 }
+
+
+
 
 func testChunkToOneSetOpFile_File(t *testing.T) {
 	var err error
@@ -824,3 +830,4 @@ func testChunksUpsert(t *testing.T) {
 		t.Error("want one record, got:", count)
 	}
 }
+

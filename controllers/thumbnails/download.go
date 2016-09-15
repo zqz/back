@@ -16,7 +16,7 @@ func (t ThumbnailsController) Download(e echo.Context) error {
 		return e.NoContent(http.StatusNotFound)
 	}
 
-	thumb, err := models.ThumbnailFind(t.DB, id)
+	thumb, err := models.FindThumbnail(t.DB, id)
 	if err != nil {
 		return err
 	}
