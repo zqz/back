@@ -1,7 +1,9 @@
 package files
 
 import (
+	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/zqzca/back/lib"
@@ -25,6 +27,7 @@ func (f FileController) Download(e echo.Context) error {
 	res.Header().Set("Content-Type", file.Type)
 	res.Header().Set("Etag", etag)
 	res.Header().Set("Cache-Control", "max-age=2592000") // 30 days
+	res.Header().Set("Content-Disposition", "inline")    // 30 days
 
 	// If set just return early.
 	if match := e.Request().Header().Get("If-None-Match"); match != "" {
@@ -35,5 +38,11 @@ func (f FileController) Download(e echo.Context) error {
 		}
 	}
 
-	return e.File(lib.LocalPath(file.Hash))
+	data, err := os.Open(lib.LocalPath(file.Hash))
+	if err != nil {
+		return e.NoContent(http.StatusNotFound)
+	}
+	defer data.Close()
+	_, err = io.Copy(res, data)
+	return err
 }

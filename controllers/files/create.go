@@ -29,6 +29,10 @@ func (f FileController) Create(e echo.Context) error {
 		return err
 	}
 
+	if file.NumChunks < 1 {
+		return e.NoContent(http.StatusUnprocessableEntity)
+	}
+
 	if ok, err := fileExistsWithHash(f.DB, file.Hash); err != nil {
 		return err
 	} else if ok {
@@ -43,5 +47,5 @@ func (f FileController) Create(e echo.Context) error {
 		return err
 	}
 
-	return e.JSON(http.StatusOK, file)
+	return e.JSON(http.StatusCreated, file)
 }

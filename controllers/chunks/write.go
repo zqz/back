@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
@@ -34,7 +35,6 @@ func (c ChunkController) Write(e echo.Context) error {
 		return e.NoContent(http.StatusRequestEntityTooLarge)
 	}
 
-	fmt.Println("yyyyyyyy")
 	// Make sure the file exists.
 	fid := e.Param("file_id")
 	f, err := models.FileFind(c.DB, fid)
@@ -43,13 +43,11 @@ func (c ChunkController) Write(e echo.Context) error {
 		return e.NoContent(http.StatusNotFound)
 	}
 
-	fmt.Println("awdawdwa")
 	chunkID, err := strconv.Atoi(e.Param("chunk_id"))
 	if err != nil {
 		c.Error("Failed to convert chunk id into integer")
 		return err
 	}
-	fmt.Println("didiid")
 
 	clientHash := e.Param("hash")
 	if c.chunkExists(f.ID, clientHash) {
@@ -68,6 +66,7 @@ func (c ChunkController) Write(e echo.Context) error {
 
 		return e.NoContent(http.StatusBadRequest)
 	}
+	time.Sleep(500 * time.Millisecond)
 
 	b := bytes.NewReader(buf)
 	hash, _ := lib.Hash(b)

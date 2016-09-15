@@ -3,38 +3,38 @@ package files
 import (
 	"net/http"
 
+	"github.com/zqzca/back/lib"
+	"github.com/zqzca/back/models"
+	"github.com/zqzca/back/processors"
 	"github.com/zqzca/echo"
+
+	. "github.com/vattle/sqlboiler/boil/qm"
 )
 
 // Process builds thumbnails
 func (f FileController) Process(e echo.Context) error {
 	f.Debug("processing")
 
-	//go func() {
-	//f.Debug("inprocessing")
+	slug := e.Param("slug")
+	file, err := models.Files(f.DB, Where("slug=$1", slug)).One()
 
-	//fileID := c.Param("id")
-	//file, err := file.FindByID(db.Connection, fileID)
+	if err != nil {
+		return err
+	}
 
-	//if file.State == Processing {
-	//	f.Debug("file already being processed")
-	//	return
-	//}
+	if file.State == lib.FileProcessing {
+		f.Debug("file already being processed")
+		return e.NoContent(http.StatusConflict)
+	}
 
-	//if err != nil {
-	//	f.Debug("failed to find file", "err", err)
-	//	return
-	//}
+	err = processors.CompleteFile(f.Dependencies, file)
 
-	//tx, err := boil.Begin()
-	//if err != nil {
-	//	f.Debug("couldn't open transaction", "err", err)
-	//	return
-	//}
-	//err := models.Thumbnails(Where("file_id=$1", f.ID)).DeleteAll()
-	//// f.Process(tx) TODO(dylanj): Models derp derp derp
-	//tx.Commit()
-	//}()
+	if err != nil {
+		f.Debug("failed to complete file", "err", err)
+		return err
+	}
+
+	f.Info("Finished File", "name", file.Name, "id", file.ID)
 
 	return e.NoContent(http.StatusOK)
 }
