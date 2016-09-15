@@ -5,10 +5,10 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"html/template"
 	"math/rand"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"gopkg.in/nullbio/null.v4"
@@ -58,6 +58,18 @@ func redirect() {
 
 var indexPage null.String
 
+type assets struct {
+	Js  []string
+	Css []string
+}
+
+type IndexData struct {
+	Title      string
+	Cdn        template.JSStr
+	LiveReload bool
+	Assets     assets
+}
+
 func IndexPage(c echo.Context) error {
 	if indexPage.Valid {
 		return c.HTML(200, indexPage.String)
@@ -70,54 +82,57 @@ func IndexPage(c echo.Context) error {
 	}
 
 	js := []string{
-		"helpers", "alerts", "table_component", "authentication_component",
-		"router", "login", "login_component", "menu", "header_component",
-		"footer_component", "app",
+		"lib/dominate", "lib/filesize", "helpers", "alerts", "table_component",
+		"authentication_component", "router", "login", "login_component", "menu",
+		"header_component", "footer_component", "app",
 	}
 
-	libs := []string{
-		"dominate", "filesize",
+	indexTemplate := `{{ $cdn := .Cdn -}}
+<!DOCTYPE HTML>
+  <html>
+    <head>
+      <meta http-equiv='content-type' content='text/html; charset=utf-8'>
+      <title>zqz.ca</title>
+      <link rel='shortcut icon' href='{{ .Cdn }}/favicon.ico'/>
+      {{- range .Assets.Css }}
+      <link rel='stylesheet' media='screen' href='{{ $cdn }}/{{ . }}.css'/>
+      {{- end }}
+    </head>
+    <body>
+      <script type='text/javascript'>window.cdn = {{$cdn}};</script>
+      {{- with .LiveReload }}
+      <script type='text/javascript' src='{{.}}'></script>
+      {{- end }}
+      {{- range .Assets.Js }}
+      <script type='text/javascript' src='{{$cdn}}/{{.}}.js'></script>
+      {{- end }}
+    </body>
+  </html>`
+
+	indexAssets := assets{
+		Js:  js,
+		Css: css,
+	}
+
+	indexAction := &IndexData{
+		Title:      "zqz.ca",
+		LiveReload: true,
+		Cdn:        template.JSStr("/assets"),
+		Assets:     indexAssets,
+	}
+
+	t := template.New("Person template")
+	t, err := t.Parse(indexTemplate)
+	if err != nil {
+		panic(err)
 	}
 
 	var output bytes.Buffer
 
-	output.WriteString("<!DOCTYPE HTML><html><head>")
-	output.WriteString("<meta http-equiv='content-type' content='text/html; charset=utf-8'>")
-	output.WriteString("<title>zqz.ca</title>")
-	output.WriteString("<link rel='shortcut icon' href='/favicon.ico'/>")
-	output.WriteString("<link href='//fonts.googleapis.com/css?family=Material+Icons' rel='stylesheet' type='text/css'>")
-
-	for _, dep := range css {
-		output.WriteString("<link rel='stylesheet' media='screen' href='/assets/")
-		output.WriteString(dep)
-		output.WriteString(".css'/>")
+	err = t.Execute(&output, indexAction)
+	if err != nil {
+		panic(err)
 	}
-
-	output.WriteString("</head>")
-	output.WriteString("<body>")
-
-	// IF DEV
-
-	if *livereload {
-		output.WriteString("<script src='http://")
-		output.WriteString(strings.Split(c.Request().Host(), ":")[0])
-		output.WriteString(":35729/livereload.js?snipver=1")
-		output.WriteString("'></script>")
-	}
-
-	for _, dep := range libs {
-		output.WriteString("<script type='text/javascript' src='/assets/lib/")
-		output.WriteString(dep)
-		output.WriteString(".js'></script>")
-	}
-
-	for _, dep := range js {
-		output.WriteString("<script type='text/javascript' src='/assets/")
-		output.WriteString(dep)
-		output.WriteString(".js'></script>")
-	}
-
-	output.WriteString("</body></html>")
 
 	indexPage = null.StringFrom(output.String())
 
@@ -129,6 +144,9 @@ var livereload *bool
 func main() {
 	secure := flag.Bool("secure", false, "Enable HTTPS")
 	livereload = flag.Bool("livereload", false, "Enable Live Reload")
+	cdnURL := flag.String("cdn", "", "CDN URL")
+
+	fmt.Println(cdnURL)
 
 	flag.Parse()
 
