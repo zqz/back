@@ -23,7 +23,7 @@ sudorun:
 		env ${DEV_ENV} ./zqz
 
 run:
-		env $(DEV_ENV) go run -v *.go -livereload
+		env $(DEV_ENV) go run -v *.go -livereload -cdn="/assets"
 
 testrun:
 		env $(TEST_ENV) ginkgo watch -r | colortest

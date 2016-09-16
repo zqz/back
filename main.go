@@ -1,17 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"html/template"
 	"math/rand"
 	"net/http"
 	"os"
 	"time"
-
-	"gopkg.in/nullbio/null.v4"
 
 	"golang.org/x/net/http2"
 
@@ -54,89 +50,6 @@ func redirect() {
 			http.Redirect(w, req, "https://"+req.Host+req.RequestURI, http.StatusMovedPermanently)
 		},
 	))
-}
-
-var indexPage null.String
-
-type assets struct {
-	Js  []string
-	Css []string
-}
-
-type IndexData struct {
-	Title      string
-	Cdn        template.JSStr
-	LiveReload bool
-	Assets     assets
-}
-
-func IndexPage(c echo.Context) error {
-	if indexPage.Valid {
-		return c.HTML(200, indexPage.String)
-	}
-
-	css := []string{
-		"login", "menu", "registration", "table", "authentication",
-		"uploader", "upload_file", "style", "alerts", "dashboard",
-		"header", "footer", "file_list_component", "file_view",
-	}
-
-	js := []string{
-		"lib/dominate", "lib/filesize", "helpers", "alerts", "table_component",
-		"authentication_component", "router", "login", "login_component", "menu",
-		"header_component", "footer_component", "app",
-	}
-
-	indexTemplate := `{{ $cdn := .Cdn -}}
-<!DOCTYPE HTML>
-  <html>
-    <head>
-      <meta http-equiv='content-type' content='text/html; charset=utf-8'>
-      <title>zqz.ca</title>
-      <link rel='shortcut icon' href='{{ .Cdn }}/favicon.ico'/>
-      {{- range .Assets.Css }}
-      <link rel='stylesheet' media='screen' href='{{ $cdn }}/{{ . }}.css'/>
-      {{- end }}
-    </head>
-    <body>
-      <script type='text/javascript'>window.cdn = {{$cdn}};</script>
-      {{- with .LiveReload }}
-      <script type='text/javascript' src='{{.}}'></script>
-      {{- end }}
-      {{- range .Assets.Js }}
-      <script type='text/javascript' src='{{$cdn}}/{{.}}.js'></script>
-      {{- end }}
-    </body>
-  </html>`
-
-	indexAssets := assets{
-		Js:  js,
-		Css: css,
-	}
-
-	indexAction := &IndexData{
-		Title:      "zqz.ca",
-		LiveReload: true,
-		Cdn:        template.JSStr("/assets"),
-		Assets:     indexAssets,
-	}
-
-	t := template.New("Person template")
-	t, err := t.Parse(indexTemplate)
-	if err != nil {
-		panic(err)
-	}
-
-	var output bytes.Buffer
-
-	err = t.Execute(&output, indexAction)
-	if err != nil {
-		panic(err)
-	}
-
-	indexPage = null.StringFrom(output.String())
-
-	return c.HTML(200, indexPage.String)
 }
 
 var livereload *bool
@@ -196,7 +109,7 @@ func main() {
 		DB:     db,
 	}
 
-	e.Get("/", IndexPage)
+	e.Get("/", dashboard.AppIndex)
 
 	// Files
 	files := &files.FileController{deps}
@@ -232,8 +145,8 @@ func main() {
 	v1.Post("/p2p/:id", p2p.Answer)
 
 	// Dashboard
-	dashboard := dashboard.DashboardController{deps}
-	v1.Get("/dashboard", dashboard.Index)
+	dash := dashboard.DashboardController{deps}
+	v1.Get("/dashboard", dash.Index)
 
 	// r := api.Group("/users")
 	// r.Use(JWTAuth())
@@ -251,7 +164,7 @@ func main() {
 	// }))
 
 	e.Static("/assets", "assets")
-	e.Get("/*", IndexPage)
+	e.Get("/*", dashboard.AppIndex)
 
 	var s *standard.Server
 
