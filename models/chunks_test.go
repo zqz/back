@@ -1,8 +1,9 @@
 package models
 
 import (
-	"testing"
+	"bytes"
 	"reflect"
+	"testing"
 
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/vattle/sqlboiler/randomize"
@@ -272,61 +273,6 @@ func testChunksCount(t *testing.T) {
 	}
 }
 
-var chunkDBTypes = map[string]string{"Hash": "text", "Position": "integer", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone", "ID": "uuid", "FileID": "uuid", "Size": "integer"}
-
-func testChunksInPrimaryKeyArgs(t *testing.T) {
-	t.Parallel()
-
-	var err error
-	var o Chunk
-	o = Chunk{}
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &o, chunkDBTypes, true); err != nil {
-		t.Errorf("Could not randomize struct: %s", err)
-	}
-
-	args := o.inPrimaryKeyArgs()
-
-	if len(args) != len(chunkPrimaryKeyColumns) {
-		t.Errorf("Expected args to be len %d, but got %d", len(chunkPrimaryKeyColumns), len(args))
-	}
-
-	if o.ID != args[0] {
-		t.Errorf("Expected args[0] to be value of o.ID, but got %#v", args[0])
-	}
-}
-
-func testChunksSliceInPrimaryKeyArgs(t *testing.T) {
-	t.Parallel()
-
-	var err error
-	o := make(ChunkSlice, 3)
-
-	seed := randomize.NewSeed()
-	for i := range o {
-		o[i] = &Chunk{}
-		if err = randomize.Struct(seed, o[i], chunkDBTypes, true); err != nil {
-			t.Errorf("Could not randomize struct: %s", err)
-		}
-	}
-
-	args := o.inPrimaryKeyArgs()
-
-	if len(args) != len(chunkPrimaryKeyColumns)*3 {
-		t.Errorf("Expected args to be len %d, but got %d", len(chunkPrimaryKeyColumns)*3, len(args))
-	}
-
-	argC := 0
-	for i := 0; i < 3; i++ {
-
-		if o[i].ID != args[argC] {
-			t.Errorf("Expected args[%d] to be value of o.ID, but got %#v", i, args[i])
-		}
-		argC++
-	}
-}
-
 func chunkBeforeInsertHook(e boil.Executor, o *Chunk) error {
 	*o = Chunk{}
 	return nil
@@ -522,12 +468,23 @@ func testChunksInsertWhitelist(t *testing.T) {
 
 
 
+
+
+
 func testChunkToOneFile_File(t *testing.T) {
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
-	var foreign File
 	var local Chunk
+	var foreign File
+
+	seed := randomize.NewSeed()
+	if err := randomize.Struct(seed, &local, chunkDBTypes, true, chunkColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Chunk struct: %s", err)
+	}
+	if err := randomize.Struct(seed, &foreign, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
+	}
 
 	if err := foreign.Insert(tx); err != nil {
 		t.Fatal(err)
@@ -537,6 +494,7 @@ func testChunkToOneFile_File(t *testing.T) {
 	if err := local.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
+
 	check, err := local.File(tx).One()
 	if err != nil {
 		t.Fatal(err)
@@ -565,7 +523,6 @@ func testChunkToOneFile_File(t *testing.T) {
 
 
 
-
 func testChunkToOneSetOpFile_File(t *testing.T) {
 	var err error
 
@@ -576,13 +533,13 @@ func testChunkToOneSetOpFile_File(t *testing.T) {
 	var b, c File
 
 	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, chunkDBTypes, false, chunkPrimaryKeyColumns...); err != nil {
+	if err = randomize.Struct(seed, &a, chunkDBTypes, false, strmangle.SetComplement(chunkPrimaryKeyColumns, chunkColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
-	if err = randomize.Struct(seed, &b, fileDBTypes, false, filePrimaryKeyColumns...); err != nil {
+	if err = randomize.Struct(seed, &b, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
-	if err = randomize.Struct(seed, &c, fileDBTypes, false, filePrimaryKeyColumns...); err != nil {
+	if err = randomize.Struct(seed, &c, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
 
@@ -599,11 +556,15 @@ func testChunkToOneSetOpFile_File(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if a.FileID != x.ID {
-			t.Error("foreign key was wrong value", a.FileID)
-		}
 		if a.R.File != x {
 			t.Error("relationship struct not set to correct value")
+		}
+
+		if x.R.Chunks[0] != &a {
+			t.Error("failed to append to foreign relationship struct")
+		}
+		if a.FileID != x.ID {
+			t.Error("foreign key was wrong value", a.FileID)
 		}
 
 		zero := reflect.Zero(reflect.TypeOf(a.FileID))
@@ -616,12 +577,9 @@ func testChunkToOneSetOpFile_File(t *testing.T) {
 		if a.FileID != x.ID {
 			t.Error("foreign key was wrong value", a.FileID, x.ID)
 		}
-
-		if x.R.Chunks[0] != &a {
-			t.Error("failed to append to foreign relationship struct")
-		}
 	}
 }
+
 func testChunksReload(t *testing.T) {
 	t.Parallel()
 
@@ -692,8 +650,17 @@ func testChunksSelect(t *testing.T) {
 	}
 }
 
+var (
+	chunkDBTypes = map[string]string{"CreatedAt": "timestamp without time zone", "FileID": "uuid", "Hash": "text", "ID": "uuid", "Position": "integer", "Size": "integer", "UpdatedAt": "timestamp without time zone"}
+	_            = bytes.MinRead
+)
+
 func testChunksUpdate(t *testing.T) {
 	t.Parallel()
+
+	if len(chunkColumns) == len(chunkPrimaryKeyColumns) {
+		t.Skip("Skipping table with only primary key columns")
+	}
 
 	seed := randomize.NewSeed()
 	var err error
@@ -717,27 +684,21 @@ func testChunksUpdate(t *testing.T) {
 		t.Error("want one record, got:", count)
 	}
 
-	if err = randomize.Struct(seed, chunk, chunkDBTypes, true, chunkPrimaryKeyColumns...); err != nil {
+	if err = randomize.Struct(seed, chunk, chunkDBTypes, true, chunkColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Chunk struct: %s", err)
 	}
 
-	// If table only contains primary key columns, we need to pass
-	// them into a whitelist to get a valid test result,
-	// otherwise the Update method will error because it will not be able to
-	// generate a whitelist (due to it excluding primary key columns).
-	if strmangle.StringSliceMatch(chunkColumns, chunkPrimaryKeyColumns) {
-		if err = chunk.Update(tx, chunkPrimaryKeyColumns...); err != nil {
-			t.Error(err)
-		}
-	} else {
-		if err = chunk.Update(tx); err != nil {
-			t.Error(err)
-		}
+	if err = chunk.Update(tx); err != nil {
+		t.Error(err)
 	}
 }
 
 func testChunksSliceUpdateAll(t *testing.T) {
 	t.Parallel()
+
+	if len(chunkColumns) == len(chunkPrimaryKeyColumns) {
+		t.Skip("Skipping table with only primary key columns")
+	}
 
 	seed := randomize.NewSeed()
 	var err error
@@ -790,6 +751,10 @@ func testChunksSliceUpdateAll(t *testing.T) {
 
 func testChunksUpsert(t *testing.T) {
 	t.Parallel()
+
+	if len(chunkColumns) == len(chunkPrimaryKeyColumns) {
+		t.Skip("Skipping table with only primary key columns")
+	}
 
 	seed := randomize.NewSeed()
 	var err error

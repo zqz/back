@@ -1,8 +1,9 @@
 package models
 
 import (
-	"testing"
+	"bytes"
 	"reflect"
+	"testing"
 
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/vattle/sqlboiler/randomize"
@@ -272,61 +273,6 @@ func testThumbnailsCount(t *testing.T) {
 	}
 }
 
-var thumbnailDBTypes = map[string]string{"ID": "uuid", "FileID": "uuid", "Size": "integer", "Hash": "text", "CreatedAt": "timestamp without time zone", "UpdatedAt": "timestamp without time zone"}
-
-func testThumbnailsInPrimaryKeyArgs(t *testing.T) {
-	t.Parallel()
-
-	var err error
-	var o Thumbnail
-	o = Thumbnail{}
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &o, thumbnailDBTypes, true); err != nil {
-		t.Errorf("Could not randomize struct: %s", err)
-	}
-
-	args := o.inPrimaryKeyArgs()
-
-	if len(args) != len(thumbnailPrimaryKeyColumns) {
-		t.Errorf("Expected args to be len %d, but got %d", len(thumbnailPrimaryKeyColumns), len(args))
-	}
-
-	if o.ID != args[0] {
-		t.Errorf("Expected args[0] to be value of o.ID, but got %#v", args[0])
-	}
-}
-
-func testThumbnailsSliceInPrimaryKeyArgs(t *testing.T) {
-	t.Parallel()
-
-	var err error
-	o := make(ThumbnailSlice, 3)
-
-	seed := randomize.NewSeed()
-	for i := range o {
-		o[i] = &Thumbnail{}
-		if err = randomize.Struct(seed, o[i], thumbnailDBTypes, true); err != nil {
-			t.Errorf("Could not randomize struct: %s", err)
-		}
-	}
-
-	args := o.inPrimaryKeyArgs()
-
-	if len(args) != len(thumbnailPrimaryKeyColumns)*3 {
-		t.Errorf("Expected args to be len %d, but got %d", len(thumbnailPrimaryKeyColumns)*3, len(args))
-	}
-
-	argC := 0
-	for i := 0; i < 3; i++ {
-
-		if o[i].ID != args[argC] {
-			t.Errorf("Expected args[%d] to be value of o.ID, but got %#v", i, args[i])
-		}
-		argC++
-	}
-}
-
 func thumbnailBeforeInsertHook(e boil.Executor, o *Thumbnail) error {
 	*o = Thumbnail{}
 	return nil
@@ -522,12 +468,23 @@ func testThumbnailsInsertWhitelist(t *testing.T) {
 
 
 
+
+
+
 func testThumbnailToOneFile_File(t *testing.T) {
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
-	var foreign File
 	var local Thumbnail
+	var foreign File
+
+	seed := randomize.NewSeed()
+	if err := randomize.Struct(seed, &local, thumbnailDBTypes, true, thumbnailColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Thumbnail struct: %s", err)
+	}
+	if err := randomize.Struct(seed, &foreign, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
+	}
 
 	if err := foreign.Insert(tx); err != nil {
 		t.Fatal(err)
@@ -537,6 +494,7 @@ func testThumbnailToOneFile_File(t *testing.T) {
 	if err := local.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
+
 	check, err := local.File(tx).One()
 	if err != nil {
 		t.Fatal(err)
@@ -565,7 +523,6 @@ func testThumbnailToOneFile_File(t *testing.T) {
 
 
 
-
 func testThumbnailToOneSetOpFile_File(t *testing.T) {
 	var err error
 
@@ -576,13 +533,13 @@ func testThumbnailToOneSetOpFile_File(t *testing.T) {
 	var b, c File
 
 	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, thumbnailDBTypes, false, thumbnailPrimaryKeyColumns...); err != nil {
+	if err = randomize.Struct(seed, &a, thumbnailDBTypes, false, strmangle.SetComplement(thumbnailPrimaryKeyColumns, thumbnailColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
-	if err = randomize.Struct(seed, &b, fileDBTypes, false, filePrimaryKeyColumns...); err != nil {
+	if err = randomize.Struct(seed, &b, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
-	if err = randomize.Struct(seed, &c, fileDBTypes, false, filePrimaryKeyColumns...); err != nil {
+	if err = randomize.Struct(seed, &c, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
 
@@ -599,11 +556,15 @@ func testThumbnailToOneSetOpFile_File(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if a.FileID != x.ID {
-			t.Error("foreign key was wrong value", a.FileID)
-		}
 		if a.R.File != x {
 			t.Error("relationship struct not set to correct value")
+		}
+
+		if x.R.Thumbnails[0] != &a {
+			t.Error("failed to append to foreign relationship struct")
+		}
+		if a.FileID != x.ID {
+			t.Error("foreign key was wrong value", a.FileID)
 		}
 
 		zero := reflect.Zero(reflect.TypeOf(a.FileID))
@@ -616,12 +577,9 @@ func testThumbnailToOneSetOpFile_File(t *testing.T) {
 		if a.FileID != x.ID {
 			t.Error("foreign key was wrong value", a.FileID, x.ID)
 		}
-
-		if x.R.Thumbnails[0] != &a {
-			t.Error("failed to append to foreign relationship struct")
-		}
 	}
 }
+
 func testThumbnailsReload(t *testing.T) {
 	t.Parallel()
 
@@ -692,8 +650,17 @@ func testThumbnailsSelect(t *testing.T) {
 	}
 }
 
+var (
+	thumbnailDBTypes = map[string]string{"CreatedAt": "timestamp without time zone", "FileID": "uuid", "Hash": "text", "ID": "uuid", "Size": "integer", "UpdatedAt": "timestamp without time zone"}
+	_                = bytes.MinRead
+)
+
 func testThumbnailsUpdate(t *testing.T) {
 	t.Parallel()
+
+	if len(thumbnailColumns) == len(thumbnailPrimaryKeyColumns) {
+		t.Skip("Skipping table with only primary key columns")
+	}
 
 	seed := randomize.NewSeed()
 	var err error
@@ -717,27 +684,21 @@ func testThumbnailsUpdate(t *testing.T) {
 		t.Error("want one record, got:", count)
 	}
 
-	if err = randomize.Struct(seed, thumbnail, thumbnailDBTypes, true, thumbnailPrimaryKeyColumns...); err != nil {
+	if err = randomize.Struct(seed, thumbnail, thumbnailDBTypes, true, thumbnailColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Thumbnail struct: %s", err)
 	}
 
-	// If table only contains primary key columns, we need to pass
-	// them into a whitelist to get a valid test result,
-	// otherwise the Update method will error because it will not be able to
-	// generate a whitelist (due to it excluding primary key columns).
-	if strmangle.StringSliceMatch(thumbnailColumns, thumbnailPrimaryKeyColumns) {
-		if err = thumbnail.Update(tx, thumbnailPrimaryKeyColumns...); err != nil {
-			t.Error(err)
-		}
-	} else {
-		if err = thumbnail.Update(tx); err != nil {
-			t.Error(err)
-		}
+	if err = thumbnail.Update(tx); err != nil {
+		t.Error(err)
 	}
 }
 
 func testThumbnailsSliceUpdateAll(t *testing.T) {
 	t.Parallel()
+
+	if len(thumbnailColumns) == len(thumbnailPrimaryKeyColumns) {
+		t.Skip("Skipping table with only primary key columns")
+	}
 
 	seed := randomize.NewSeed()
 	var err error
@@ -790,6 +751,10 @@ func testThumbnailsSliceUpdateAll(t *testing.T) {
 
 func testThumbnailsUpsert(t *testing.T) {
 	t.Parallel()
+
+	if len(thumbnailColumns) == len(thumbnailPrimaryKeyColumns) {
+		t.Skip("Skipping table with only primary key columns")
+	}
 
 	seed := randomize.NewSeed()
 	var err error

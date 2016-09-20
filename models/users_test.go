@@ -1,8 +1,9 @@
 package models
 
 import (
-	"testing"
+	"bytes"
 	"reflect"
+	"testing"
 
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/vattle/sqlboiler/randomize"
@@ -272,61 +273,6 @@ func testUsersCount(t *testing.T) {
 	}
 }
 
-var userDBTypes = map[string]string{"UpdatedAt": "timestamp without time zone", "FirstName": "character varying", "LastName": "character varying", "Username": "character varying", "Email": "character varying", "Hash": "character varying", "CreatedAt": "timestamp without time zone", "ID": "uuid", "Phone": "character varying", "Banned": "boolean"}
-
-func testUsersInPrimaryKeyArgs(t *testing.T) {
-	t.Parallel()
-
-	var err error
-	var o User
-	o = User{}
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &o, userDBTypes, true); err != nil {
-		t.Errorf("Could not randomize struct: %s", err)
-	}
-
-	args := o.inPrimaryKeyArgs()
-
-	if len(args) != len(userPrimaryKeyColumns) {
-		t.Errorf("Expected args to be len %d, but got %d", len(userPrimaryKeyColumns), len(args))
-	}
-
-	if o.ID != args[0] {
-		t.Errorf("Expected args[0] to be value of o.ID, but got %#v", args[0])
-	}
-}
-
-func testUsersSliceInPrimaryKeyArgs(t *testing.T) {
-	t.Parallel()
-
-	var err error
-	o := make(UserSlice, 3)
-
-	seed := randomize.NewSeed()
-	for i := range o {
-		o[i] = &User{}
-		if err = randomize.Struct(seed, o[i], userDBTypes, true); err != nil {
-			t.Errorf("Could not randomize struct: %s", err)
-		}
-	}
-
-	args := o.inPrimaryKeyArgs()
-
-	if len(args) != len(userPrimaryKeyColumns)*3 {
-		t.Errorf("Expected args to be len %d, but got %d", len(userPrimaryKeyColumns)*3, len(args))
-	}
-
-	argC := 0
-	for i := 0; i < 3; i++ {
-
-		if o[i].ID != args[argC] {
-			t.Errorf("Expected args[%d] to be value of o.ID, but got %#v", i, args[i])
-		}
-		argC++
-	}
-}
-
 func userBeforeInsertHook(e boil.Executor, o *User) error {
 	*o = User{}
 	return nil
@@ -523,6 +469,12 @@ func testUsersInsertWhitelist(t *testing.T) {
 
 
 
+
+
+
+
+
+
 func testUsersReload(t *testing.T) {
 	t.Parallel()
 
@@ -593,8 +545,17 @@ func testUsersSelect(t *testing.T) {
 	}
 }
 
+var (
+	userDBTypes = map[string]string{"Banned": "boolean", "CreatedAt": "timestamp without time zone", "Email": "character varying", "FirstName": "character varying", "Hash": "character varying", "ID": "uuid", "LastName": "character varying", "Phone": "character varying", "UpdatedAt": "timestamp without time zone", "Username": "character varying"}
+	_           = bytes.MinRead
+)
+
 func testUsersUpdate(t *testing.T) {
 	t.Parallel()
+
+	if len(userColumns) == len(userPrimaryKeyColumns) {
+		t.Skip("Skipping table with only primary key columns")
+	}
 
 	seed := randomize.NewSeed()
 	var err error
@@ -618,27 +579,21 @@ func testUsersUpdate(t *testing.T) {
 		t.Error("want one record, got:", count)
 	}
 
-	if err = randomize.Struct(seed, user, userDBTypes, true, userPrimaryKeyColumns...); err != nil {
+	if err = randomize.Struct(seed, user, userDBTypes, true, userColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize User struct: %s", err)
 	}
 
-	// If table only contains primary key columns, we need to pass
-	// them into a whitelist to get a valid test result,
-	// otherwise the Update method will error because it will not be able to
-	// generate a whitelist (due to it excluding primary key columns).
-	if strmangle.StringSliceMatch(userColumns, userPrimaryKeyColumns) {
-		if err = user.Update(tx, userPrimaryKeyColumns...); err != nil {
-			t.Error(err)
-		}
-	} else {
-		if err = user.Update(tx); err != nil {
-			t.Error(err)
-		}
+	if err = user.Update(tx); err != nil {
+		t.Error(err)
 	}
 }
 
 func testUsersSliceUpdateAll(t *testing.T) {
 	t.Parallel()
+
+	if len(userColumns) == len(userPrimaryKeyColumns) {
+		t.Skip("Skipping table with only primary key columns")
+	}
 
 	seed := randomize.NewSeed()
 	var err error
@@ -691,6 +646,10 @@ func testUsersSliceUpdateAll(t *testing.T) {
 
 func testUsersUpsert(t *testing.T) {
 	t.Parallel()
+
+	if len(userColumns) == len(userPrimaryKeyColumns) {
+		t.Skip("Skipping table with only primary key columns")
+	}
 
 	seed := randomize.NewSeed()
 	var err error

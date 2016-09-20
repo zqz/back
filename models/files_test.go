@@ -1,8 +1,9 @@
 package models
 
 import (
-	"testing"
+	"bytes"
 	"reflect"
+	"testing"
 
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/vattle/sqlboiler/randomize"
@@ -272,61 +273,6 @@ func testFilesCount(t *testing.T) {
 	}
 }
 
-var fileDBTypes = map[string]string{"ID": "uuid", "NumChunks": "integer", "Name": "text", "Hash": "text", "UpdatedAt": "timestamp without time zone", "Slug": "text", "Size": "integer", "State": "integer", "Type": "text", "CreatedAt": "timestamp without time zone"}
-
-func testFilesInPrimaryKeyArgs(t *testing.T) {
-	t.Parallel()
-
-	var err error
-	var o File
-	o = File{}
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &o, fileDBTypes, true); err != nil {
-		t.Errorf("Could not randomize struct: %s", err)
-	}
-
-	args := o.inPrimaryKeyArgs()
-
-	if len(args) != len(filePrimaryKeyColumns) {
-		t.Errorf("Expected args to be len %d, but got %d", len(filePrimaryKeyColumns), len(args))
-	}
-
-	if o.ID != args[0] {
-		t.Errorf("Expected args[0] to be value of o.ID, but got %#v", args[0])
-	}
-}
-
-func testFilesSliceInPrimaryKeyArgs(t *testing.T) {
-	t.Parallel()
-
-	var err error
-	o := make(FileSlice, 3)
-
-	seed := randomize.NewSeed()
-	for i := range o {
-		o[i] = &File{}
-		if err = randomize.Struct(seed, o[i], fileDBTypes, true); err != nil {
-			t.Errorf("Could not randomize struct: %s", err)
-		}
-	}
-
-	args := o.inPrimaryKeyArgs()
-
-	if len(args) != len(filePrimaryKeyColumns)*3 {
-		t.Errorf("Expected args to be len %d, but got %d", len(filePrimaryKeyColumns)*3, len(args))
-	}
-
-	argC := 0
-	for i := 0; i < 3; i++ {
-
-		if o[i].ID != args[argC] {
-			t.Errorf("Expected args[%d] to be value of o.ID, but got %#v", i, args[i])
-		}
-		argC++
-	}
-}
-
 func fileBeforeInsertHook(e boil.Executor, o *File) error {
 	*o = File{}
 	return nil
@@ -519,6 +465,10 @@ func testFilesInsertWhitelist(t *testing.T) {
 	}
 }
 
+
+
+
+
 func testFileToManyChunks(t *testing.T) {
 	var err error
 	tx := MustTx(boil.Begin())
@@ -527,11 +477,15 @@ func testFileToManyChunks(t *testing.T) {
 	var a File
 	var b, c Chunk
 
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
+	}
+
 	if err := a.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
 
-	seed := randomize.NewSeed()
 	randomize.Struct(seed, &b, chunkDBTypes, false, "file_id")
 	randomize.Struct(seed, &c, chunkDBTypes, false, "file_id")
 
@@ -595,11 +549,15 @@ func testFileToManyThumbnails(t *testing.T) {
 	var a File
 	var b, c Thumbnail
 
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
+	}
+
 	if err := a.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
 
-	seed := randomize.NewSeed()
 	randomize.Struct(seed, &b, thumbnailDBTypes, false, "file_id")
 	randomize.Struct(seed, &c, thumbnailDBTypes, false, "file_id")
 
@@ -657,7 +615,6 @@ func testFileToManyThumbnails(t *testing.T) {
 
 
 
-
 func testFileToManyAddOpChunks(t *testing.T) {
 	var err error
 
@@ -668,12 +625,12 @@ func testFileToManyAddOpChunks(t *testing.T) {
 	var b, c, d, e Chunk
 
 	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, fileDBTypes, false, filePrimaryKeyColumns...); err != nil {
+	if err = randomize.Struct(seed, &a, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
 	foreigners := []*Chunk{&b, &c, &d, &e}
 	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, chunkDBTypes, false, chunkPrimaryKeyColumns...); err != nil {
+		if err = randomize.Struct(seed, x, chunkDBTypes, false, strmangle.SetComplement(chunkPrimaryKeyColumns, chunkColumnsWithoutDefault)...); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -732,7 +689,6 @@ func testFileToManyAddOpChunks(t *testing.T) {
 		}
 	}
 }
-
 func testFileToManyAddOpThumbnails(t *testing.T) {
 	var err error
 
@@ -743,12 +699,12 @@ func testFileToManyAddOpThumbnails(t *testing.T) {
 	var b, c, d, e Thumbnail
 
 	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, fileDBTypes, false, filePrimaryKeyColumns...); err != nil {
+	if err = randomize.Struct(seed, &a, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
 	foreigners := []*Thumbnail{&b, &c, &d, &e}
 	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, thumbnailDBTypes, false, thumbnailPrimaryKeyColumns...); err != nil {
+		if err = randomize.Struct(seed, x, thumbnailDBTypes, false, strmangle.SetComplement(thumbnailPrimaryKeyColumns, thumbnailColumnsWithoutDefault)...); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -807,6 +763,8 @@ func testFileToManyAddOpThumbnails(t *testing.T) {
 		}
 	}
 }
+
+
 
 
 func testFilesReload(t *testing.T) {
@@ -879,8 +837,17 @@ func testFilesSelect(t *testing.T) {
 	}
 }
 
+var (
+	fileDBTypes = map[string]string{"CreatedAt": "timestamp without time zone", "Hash": "text", "ID": "uuid", "Name": "text", "NumChunks": "integer", "Size": "integer", "Slug": "text", "State": "integer", "Type": "text", "UpdatedAt": "timestamp without time zone"}
+	_           = bytes.MinRead
+)
+
 func testFilesUpdate(t *testing.T) {
 	t.Parallel()
+
+	if len(fileColumns) == len(filePrimaryKeyColumns) {
+		t.Skip("Skipping table with only primary key columns")
+	}
 
 	seed := randomize.NewSeed()
 	var err error
@@ -904,27 +871,21 @@ func testFilesUpdate(t *testing.T) {
 		t.Error("want one record, got:", count)
 	}
 
-	if err = randomize.Struct(seed, file, fileDBTypes, true, filePrimaryKeyColumns...); err != nil {
+	if err = randomize.Struct(seed, file, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 
-	// If table only contains primary key columns, we need to pass
-	// them into a whitelist to get a valid test result,
-	// otherwise the Update method will error because it will not be able to
-	// generate a whitelist (due to it excluding primary key columns).
-	if strmangle.StringSliceMatch(fileColumns, filePrimaryKeyColumns) {
-		if err = file.Update(tx, filePrimaryKeyColumns...); err != nil {
-			t.Error(err)
-		}
-	} else {
-		if err = file.Update(tx); err != nil {
-			t.Error(err)
-		}
+	if err = file.Update(tx); err != nil {
+		t.Error(err)
 	}
 }
 
 func testFilesSliceUpdateAll(t *testing.T) {
 	t.Parallel()
+
+	if len(fileColumns) == len(filePrimaryKeyColumns) {
+		t.Skip("Skipping table with only primary key columns")
+	}
 
 	seed := randomize.NewSeed()
 	var err error
@@ -977,6 +938,10 @@ func testFilesSliceUpdateAll(t *testing.T) {
 
 func testFilesUpsert(t *testing.T) {
 	t.Parallel()
+
+	if len(fileColumns) == len(filePrimaryKeyColumns) {
+		t.Skip("Skipping table with only primary key columns")
+	}
 
 	seed := randomize.NewSeed()
 	var err error

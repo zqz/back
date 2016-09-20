@@ -1,6 +1,7 @@
 package models
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	"reflect"
@@ -57,18 +58,23 @@ type (
 
 // Cache for insert, update and upsert
 var (
-	thumbnailType           = reflect.TypeOf(&Thumbnail{})
-	thumbnailMapping        = queries.MakeStructMapping(thumbnailType)
-	thumbnailInsertCacheMut sync.RWMutex
-	thumbnailInsertCache    = make(map[string]insertCache)
-	thumbnailUpdateCacheMut sync.RWMutex
-	thumbnailUpdateCache    = make(map[string]updateCache)
-	thumbnailUpsertCacheMut sync.RWMutex
-	thumbnailUpsertCache    = make(map[string]insertCache)
+	thumbnailType                 = reflect.TypeOf(&Thumbnail{})
+	thumbnailMapping              = queries.MakeStructMapping(thumbnailType)
+	thumbnailPrimaryKeyMapping, _ = queries.BindMapping(thumbnailType, thumbnailMapping, thumbnailPrimaryKeyColumns)
+	thumbnailInsertCacheMut       sync.RWMutex
+	thumbnailInsertCache          = make(map[string]insertCache)
+	thumbnailUpdateCacheMut       sync.RWMutex
+	thumbnailUpdateCache          = make(map[string]updateCache)
+	thumbnailUpsertCacheMut       sync.RWMutex
+	thumbnailUpsertCache          = make(map[string]insertCache)
 )
 
-// Force time package dependency for automated UpdatedAt/CreatedAt.
-var _ = time.Second
+var (
+	// Force time package dependency for automated UpdatedAt/CreatedAt.
+	_ = time.Second
+	// Force bytes in case of primary key column that uses []byte (for relationship compares)
+	_ = bytes.MinRead
+)
 
 var thumbnailBeforeInsertHooks []ThumbnailHook
 var thumbnailBeforeUpdateHooks []ThumbnailHook
@@ -335,6 +341,7 @@ func (t *Thumbnail) File(exec boil.Executor, mods ...qm.QueryMod) fileQuery {
 }
 
 
+
 // LoadFile allows an eager lookup of values, cached into the
 // loaded structs of the objects.
 func (thumbnailL) LoadFile(e boil.Executor, singular bool, maybeThumbnail interface{}) error {
@@ -412,6 +419,11 @@ func (thumbnailL) LoadFile(e boil.Executor, singular bool, maybeThumbnail interf
 
 
 
+
+
+
+
+
 // SetFile of the thumbnail to the related item.
 // Sets t.R.File to related.
 // Adds t to related.R.Thumbnails.
@@ -425,8 +437,10 @@ func (t *Thumbnail) SetFile(exec boil.Executor, insert bool, related *File) erro
 
 	oldVal := t.FileID
 	t.FileID = related.ID
+
 	if err = t.Update(exec, "file_id"); err != nil {
 		t.FileID = oldVal
+
 		return errors.Wrap(err, "failed to update local table")
 	}
 
@@ -445,9 +459,12 @@ func (t *Thumbnail) SetFile(exec boil.Executor, insert bool, related *File) erro
 	} else {
 		related.R.Thumbnails = append(related.R.Thumbnails, t)
 	}
+
 	return nil
 }
-	
+
+
+
 
 // ThumbnailsG retrieves all records.
 func ThumbnailsG(mods ...qm.QueryMod) thumbnailQuery {
@@ -649,6 +666,9 @@ func (o *Thumbnail) Update(exec boil.Executor, whitelist ...string) error {
 
 	if !cached {
 		wl := strmangle.UpdateColumnSet(thumbnailColumns, thumbnailPrimaryKeyColumns, whitelist)
+		if len(wl) == 0 {
+			return errors.New("models: unable to update thumbnails, could not build whitelist")
+		}
 
 		cache.query = fmt.Sprintf("UPDATE \"thumbnails\" SET %s WHERE %s",
 			strmangle.SetParamNames("\"", "\"", 1, wl),
@@ -660,10 +680,6 @@ func (o *Thumbnail) Update(exec boil.Executor, whitelist ...string) error {
 		}
 	}
 
-	if len(cache.valueMapping) == 0 {
-		return errors.New("models: unable to update thumbnails, could not build whitelist")
-	}
-
 	values := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), cache.valueMapping)
 
 	if boil.DebugMode {
@@ -671,13 +687,9 @@ func (o *Thumbnail) Update(exec boil.Executor, whitelist ...string) error {
 		fmt.Fprintln(boil.DebugWriter, values)
 	}
 
-	result, err := exec.Exec(cache.query, values...)
+	_, err = exec.Exec(cache.query, values...)
 	if err != nil {
 		return errors.Wrap(err, "models: unable to update thumbnails row")
-	}
-
-	if r, err := result.RowsAffected(); err == nil && r != 1 {
-		return errors.Errorf("failed to update single row, updated %d rows", r)
 	}
 
 	if !cached {
@@ -749,7 +761,10 @@ func (o ThumbnailSlice) UpdateAll(exec boil.Executor, cols M) error {
 	}
 
 	// Append all of the primary key values for each column
-	args = append(args, o.inPrimaryKeyArgs()...)
+	for _, obj := range o {
+		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), thumbnailPrimaryKeyMapping)
+		args = append(args, pkeyArgs...)
+	}
 
 	sql := fmt.Sprintf(
 		"UPDATE \"thumbnails\" SET %s WHERE (\"id\") IN (%s)",
@@ -762,13 +777,9 @@ func (o ThumbnailSlice) UpdateAll(exec boil.Executor, cols M) error {
 		fmt.Fprintln(boil.DebugWriter, args...)
 	}
 
-	result, err := exec.Exec(sql, args...)
+	_, err := exec.Exec(sql, args...)
 	if err != nil {
 		return errors.Wrap(err, "models: unable to update all in thumbnail slice")
-	}
-
-	if r, err := result.RowsAffected(); err == nil && r != ln {
-		return errors.Errorf("failed to update %d rows, only affected %d", ln, r)
 	}
 
 	return nil
@@ -804,6 +815,8 @@ func (o *Thumbnail) Upsert(exec boil.Executor, updateOnConflict bool, conflictCo
 		return err
 	}
 
+	nzDefaults := queries.NonZeroDefaultSet(thumbnailColumnsWithDefault, o)
+
 	// Build cache key in-line uglily - mysql vs postgres problems
 	buf := strmangle.GetBuffer()
 	if updateOnConflict {
@@ -823,6 +836,10 @@ func (o *Thumbnail) Upsert(exec boil.Executor, updateOnConflict bool, conflictCo
 	for _, c := range whitelist {
 		buf.WriteString(c)
 	}
+	buf.WriteByte('.')
+	for _, c := range nzDefaults {
+		buf.WriteString(c)
+	}
 	key := buf.String()
 	strmangle.PutBuffer(buf)
 
@@ -838,7 +855,7 @@ func (o *Thumbnail) Upsert(exec boil.Executor, updateOnConflict bool, conflictCo
 			thumbnailColumns,
 			thumbnailColumnsWithDefault,
 			thumbnailColumnsWithoutDefault,
-			queries.NonZeroDefaultSet(thumbnailColumnsWithDefault, o),
+			nzDefaults,
 			whitelist,
 		)
 		update := strmangle.UpdateColumnSet(
@@ -846,6 +863,9 @@ func (o *Thumbnail) Upsert(exec boil.Executor, updateOnConflict bool, conflictCo
 			thumbnailPrimaryKeyColumns,
 			updateColumns,
 		)
+		if len(update) == 0 {
+			return errors.New("models: unable to upsert thumbnails, could not build update column list")
+		}
 
 		var conflict []string
 		if len(conflictColumns) == 0 {
@@ -934,8 +954,7 @@ func (o *Thumbnail) Delete(exec boil.Executor) error {
 		return err
 	}
 
-	args := o.inPrimaryKeyArgs()
-
+	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), thumbnailPrimaryKeyMapping)
 	sql := "DELETE FROM \"thumbnails\" WHERE \"id\"=$1"
 
 	if boil.DebugMode {
@@ -1018,7 +1037,11 @@ func (o ThumbnailSlice) DeleteAll(exec boil.Executor) error {
 		}
 	}
 
-	args := o.inPrimaryKeyArgs()
+	var args []interface{}
+	for _, obj := range o {
+		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), thumbnailPrimaryKeyMapping)
+		args = append(args, pkeyArgs...)
+	}
 
 	sql := fmt.Sprintf(
 		"DELETE FROM \"thumbnails\" WHERE (%s) IN (%s)",
@@ -1118,7 +1141,11 @@ func (o *ThumbnailSlice) ReloadAll(exec boil.Executor) error {
 	}
 
 	thumbnails := ThumbnailSlice{}
-	args := o.inPrimaryKeyArgs()
+	var args []interface{}
+	for _, obj := range *o {
+		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), thumbnailPrimaryKeyMapping)
+		args = append(args, pkeyArgs...)
+	}
 
 	sql := fmt.Sprintf(
 		"SELECT \"thumbnails\".* FROM \"thumbnails\" WHERE (%s) IN (%s)",
@@ -1182,22 +1209,6 @@ func ThumbnailExistsP(exec boil.Executor, id string) bool {
 	}
 
 	return e
-}
-
-func (o Thumbnail) inPrimaryKeyArgs() []interface{} {
-	var args []interface{}
-	args = append(args, o.ID)
-	return args
-}
-
-func (o ThumbnailSlice) inPrimaryKeyArgs() []interface{} {
-	var args []interface{}
-
-	for i := 0; i < len(o); i++ {
-		args = append(args, o[i].ID)
-	}
-
-	return args
 }
 
 

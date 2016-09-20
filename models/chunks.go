@@ -1,6 +1,7 @@
 package models
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	"reflect"
@@ -58,18 +59,23 @@ type (
 
 // Cache for insert, update and upsert
 var (
-	chunkType           = reflect.TypeOf(&Chunk{})
-	chunkMapping        = queries.MakeStructMapping(chunkType)
-	chunkInsertCacheMut sync.RWMutex
-	chunkInsertCache    = make(map[string]insertCache)
-	chunkUpdateCacheMut sync.RWMutex
-	chunkUpdateCache    = make(map[string]updateCache)
-	chunkUpsertCacheMut sync.RWMutex
-	chunkUpsertCache    = make(map[string]insertCache)
+	chunkType                 = reflect.TypeOf(&Chunk{})
+	chunkMapping              = queries.MakeStructMapping(chunkType)
+	chunkPrimaryKeyMapping, _ = queries.BindMapping(chunkType, chunkMapping, chunkPrimaryKeyColumns)
+	chunkInsertCacheMut       sync.RWMutex
+	chunkInsertCache          = make(map[string]insertCache)
+	chunkUpdateCacheMut       sync.RWMutex
+	chunkUpdateCache          = make(map[string]updateCache)
+	chunkUpsertCacheMut       sync.RWMutex
+	chunkUpsertCache          = make(map[string]insertCache)
 )
 
-// Force time package dependency for automated UpdatedAt/CreatedAt.
-var _ = time.Second
+var (
+	// Force time package dependency for automated UpdatedAt/CreatedAt.
+	_ = time.Second
+	// Force bytes in case of primary key column that uses []byte (for relationship compares)
+	_ = bytes.MinRead
+)
 
 var chunkBeforeInsertHooks []ChunkHook
 var chunkBeforeUpdateHooks []ChunkHook
@@ -336,6 +342,7 @@ func (c *Chunk) File(exec boil.Executor, mods ...qm.QueryMod) fileQuery {
 }
 
 
+
 // LoadFile allows an eager lookup of values, cached into the
 // loaded structs of the objects.
 func (chunkL) LoadFile(e boil.Executor, singular bool, maybeChunk interface{}) error {
@@ -413,6 +420,11 @@ func (chunkL) LoadFile(e boil.Executor, singular bool, maybeChunk interface{}) e
 
 
 
+
+
+
+
+
 // SetFile of the chunk to the related item.
 // Sets c.R.File to related.
 // Adds c to related.R.Chunks.
@@ -426,8 +438,10 @@ func (c *Chunk) SetFile(exec boil.Executor, insert bool, related *File) error {
 
 	oldVal := c.FileID
 	c.FileID = related.ID
+
 	if err = c.Update(exec, "file_id"); err != nil {
 		c.FileID = oldVal
+
 		return errors.Wrap(err, "failed to update local table")
 	}
 
@@ -446,9 +460,12 @@ func (c *Chunk) SetFile(exec boil.Executor, insert bool, related *File) error {
 	} else {
 		related.R.Chunks = append(related.R.Chunks, c)
 	}
+
 	return nil
 }
-	
+
+
+
 
 // ChunksG retrieves all records.
 func ChunksG(mods ...qm.QueryMod) chunkQuery {
@@ -650,6 +667,9 @@ func (o *Chunk) Update(exec boil.Executor, whitelist ...string) error {
 
 	if !cached {
 		wl := strmangle.UpdateColumnSet(chunkColumns, chunkPrimaryKeyColumns, whitelist)
+		if len(wl) == 0 {
+			return errors.New("models: unable to update chunks, could not build whitelist")
+		}
 
 		cache.query = fmt.Sprintf("UPDATE \"chunks\" SET %s WHERE %s",
 			strmangle.SetParamNames("\"", "\"", 1, wl),
@@ -661,10 +681,6 @@ func (o *Chunk) Update(exec boil.Executor, whitelist ...string) error {
 		}
 	}
 
-	if len(cache.valueMapping) == 0 {
-		return errors.New("models: unable to update chunks, could not build whitelist")
-	}
-
 	values := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), cache.valueMapping)
 
 	if boil.DebugMode {
@@ -672,13 +688,9 @@ func (o *Chunk) Update(exec boil.Executor, whitelist ...string) error {
 		fmt.Fprintln(boil.DebugWriter, values)
 	}
 
-	result, err := exec.Exec(cache.query, values...)
+	_, err = exec.Exec(cache.query, values...)
 	if err != nil {
 		return errors.Wrap(err, "models: unable to update chunks row")
-	}
-
-	if r, err := result.RowsAffected(); err == nil && r != 1 {
-		return errors.Errorf("failed to update single row, updated %d rows", r)
 	}
 
 	if !cached {
@@ -750,7 +762,10 @@ func (o ChunkSlice) UpdateAll(exec boil.Executor, cols M) error {
 	}
 
 	// Append all of the primary key values for each column
-	args = append(args, o.inPrimaryKeyArgs()...)
+	for _, obj := range o {
+		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), chunkPrimaryKeyMapping)
+		args = append(args, pkeyArgs...)
+	}
 
 	sql := fmt.Sprintf(
 		"UPDATE \"chunks\" SET %s WHERE (\"id\") IN (%s)",
@@ -763,13 +778,9 @@ func (o ChunkSlice) UpdateAll(exec boil.Executor, cols M) error {
 		fmt.Fprintln(boil.DebugWriter, args...)
 	}
 
-	result, err := exec.Exec(sql, args...)
+	_, err := exec.Exec(sql, args...)
 	if err != nil {
 		return errors.Wrap(err, "models: unable to update all in chunk slice")
-	}
-
-	if r, err := result.RowsAffected(); err == nil && r != ln {
-		return errors.Errorf("failed to update %d rows, only affected %d", ln, r)
 	}
 
 	return nil
@@ -805,6 +816,8 @@ func (o *Chunk) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumn
 		return err
 	}
 
+	nzDefaults := queries.NonZeroDefaultSet(chunkColumnsWithDefault, o)
+
 	// Build cache key in-line uglily - mysql vs postgres problems
 	buf := strmangle.GetBuffer()
 	if updateOnConflict {
@@ -824,6 +837,10 @@ func (o *Chunk) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumn
 	for _, c := range whitelist {
 		buf.WriteString(c)
 	}
+	buf.WriteByte('.')
+	for _, c := range nzDefaults {
+		buf.WriteString(c)
+	}
 	key := buf.String()
 	strmangle.PutBuffer(buf)
 
@@ -839,7 +856,7 @@ func (o *Chunk) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumn
 			chunkColumns,
 			chunkColumnsWithDefault,
 			chunkColumnsWithoutDefault,
-			queries.NonZeroDefaultSet(chunkColumnsWithDefault, o),
+			nzDefaults,
 			whitelist,
 		)
 		update := strmangle.UpdateColumnSet(
@@ -847,6 +864,9 @@ func (o *Chunk) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumn
 			chunkPrimaryKeyColumns,
 			updateColumns,
 		)
+		if len(update) == 0 {
+			return errors.New("models: unable to upsert chunks, could not build update column list")
+		}
 
 		var conflict []string
 		if len(conflictColumns) == 0 {
@@ -935,8 +955,7 @@ func (o *Chunk) Delete(exec boil.Executor) error {
 		return err
 	}
 
-	args := o.inPrimaryKeyArgs()
-
+	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), chunkPrimaryKeyMapping)
 	sql := "DELETE FROM \"chunks\" WHERE \"id\"=$1"
 
 	if boil.DebugMode {
@@ -1019,7 +1038,11 @@ func (o ChunkSlice) DeleteAll(exec boil.Executor) error {
 		}
 	}
 
-	args := o.inPrimaryKeyArgs()
+	var args []interface{}
+	for _, obj := range o {
+		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), chunkPrimaryKeyMapping)
+		args = append(args, pkeyArgs...)
+	}
 
 	sql := fmt.Sprintf(
 		"DELETE FROM \"chunks\" WHERE (%s) IN (%s)",
@@ -1119,7 +1142,11 @@ func (o *ChunkSlice) ReloadAll(exec boil.Executor) error {
 	}
 
 	chunks := ChunkSlice{}
-	args := o.inPrimaryKeyArgs()
+	var args []interface{}
+	for _, obj := range *o {
+		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), chunkPrimaryKeyMapping)
+		args = append(args, pkeyArgs...)
+	}
 
 	sql := fmt.Sprintf(
 		"SELECT \"chunks\".* FROM \"chunks\" WHERE (%s) IN (%s)",
@@ -1183,22 +1210,6 @@ func ChunkExistsP(exec boil.Executor, id string) bool {
 	}
 
 	return e
-}
-
-func (o Chunk) inPrimaryKeyArgs() []interface{} {
-	var args []interface{}
-	args = append(args, o.ID)
-	return args
-}
-
-func (o ChunkSlice) inPrimaryKeyArgs() []interface{} {
-	var args []interface{}
-
-	for i := 0; i < len(o); i++ {
-		args = append(args, o[i].ID)
-	}
-
-	return args
 }
 
 

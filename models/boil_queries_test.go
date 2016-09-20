@@ -49,3 +49,4 @@ func (f *fKeyDestroyer) Read(b []byte) (int, error) {
 	return f.buf.Read(b)
 }
 
+

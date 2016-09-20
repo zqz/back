@@ -1,6 +1,7 @@
 package models
 
 import "testing"
+
 // This test suite runs each operation test in parallel.
 // Example, if your database has 3 tables, the suite will run:
 // table1, table2 and table3 Delete in parallel
@@ -77,17 +78,6 @@ func TestCount(t *testing.T) {
 	t.Run("Thumbnails", testThumbnailsCount)
 }
 
-func TestHelpers(t *testing.T) {
-	t.Run("Users", testUsersInPrimaryKeyArgs)
-	t.Run("Users", testUsersSliceInPrimaryKeyArgs)
-	t.Run("Files", testFilesInPrimaryKeyArgs)
-	t.Run("Files", testFilesSliceInPrimaryKeyArgs)
-	t.Run("Chunks", testChunksInPrimaryKeyArgs)
-	t.Run("Chunks", testChunksSliceInPrimaryKeyArgs)
-	t.Run("Thumbnails", testThumbnailsInPrimaryKeyArgs)
-	t.Run("Thumbnails", testThumbnailsSliceInPrimaryKeyArgs)
-}
-
 func TestHooks(t *testing.T) {
 	t.Run("Users", testUsersHooks)
 	t.Run("Files", testFilesHooks)
@@ -113,11 +103,15 @@ func TestToOne(t *testing.T) {
 	t.Run("ThumbnailToFile_File", testThumbnailToOneFile_File)
 }
 
+// TestOneToOne tests cannot be run in parallel
+// or deadlocks can occur.
+func TestOneToOne(t *testing.T) {}
+
 // TestToMany tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToMany(t *testing.T) {
-	t.Run("FileToManyChunks", testFileToManyChunks)
-	t.Run("FileToManyThumbnails", testFileToManyThumbnails)
+	t.Run("FileToChunks", testFileToManyChunks)
+	t.Run("FileToThumbnails", testFileToManyThumbnails)
 }
 
 // TestToOneSet tests cannot be run in parallel
@@ -131,11 +125,19 @@ func TestToOneSet(t *testing.T) {
 // or deadlocks can occur.
 func TestToOneRemove(t *testing.T) {}
 
+// TestOneToOneSet tests cannot be run in parallel
+// or deadlocks can occur.
+func TestOneToOneSet(t *testing.T) {}
+
+// TestOneToOneRemove tests cannot be run in parallel
+// or deadlocks can occur.
+func TestOneToOneRemove(t *testing.T) {}
+
 // TestToManyAdd tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToManyAdd(t *testing.T) {
-	t.Run("FileToManyChunks", testFileToManyAddOpChunks)
-	t.Run("FileToManyThumbnails", testFileToManyAddOpThumbnails)
+	t.Run("FileToChunks", testFileToManyAddOpChunks)
+	t.Run("FileToThumbnails", testFileToManyAddOpThumbnails)
 }
 
 // TestToManySet tests cannot be run in parallel

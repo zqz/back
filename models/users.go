@@ -1,6 +1,7 @@
 package models
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	"reflect"
@@ -60,18 +61,23 @@ type (
 
 // Cache for insert, update and upsert
 var (
-	userType           = reflect.TypeOf(&User{})
-	userMapping        = queries.MakeStructMapping(userType)
-	userInsertCacheMut sync.RWMutex
-	userInsertCache    = make(map[string]insertCache)
-	userUpdateCacheMut sync.RWMutex
-	userUpdateCache    = make(map[string]updateCache)
-	userUpsertCacheMut sync.RWMutex
-	userUpsertCache    = make(map[string]insertCache)
+	userType                 = reflect.TypeOf(&User{})
+	userMapping              = queries.MakeStructMapping(userType)
+	userPrimaryKeyMapping, _ = queries.BindMapping(userType, userMapping, userPrimaryKeyColumns)
+	userInsertCacheMut       sync.RWMutex
+	userInsertCache          = make(map[string]insertCache)
+	userUpdateCacheMut       sync.RWMutex
+	userUpdateCache          = make(map[string]updateCache)
+	userUpsertCacheMut       sync.RWMutex
+	userUpsertCache          = make(map[string]insertCache)
 )
 
-// Force time package dependency for automated UpdatedAt/CreatedAt.
-var _ = time.Second
+var (
+	// Force time package dependency for automated UpdatedAt/CreatedAt.
+	_ = time.Second
+	// Force bytes in case of primary key column that uses []byte (for relationship compares)
+	_ = bytes.MinRead
+)
 
 var userBeforeInsertHooks []UserHook
 var userBeforeUpdateHooks []UserHook
@@ -326,6 +332,14 @@ func (q userQuery) Exists() (bool, error) {
 
 
 
+
+
+
+
+
+
+
+
 // UsersG retrieves all records.
 func UsersG(mods ...qm.QueryMod) userQuery {
 	return Users(boil.GetDB(), mods...)
@@ -526,6 +540,9 @@ func (o *User) Update(exec boil.Executor, whitelist ...string) error {
 
 	if !cached {
 		wl := strmangle.UpdateColumnSet(userColumns, userPrimaryKeyColumns, whitelist)
+		if len(wl) == 0 {
+			return errors.New("models: unable to update users, could not build whitelist")
+		}
 
 		cache.query = fmt.Sprintf("UPDATE \"users\" SET %s WHERE %s",
 			strmangle.SetParamNames("\"", "\"", 1, wl),
@@ -537,10 +554,6 @@ func (o *User) Update(exec boil.Executor, whitelist ...string) error {
 		}
 	}
 
-	if len(cache.valueMapping) == 0 {
-		return errors.New("models: unable to update users, could not build whitelist")
-	}
-
 	values := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), cache.valueMapping)
 
 	if boil.DebugMode {
@@ -548,13 +561,9 @@ func (o *User) Update(exec boil.Executor, whitelist ...string) error {
 		fmt.Fprintln(boil.DebugWriter, values)
 	}
 
-	result, err := exec.Exec(cache.query, values...)
+	_, err = exec.Exec(cache.query, values...)
 	if err != nil {
 		return errors.Wrap(err, "models: unable to update users row")
-	}
-
-	if r, err := result.RowsAffected(); err == nil && r != 1 {
-		return errors.Errorf("failed to update single row, updated %d rows", r)
 	}
 
 	if !cached {
@@ -626,7 +635,10 @@ func (o UserSlice) UpdateAll(exec boil.Executor, cols M) error {
 	}
 
 	// Append all of the primary key values for each column
-	args = append(args, o.inPrimaryKeyArgs()...)
+	for _, obj := range o {
+		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), userPrimaryKeyMapping)
+		args = append(args, pkeyArgs...)
+	}
 
 	sql := fmt.Sprintf(
 		"UPDATE \"users\" SET %s WHERE (\"id\") IN (%s)",
@@ -639,13 +651,9 @@ func (o UserSlice) UpdateAll(exec boil.Executor, cols M) error {
 		fmt.Fprintln(boil.DebugWriter, args...)
 	}
 
-	result, err := exec.Exec(sql, args...)
+	_, err := exec.Exec(sql, args...)
 	if err != nil {
 		return errors.Wrap(err, "models: unable to update all in user slice")
-	}
-
-	if r, err := result.RowsAffected(); err == nil && r != ln {
-		return errors.Errorf("failed to update %d rows, only affected %d", ln, r)
 	}
 
 	return nil
@@ -681,6 +689,8 @@ func (o *User) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns
 		return err
 	}
 
+	nzDefaults := queries.NonZeroDefaultSet(userColumnsWithDefault, o)
+
 	// Build cache key in-line uglily - mysql vs postgres problems
 	buf := strmangle.GetBuffer()
 	if updateOnConflict {
@@ -700,6 +710,10 @@ func (o *User) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns
 	for _, c := range whitelist {
 		buf.WriteString(c)
 	}
+	buf.WriteByte('.')
+	for _, c := range nzDefaults {
+		buf.WriteString(c)
+	}
 	key := buf.String()
 	strmangle.PutBuffer(buf)
 
@@ -715,7 +729,7 @@ func (o *User) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns
 			userColumns,
 			userColumnsWithDefault,
 			userColumnsWithoutDefault,
-			queries.NonZeroDefaultSet(userColumnsWithDefault, o),
+			nzDefaults,
 			whitelist,
 		)
 		update := strmangle.UpdateColumnSet(
@@ -723,6 +737,9 @@ func (o *User) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns
 			userPrimaryKeyColumns,
 			updateColumns,
 		)
+		if len(update) == 0 {
+			return errors.New("models: unable to upsert users, could not build update column list")
+		}
 
 		var conflict []string
 		if len(conflictColumns) == 0 {
@@ -811,8 +828,7 @@ func (o *User) Delete(exec boil.Executor) error {
 		return err
 	}
 
-	args := o.inPrimaryKeyArgs()
-
+	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), userPrimaryKeyMapping)
 	sql := "DELETE FROM \"users\" WHERE \"id\"=$1"
 
 	if boil.DebugMode {
@@ -895,7 +911,11 @@ func (o UserSlice) DeleteAll(exec boil.Executor) error {
 		}
 	}
 
-	args := o.inPrimaryKeyArgs()
+	var args []interface{}
+	for _, obj := range o {
+		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), userPrimaryKeyMapping)
+		args = append(args, pkeyArgs...)
+	}
 
 	sql := fmt.Sprintf(
 		"DELETE FROM \"users\" WHERE (%s) IN (%s)",
@@ -995,7 +1015,11 @@ func (o *UserSlice) ReloadAll(exec boil.Executor) error {
 	}
 
 	users := UserSlice{}
-	args := o.inPrimaryKeyArgs()
+	var args []interface{}
+	for _, obj := range *o {
+		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), userPrimaryKeyMapping)
+		args = append(args, pkeyArgs...)
+	}
 
 	sql := fmt.Sprintf(
 		"SELECT \"users\".* FROM \"users\" WHERE (%s) IN (%s)",
@@ -1059,22 +1083,6 @@ func UserExistsP(exec boil.Executor, id string) bool {
 	}
 
 	return e
-}
-
-func (o User) inPrimaryKeyArgs() []interface{} {
-	var args []interface{}
-	args = append(args, o.ID)
-	return args
-}
-
-func (o UserSlice) inPrimaryKeyArgs() []interface{} {
-	var args []interface{}
-
-	for i := 0; i < len(o); i++ {
-		args = append(args, o[i].ID)
-	}
-
-	return args
 }
 
 
