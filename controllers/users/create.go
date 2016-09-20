@@ -8,7 +8,8 @@ import (
 	"github.com/zqzca/echo"
 )
 
-func (u UsersController) Create(c echo.Context) error {
+// Create creates a new user
+func (u Controller) Create(c echo.Context) error {
 	user := &models.User{}
 
 	if err := c.Bind(u); err != nil {

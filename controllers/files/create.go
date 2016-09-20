@@ -3,17 +3,17 @@ package files
 import (
 	"net/http"
 
+	"github.com/vattle/sqlboiler/queries/qm"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
 
 	"github.com/vattle/sqlboiler/boil"
-	. "github.com/vattle/sqlboiler/queries/qm"
 )
 
 func fileExistsWithHash(ex boil.Executor, hash string) (bool, error) {
 	// Todo write an exists? for this
-	count, err := models.Files(ex, Where("hash=$1", hash)).Count()
+	count, err := models.Files(ex, qm.Where("hash=$1", hash)).Count()
 	if err != nil {
 		return false, err
 	}
@@ -22,7 +22,7 @@ func fileExistsWithHash(ex boil.Executor, hash string) (bool, error) {
 }
 
 // Create creates a file container in the database.
-func (f FileController) Create(e echo.Context) error {
+func (f Controller) Create(e echo.Context) error {
 	file := &models.File{}
 
 	if err := e.Bind(file); err != nil {

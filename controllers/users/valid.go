@@ -7,13 +7,14 @@ import (
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
 
-	. "github.com/vattle/sqlboiler/queries/qm"
+	"github.com/vattle/sqlboiler/queries/qm"
 )
 
+// ValidateUsername checks to see if the username is in use
 func (u UsersController) ValidateUsername(e echo.Context) error {
 	name := e.Param("name")
 
-	count, err := models.Users(u.DB, Where("username=$1", name)).Count()
+	count, err := models.Users(u.DB, qm.Where("username=?", name)).Count()
 	if err != nil {
 		log.Error("failed to get user from db", "err", err)
 		return e.NoContent(http.StatusInternalServerError)

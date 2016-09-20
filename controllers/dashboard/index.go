@@ -3,26 +3,30 @@ package dashboard
 import (
 	"bytes"
 	"html/template"
+	"strings"
 
 	"github.com/zqzca/echo"
 )
 
 // The CSS Assets to inject into the page.
-func templateData() map[string]interface{} {
+func templateData(host string) map[string]interface{} {
 	css := []string{
 		"login", "menu", "registration", "table", "authentication",
 		"uploader", "upload_file", "style", "alerts", "dashboard",
 		"header", "footer", "file_list_component", "file_view",
 	}
 	js := []string{
+		"new/xhr",
 		"lib/dominate", "lib/filesize", "helpers", "alerts", "table_component",
 		"authentication_component", "router", "login", "login_component", "menu",
 		"header_component", "footer_component", "app",
 	}
 
+	liveReloadStr := "http://" + host + ":35729/livereload.js?snipver=1"
+
 	return map[string]interface{}{
 		"Title":      "zqz.ca",
-		"LiveReload": true,
+		"LiveReload": liveReloadStr,
 		"Cdn":        template.JSStr("/assets"),
 
 		"Assets": map[string]interface{}{
@@ -70,11 +74,10 @@ func generateIndex(tmplData map[string]interface{}) string {
 	return output.String()
 }
 
-// The JS Assets to inject into the page.
-
+// AppIndex generates an index.html
 func AppIndex(c echo.Context) error {
-	d := templateData()
+	host := strings.Split(c.Request().Host(), ":")[0]
+	d := templateData(host)
 	o := generateIndex(d)
 	return c.HTML(200, o)
-
 }

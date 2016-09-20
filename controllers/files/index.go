@@ -5,14 +5,13 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/vattle/sqlboiler/queries/qm"
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
-
-	. "github.com/vattle/sqlboiler/queries/qm"
 )
 
 //Index returns a list of files
-func (f FileController) Index(e echo.Context) error {
+func (f Controller) Index(e echo.Context) error {
 	pageStr := e.QueryParam("page")
 	perPageStr := e.QueryParam("per_page")
 
@@ -27,7 +26,7 @@ func (f FileController) Index(e echo.Context) error {
 		return e.NoContent(http.StatusBadRequest)
 	}
 
-	files, err := models.Files(f.DB, Limit(perPage), Offset(page*perPage)).All()
+	files, err := models.Files(f.DB, qm.Limit(perPage), qm.Offset(page*perPage)).All()
 	if err != nil {
 		fmt.Println("failed to fetch page:", err)
 		return err

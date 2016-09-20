@@ -16,7 +16,7 @@ import (
 	"github.com/zqzca/back/processors"
 	"github.com/zqzca/echo"
 
-	. "github.com/vattle/sqlboiler/queries/qm"
+	"github.com/vattle/sqlboiler/queries/qm"
 )
 
 const maxChunkSize = 5 * 1024 * 1024
@@ -117,7 +117,7 @@ func (c ChunkController) Write(e echo.Context) error {
 }
 
 func (c ChunkController) chunkExists(fid string, hash string) bool {
-	chunkCount, err := models.Chunks(c.DB, Where("file_id=$1 and hash=$2", fid, hash)).Count()
+	chunkCount, err := models.Chunks(c.DB, qm.Where("file_id=$1 and hash=$2", fid, hash)).Count()
 
 	if err != nil {
 		c.Error("Failed to look up chunk count", err)
@@ -153,24 +153,24 @@ func (c ChunkController) storeChunk(src io.Reader, path string) (int, error) {
 }
 
 func (c ChunkController) checkFinished(f *models.File) {
-	chunks, err := models.Chunks(c.DB, Where("file_id=$1", f.ID)).All()
+	chunks, err := models.Chunks(c.DB, qm.Where("file_id=$1", f.ID)).All()
 
 	if err != nil {
 		c.Error("Failed to lookup chunks", "Error", err)
 		return
 	}
 
-	completed_chunks := len(chunks)
-	required_chunks := f.NumChunks
+	completedChunks := len(chunks)
+	requiredChunks := f.NumChunks
 
-	fmt.Println("Completed Chunks:", completed_chunks)
-	fmt.Println("Required:", required_chunks)
+	fmt.Println("Completed Chunks:", completedChunks)
+	fmt.Println("Required:", requiredChunks)
 
-	if completed_chunks != int(required_chunks) {
+	if completedChunks != int(requiredChunks) {
 		c.Info(
 			"File not finished",
-			"Received", completed_chunks,
-			"Total", required_chunks,
+			"Received", completedChunks,
+			"Total", requiredChunks,
 		)
 
 		return

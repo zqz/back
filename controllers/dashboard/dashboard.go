@@ -23,7 +23,8 @@ type dashboardEntry struct {
 	CreatedAt   time.Time   `json:"created_at"`
 }
 
-type DashboardController struct {
+// Controller is a exposed struct
+type Controller struct {
 	controllers.Dependencies
 }
 
@@ -52,7 +53,7 @@ const totalPagesSQL = `
 `
 
 //Index returns a list of files
-func (d DashboardController) Index(c echo.Context) error {
+func (d Controller) Index(c echo.Context) error {
 	page, perPage := paginationOptions(c)
 
 	entries, err := pagination(d.DB, page, perPage)

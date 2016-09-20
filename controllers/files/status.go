@@ -9,7 +9,7 @@ import (
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
 
-	. "github.com/vattle/sqlboiler/queries/qm"
+	"github.com/vattle/sqlboiler/queries/qm"
 )
 
 type fileStatus struct {
@@ -34,7 +34,7 @@ func statusForFile(ex boil.Executor, f *models.File) (*fileStatus, error) {
 	spew.Dump(f)
 
 	chunksNeeded := 0
-	chunks, err := models.Chunks(ex, Where("file_id=$1", f.ID)).All()
+	chunks, err := models.Chunks(ex, qm.Where("file_id=$1", f.ID)).All()
 	if err != nil {
 		return nil, err
 	}
@@ -58,10 +58,11 @@ func statusForFile(ex boil.Executor, f *models.File) (*fileStatus, error) {
 	}, nil
 }
 
-func (f FileController) Status(e echo.Context) error {
+// Status returns JSON with the current state of the file.
+func (f Controller) Status(e echo.Context) error {
 	hash := e.Param("hash")
 
-	file, err := models.Files(f.DB, Where("hash=$1", hash)).One()
+	file, err := models.Files(f.DB, qm.Where("hash=$1", hash)).One()
 	if err != nil {
 		f.Debug("Failed to find file with hash", "hash", hash)
 		return e.NoContent(http.StatusNotFound)

@@ -42,6 +42,7 @@ type p2pmsg struct {
 	Msg string `json:"msg"`
 }
 
+// Answer does things
 func Answer(c echo.Context) error {
 	id := c.Param("id")
 
@@ -64,6 +65,7 @@ func Answer(c echo.Context) error {
 	return c.JSON(http.StatusOK, s)
 }
 
+// Join does things
 func Join(c echo.Context) error {
 	id := c.Param("id")
 
@@ -85,6 +87,7 @@ func Join(c echo.Context) error {
 	return c.JSON(http.StatusOK, s)
 }
 
+// Signaling does things
 func Signaling() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ws, err := upgrader.Upgrade(

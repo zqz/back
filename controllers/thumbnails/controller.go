@@ -2,7 +2,7 @@ package thumbnails
 
 import "github.com/zqzca/back/controllers"
 
-// ThumbnailsController carries dependencies
-type ThumbnailsController struct {
+// Controller carries dependencies
+type Controller struct {
 	controllers.Dependencies
 }

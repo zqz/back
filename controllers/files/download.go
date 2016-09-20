@@ -10,13 +10,13 @@ import (
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
 
-	. "github.com/vattle/sqlboiler/queries/qm"
+	"github.com/vattle/sqlboiler/queries/qm"
 )
 
 // Download sends the entire file to the client.
-func (f FileController) Download(e echo.Context) error {
+func (f Controller) Download(e echo.Context) error {
 	slug := e.Param("slug")
-	file, err := models.Files(f.DB, Where("slug=$1", slug)).One()
+	file, err := models.Files(f.DB, qm.Where("slug=$1", slug)).One()
 	if err != nil {
 		return e.NoContent(http.StatusNotFound)
 	}

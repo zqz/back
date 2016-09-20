@@ -2,7 +2,7 @@ package sessions
 
 import "github.com/zqzca/back/controllers"
 
-// SessionsController carries dependencies
-type SessionsController struct {
+// Controller carries dependencies
+type Controller struct {
 	controllers.Dependencies
 }

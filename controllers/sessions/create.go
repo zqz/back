@@ -8,7 +8,7 @@ import (
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/echo"
 
-	. "github.com/vattle/sqlboiler/queries/qm"
+	"github.com/vattle/sqlboiler/queries/qm"
 )
 
 const (
@@ -24,14 +24,15 @@ type userSession struct {
 	Password string
 }
 
-func (s SessionsController) Create(e echo.Context) error {
+// Create logs a user in
+func (s Controller) Create(e echo.Context) error {
 	session := &userSession{}
 
 	if err := e.Bind(session); err != nil {
 		return err
 	}
 
-	user, err := models.Users(s.DB, Select("hash"), Where("username=$1", session.Username)).One()
+	user, err := models.Users(s.DB, qm.Select("hash"), qm.Where("username=$1", session.Username)).One()
 	if err != nil {
 		s.Error("failed to fetch user", "err", err)
 		return e.NoContent(http.StatusInternalServerError)

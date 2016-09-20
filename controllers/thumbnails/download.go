@@ -9,7 +9,7 @@ import (
 )
 
 // Download a file
-func (t ThumbnailsController) Download(e echo.Context) error {
+func (t Controller) Download(e echo.Context) error {
 	id := e.Param("id")
 
 	if len(id) != 36 {

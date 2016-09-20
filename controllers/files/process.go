@@ -8,15 +8,15 @@ import (
 	"github.com/zqzca/back/processors"
 	"github.com/zqzca/echo"
 
-	. "github.com/vattle/sqlboiler/queries/qm"
+	"github.com/vattle/sqlboiler/queries/qm"
 )
 
 // Process builds thumbnails
-func (f FileController) Process(e echo.Context) error {
+func (f Controller) Process(e echo.Context) error {
 	f.Debug("processing")
 
 	slug := e.Param("slug")
-	file, err := models.Files(f.DB, Where("slug=$1", slug)).One()
+	file, err := models.Files(f.DB, qm.Where("slug=$1", slug)).One()
 
 	if err != nil {
 		return err

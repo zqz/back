@@ -2,7 +2,7 @@ package users
 
 import "github.com/zqzca/back/controllers"
 
-// UsersController carries dependencies
-type UsersController struct {
+// Controller carries dependencies
+type Controller struct {
 	controllers.Dependencies
 }

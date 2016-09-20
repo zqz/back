@@ -1,8 +1,8 @@
 package chunks
 
-// Read returns the status of a chunk.
 import "github.com/zqzca/echo"
 
+// Read does nothing
 func Read(c echo.Context) error {
 	return nil
 }
