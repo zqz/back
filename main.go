@@ -58,10 +58,15 @@ func main() {
 	secure := flag.Bool("secure", false, "Enable HTTPS")
 	livereload = flag.Bool("livereload", false, "Enable Live Reload")
 	cdnURL := flag.String("cdn", "", "CDN URL")
-
-	fmt.Println(cdnURL)
-
 	flag.Parse()
+
+	// Connect to DB
+	db, err := lib.Connect()
+
+	if err != nil {
+		fmt.Printf("Failed to connect to db")
+		return
+	}
 
 	e := echo.New()
 
@@ -80,29 +85,13 @@ func main() {
 		Level: 5,
 	}))
 
-	// servers other static files
-	// e.ServeDir("/assets", "assets")
-	// e.ServeFile("/", "assets/index.html")
-	// e.ServeFile("/favicon.ico", "assets/favicon.ico")
-
-	// api := e.Group("/api")
-	v1 := e.Group("/api/v1")
-
-	// Route
-	// e.Get("/chunk/status", controllers.ChunkStatus)
-
-	db, err := lib.Connect()
-
-	if err != nil {
-		fmt.Printf("Failed to connect to db")
-		return
-	}
-
+	// Logging
 	log := logrus.New()
 	log.Level = logrus.DebugLevel
 	log.Out = os.Stdout
 	log.Formatter = &logrus.TextFormatter{}
 
+	// Shared dependencies between all controllers
 	deps := controllers.Dependencies{
 		Fs:     afero.NewOsFs(),
 		Logger: log,
@@ -111,32 +100,36 @@ func main() {
 
 	e.Get("/", dashboard.AppIndex)
 
+	// Base API Group
+	v1 := e.Group("/api/v1")
+
 	// Files
-	files := &files.FileController{deps}
+	files := files.Controller{deps}
 	e.Get("/d/:slug", files.Download)
 	v1.Get("/check/:hash", files.Status)
 	v1.Get("/files", files.Index)
 	v1.Get("/files/:slug", files.Read)
 	v1.Get("/files/:slug/data", files.Download)
+	v1.Delete("/files/:slug/delete", files.Delete)
 	v1.Post("/files", files.Create)
 	v1.Get("/files/:slug/process", files.Process)
 
 	// Thumbnail
-	thumbnails := thumbnails.ThumbnailsController{deps}
+	thumbnails := thumbnails.Controller{deps}
 	v1.Get("/thumbnails/:id", thumbnails.Download)
 
 	// Chunks
-	chunks := chunks.ChunkController{deps}
+	chunks := chunks.Controller{deps}
 	v1.Post("/files/:file_id/chunks/:chunk_id/:hash", chunks.Write)
 
 	// Users
-	users := users.UsersController{deps}
+	users := users.Controller{deps}
 	v1.Post("/users", users.Create)
 	v1.Get("/username/valid", users.ValidateUsername)
 	v1.Get("/users/:id", users.Read)
 
 	// Sessions
-	sessions := sessions.SessionsController{deps}
+	sessions := sessions.Controller{deps}
 	v1.Post("/sessions", sessions.Create)
 
 	// P2P
@@ -145,29 +138,14 @@ func main() {
 	v1.Post("/p2p/:id", p2p.Answer)
 
 	// Dashboard
-	dash := dashboard.DashboardController{deps}
+	dash := dashboard.Controller{deps}
 	v1.Get("/dashboard", dash.Index)
-
-	// r := api.Group("/users")
-	// r.Use(JWTAuth())
-	// r.Get("/:id", controllers.UserGet)
-	// e.Patch("/users/:id", updateUser)
-	// e.Delete("/users/:id", deleteUser)
-
-	// e.ServeFile("/signin", "assets/signin.html")
-	// e.ServeFile("/*", "assets/index.html")
-	// e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
-	// 	Root:   "public",
-	// 	Browse: false,
-	// 	Index:  "index.html",
-	// 	HTML5:  true,
-	// }))
 
 	e.Static("/assets", "assets")
 	e.Get("/*", dashboard.AppIndex)
 
+	// Horribleness for optional letsencrypt stuff
 	var s *standard.Server
-
 	bindAddr := ":3001"
 
 	if *secure == true {
@@ -195,6 +173,7 @@ func main() {
 		s = standard.New(bindAddr)
 	}
 
+	// Start SCP
 	scpServer := scp.SCPServer{}
 	scpServer.DB = deps.DB
 	scpServer.Logger = deps.Logger
