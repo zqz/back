@@ -58,6 +58,7 @@ func main() {
 	secure := flag.Bool("secure", false, "Enable HTTPS")
 	livereload = flag.Bool("livereload", false, "Enable Live Reload")
 	cdnURL := flag.String("cdn", "", "CDN URL")
+	fmt.Print(cdnURL)
 	flag.Parse()
 
 	// Connect to DB

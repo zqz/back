@@ -11,7 +11,7 @@ import (
 )
 
 // ValidateUsername checks to see if the username is in use
-func (u UsersController) ValidateUsername(e echo.Context) error {
+func (u Controller) ValidateUsername(e echo.Context) error {
 	name := e.Param("name")
 
 	count, err := models.Users(u.DB, qm.Where("username=?", name)).Count()

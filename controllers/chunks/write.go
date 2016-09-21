@@ -21,7 +21,7 @@ import (
 
 const maxChunkSize = 5 * 1024 * 1024
 
-func (c ChunkController) Write(e echo.Context) error {
+func (c Controller) Write(e echo.Context) error {
 	req := e.Request()
 	contentLength := req.ContentLength()
 
@@ -116,7 +116,7 @@ func (c ChunkController) Write(e echo.Context) error {
 	return e.NoContent(http.StatusCreated)
 }
 
-func (c ChunkController) chunkExists(fid string, hash string) bool {
+func (c Controller) chunkExists(fid string, hash string) bool {
 	chunkCount, err := models.Chunks(c.DB, qm.Where("file_id=$1 and hash=$2", fid, hash)).Count()
 
 	if err != nil {
@@ -128,7 +128,7 @@ func (c ChunkController) chunkExists(fid string, hash string) bool {
 }
 
 // storeChunk writes the chunk data from src to a new file at path.
-func (c ChunkController) storeChunk(src io.Reader, path string) (int, error) {
+func (c Controller) storeChunk(src io.Reader, path string) (int, error) {
 	dst, err := os.Create(path)
 
 	if err != nil {
@@ -152,7 +152,7 @@ func (c ChunkController) storeChunk(src io.Reader, path string) (int, error) {
 	return 0, nil
 }
 
-func (c ChunkController) checkFinished(f *models.File) {
+func (c Controller) checkFinished(f *models.File) {
 	chunks, err := models.Chunks(c.DB, qm.Where("file_id=$1", f.ID)).All()
 
 	if err != nil {

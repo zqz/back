@@ -1,10 +1,8 @@
 package processors
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
-	. "github.com/vattle/sqlboiler/queries/qm"
+	"github.com/vattle/sqlboiler/queries/qm"
 	"github.com/zqzca/back/controllers"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
@@ -12,30 +10,39 @@ import (
 
 // CompleteFile builds the file from chunks and then generates thumbnails
 func CompleteFile(deps controllers.Dependencies, f *models.File) error {
-	fmt.Println("Completing File", f.Name, f.ID)
-	tx, err := deps.DB.Begin()
+	deps.Info("Processing File", "name", f.Name, "id", f.ID)
 
-	if f == nil {
-		fmt.Println("Fucking goof, it dont work if its nil")
+	tx, err := deps.DB.Begin()
+	if err != nil {
+		deps.Error("Failed to create transaction")
+		return err
 	}
 
-	f.Reload(tx)
+	if err = f.Reload(tx); err != nil {
+		tx.Rollback()
+		return errors.Wrap(err, "Failed to reload the file")
+	}
 
 	if f.State == lib.FileProcessing {
-		fmt.Println("Something else already processing the file")
-		return nil
+		tx.Rollback()
+		return errors.Wrap(err, "This file is already being processed")
 	}
 
-	models.Thumbnails(tx, Where("file_id=$1", f.ID)).DeleteAll()
+	// Delete all thumbnails
+	err = models.Thumbnails(tx, qm.Where("file_id=?", f.ID)).DeleteAll()
+	if err != nil {
+		deps.Info("No previous thumnails")
+	}
 
 	f.State = lib.FileProcessing
-	f.Update(tx, "state")
-	deps.Debug("Locking", "ID", f.ID)
+	if err = f.Update(tx, "state"); err != nil {
+		tx.Rollback()
+		return errors.Wrap(err, "Failed to update state")
+	}
 
 	reader, err := BuildFile(deps, f)
 	if err != nil {
 		tx.Rollback()
-
 		return errors.Wrap(err, "Failed to complete building file")
 	}
 
@@ -45,29 +52,36 @@ func CompleteFile(deps controllers.Dependencies, f *models.File) error {
 		return errors.Wrap(err, "Failed to create thumbnail")
 	}
 
-	if len(thumbHash) > 0 {
-		t := models.Thumbnail{
-			Hash:   thumbHash,
-			Size:   thumbSize,
-			FileID: f.ID,
-		}
+	if len(thumbHash) == 0 {
+		tx.Rollback()
+		return errors.Wrap(err, "No thumbnail created")
+	}
 
-		t.Insert(deps.DB)
+	t := models.Thumbnail{
+		Hash:   thumbHash,
+		Size:   thumbSize,
+		FileID: f.ID,
+	}
+
+	if err = t.Insert(tx); err != nil {
+		tx.Rollback()
+		return errors.Wrap(err, "Failed to insert Thumbnail")
 	}
 
 	f.State = lib.FileFinished
-	f.Update(tx, "state")
-	err = tx.Commit()
-
-	if err != nil {
-		fmt.Println("failed to commit tx", f.ID)
+	if err = f.Update(tx, "state"); err != nil {
+		tx.Rollback()
+		return errors.Wrap(err, "Failed to set state")
 	}
 
-	err = Cleanup(deps, f)
-
-	if err != nil {
-		fmt.Println("Failed to cleanup file", f.ID)
+	if err = tx.Commit(); err != nil {
+		return errors.Wrap(err, "Failed to commit transaction")
 	}
 
+	if err = Cleanup(deps, f); err != nil {
+		return errors.Wrap(err, "Failed to cleanup file")
+	}
+
+	deps.Info("Processed File", "name", f.Name, "id", f.ID)
 	return nil
 }

@@ -4,9 +4,9 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"image"
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
+	_ "image/gif"  // GIF Support
+	_ "image/jpeg" // JPG Support
+	_ "image/png"  // PNG Support
 	"io"
 	"os"
 
@@ -98,6 +98,7 @@ func readOrientation(r io.ReadSeeker) (int, error) {
 	return orientation, nil
 }
 
+// CreateThumnail builds a JPG thumbnail and can rotate if an exif bit is set.
 func CreateThumbnail(deps controllers.Dependencies, r io.ReadSeeker) (string, int, error) {
 	raw, format, err := image.Decode(r)
 

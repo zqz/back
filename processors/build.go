@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	. "github.com/vattle/sqlboiler/queries/qm"
+	"github.com/vattle/sqlboiler/queries/qm"
 	"github.com/zqzca/back/controllers"
 	"github.com/zqzca/back/models"
 )
@@ -28,8 +28,8 @@ func chunksExist(hashes []string) (bool, error) {
 func BuildFile(deps controllers.Dependencies, f *models.File) (io.ReadSeeker, error) {
 	chunks, err := models.Chunks(
 		deps.DB,
-		Where("file_id=$1", f.ID),
-		OrderBy("position asc"),
+		qm.Where("file_id=$1", f.ID),
+		qm.OrderBy("position asc"),
 	).All()
 
 	var hashes []string

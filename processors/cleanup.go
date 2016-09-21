@@ -8,6 +8,7 @@ import (
 	"github.com/zqzca/back/models"
 )
 
+// Cleanup removes old chunks
 func Cleanup(deps controllers.Dependencies, f *models.File) error {
 	chunks, err := f.Chunks(deps.DB).All()
 
