@@ -32,15 +32,21 @@ var (
 	bindAddr = ":2020"
 )
 
-type SCPServer struct {
+// Server foo
+type Server struct {
 	controllers.Dependencies
 
 	CertPath string
+	BindAddr string
 }
 
-func (s *SCPServer) ListenAndServe() {
+// ListenAndServe starts a SCP server.
+func (s *Server) ListenAndServe() {
+	if len(s.BindAddr) == 0 {
+		panic("Must specify BindAddr")
+	}
 	if len(s.CertPath) == 0 {
-		panic("Must specify certPath")
+		panic("Must specify CertPath")
 	}
 
 	privateBytes, err := ioutil.ReadFile(s.CertPath)
@@ -61,7 +67,7 @@ func (s *SCPServer) ListenAndServe() {
 
 	// Once a ServerConfig has been configured, connections can be
 	// accepted.
-	listener, err := net.Listen("tcp", bindAddr)
+	listener, err := net.Listen("tcp", s.BindAddr)
 	if err != nil {
 		s.Fatal("Failed to bind to address", "addr", bindAddr)
 	}
@@ -91,7 +97,7 @@ func (s *SCPServer) ListenAndServe() {
 	}
 }
 
-func (s *SCPServer) handleChannels(chans <-chan ssh.NewChannel) {
+func (s *Server) handleChannels(chans <-chan ssh.NewChannel) {
 	for newChannel := range chans {
 		go s.handleChannel(newChannel)
 	}
@@ -142,7 +148,7 @@ func parsePayload(payload []byte) (string, error) {
 	return fileName, nil
 }
 
-func (s *SCPServer) handleChannel(ch ssh.NewChannel) {
+func (s *Server) handleChannel(ch ssh.NewChannel) {
 	id := rand.Int()
 	s.Debug("Handling Channel", "id", id, "chan", ch.ChannelType())
 

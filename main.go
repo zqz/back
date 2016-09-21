@@ -31,15 +31,6 @@ import (
 	"github.com/zqzca/echo/middleware"
 )
 
-//----------
-// Handlers
-//----------
-
-// func sshServer() {
-// 	s := scp.NewSCPServer()
-// 	s.ListenAndServe()
-// }
-
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
 }
@@ -175,12 +166,12 @@ func main() {
 	}
 
 	// Start SCP
-	scpServer := scp.SCPServer{}
-	scpServer.DB = deps.DB
-	scpServer.Logger = deps.Logger
-	scpServer.CertPath = "certs/scp.rsa"
-
-	go scpServer.ListenAndServe()
+	scp := scp.Server{}
+	scp.DB = deps.DB
+	scp.Logger = deps.Logger
+	scp.CertPath = "certs/scp.rsa"
+	scp.BindAddr = ":2020"
+	go scp.ListenAndServe()
 
 	// Start server
 	e.Run(s)
