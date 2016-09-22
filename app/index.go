@@ -1,4 +1,4 @@
-package dashboard
+package app
 
 import (
 	"bytes"
@@ -22,12 +22,15 @@ func templateData(host string) map[string]interface{} {
 		"header_component", "footer_component", "app",
 	}
 
-	liveReloadStr := "http://" + host + ":35729/livereload.js?snipver=1"
+	var liveReloadStr string
+	if config.LiveReload {
+		liveReloadStr = "http://" + host + ":35729/livereload.js?snipver=1"
+	}
 
 	return map[string]interface{}{
 		"Title":      "zqz.ca",
 		"LiveReload": liveReloadStr,
-		"Cdn":        template.JSStr("/assets"),
+		"Cdn":        template.JSStr(config.CDNURL),
 
 		"Assets": map[string]interface{}{
 			"Js":  js,
