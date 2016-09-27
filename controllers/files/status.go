@@ -3,7 +3,6 @@ package files
 import (
 	"net/http"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
@@ -17,22 +16,26 @@ type fileStatus struct {
 	State          string   `json:"state"`
 	ChunksReceived []string `json:"chunks_received,omitempty"`
 	ChunksNeeded   int      `json:"chunks_needed,omitempty"`
+	Slug           string   `json:"slug,omitempty"`
+}
+
+// FileStatus represents the files... status...
+type fileState int
+
+func (s fileState) String() string {
+	switch s {
+	case lib.FileIncomplete:
+		return "incomplete"
+	case lib.FileProcessing:
+		return "processing"
+	case lib.FileFinished:
+		return "finished"
+	default:
+		return "unknown"
+	}
 }
 
 func statusForFile(ex boil.Executor, f *models.File) (*fileStatus, error) {
-	var state string
-
-	switch f.State {
-	case lib.FileIncomplete:
-		state = "incomplete"
-	case lib.FileProcessing:
-		state = "processing"
-	case lib.FileFinished:
-		state = "finished"
-	}
-
-	spew.Dump(f)
-
 	chunksNeeded := 0
 	chunks, err := models.Chunks(ex, qm.Where("file_id=$1", f.ID)).All()
 	if err != nil {
@@ -50,11 +53,13 @@ func statusForFile(ex boil.Executor, f *models.File) (*fileStatus, error) {
 		}
 	}
 
+	state := fileState(f.State)
 	return &fileStatus{
 		ID:             f.ID,
-		State:          state,
+		State:          state.String(),
 		ChunksReceived: chunksReceived,
 		ChunksNeeded:   chunksNeeded,
+		Slug:           f.Slug,
 	}, nil
 }
 
