@@ -46,6 +46,7 @@ func generateIndex(tmplData map[string]interface{}) string {
     <head>
       <meta http-equiv='content-type' content='text/html; charset=utf-8'>
       <title>zqz.ca</title>
+      <meta name="viewport" content="width=device-width, user-scalable=no">
       <link rel='shortcut icon' href='{{ .Cdn }}/favicon.ico'/>
       {{- range .Assets.Css }}
       <link rel='stylesheet' media='screen' href='{{ $cdn }}/{{ . }}.css'/>
