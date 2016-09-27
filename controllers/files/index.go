@@ -26,7 +26,7 @@ func (f Controller) Index(e echo.Context) error {
 		return e.NoContent(http.StatusBadRequest)
 	}
 
-	files, err := models.Files(f.DB, qm.Limit(perPage), qm.Offset(page*perPage)).All()
+	files, err := models.Files(f.DB, qm.OrderBy("created_at desc"), qm.Limit(perPage), qm.Offset(page*perPage)).All()
 	if err != nil {
 		fmt.Println("failed to fetch page:", err)
 		return err
