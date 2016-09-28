@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"strings"
 
@@ -16,21 +17,30 @@ func templateData(host string) map[string]interface{} {
 		"header", "footer", "file_list_component", "file_view",
 	}
 	js := []string{
-		"new/xhr",
+		"new/xhr", "ws",
 		"lib/dominate", "lib/filesize", "helpers", "alerts", "table_component",
 		"authentication_component", "router", "login", "login_component", "menu",
 		"header_component", "footer_component", "app",
 	}
 
+	nakedHost := strings.Split(host, ":")[0]
 	var liveReloadStr string
 	if config.LiveReload {
-		liveReloadStr = "http://" + host + ":35729/livereload.js?snipver=1"
+		liveReloadStr = "http://" + nakedHost + ":35729/livereload.js?snipver=1"
+	}
+
+	var wsPath string
+	if config.Secure {
+		wsPath = fmt.Sprintf("wss://%s/ws", host)
+	} else {
+		wsPath = fmt.Sprintf("ws://%s/ws", host)
 	}
 
 	return map[string]interface{}{
 		"Title":      "zqz.ca",
 		"LiveReload": liveReloadStr,
 		"Cdn":        template.JSStr(config.CDNURL),
+		"WSPath":     template.JSStr(wsPath),
 
 		"Assets": map[string]interface{}{
 			"Js":  js,
@@ -53,7 +63,10 @@ func generateIndex(tmplData map[string]interface{}) string {
       {{- end }}
     </head>
     <body>
-      <script type='text/javascript'>window.cdn = {{$cdn}};</script>
+      <script type='text/javascript'>
+        window.cdn = {{$cdn}};
+        window.ws_url = {{.WSPath}};
+      </script>
       {{- with .LiveReload }}
       <script type='text/javascript' src='{{.}}'></script>
       {{- end }}
@@ -78,9 +91,9 @@ func generateIndex(tmplData map[string]interface{}) string {
 	return output.String()
 }
 
-// AppIndex generates an index.html
-func AppIndex(c echo.Context) error {
-	host := strings.Split(c.Request().Host(), ":")[0]
+// Index generates an index.html
+func Index(c echo.Context) error {
+	host := c.Request().Host()
 	d := templateData(host)
 	o := generateIndex(d)
 	return c.HTML(200, o)

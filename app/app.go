@@ -22,6 +22,7 @@ import (
 	"github.com/zqzca/back/controllers/users"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/scp"
+	"github.com/zqzca/back/ws"
 	"github.com/zqzca/echo"
 
 	"github.com/rsc/letsencrypt"
@@ -86,13 +87,13 @@ func Run(appConfig Config) {
 		DB:     db,
 	}
 
-	e.Get("/", AppIndex)
+	e.Get("/", Index)
 
 	// Base API Group
 	v1 := e.Group("/api/v1")
 
 	// Files
-	files := files.Controller{deps}
+	files := files.Controller{Dependencies: deps}
 	e.Get("/d/:slug", files.Download)
 	v1.Get("/check/:hash", files.Status)
 	v1.Get("/files", files.Index)
@@ -103,21 +104,21 @@ func Run(appConfig Config) {
 	v1.Get("/files/:slug/process", files.Process)
 
 	// Thumbnail
-	thumbnails := thumbnails.Controller{deps}
+	thumbnails := thumbnails.Controller{Dependencies: deps}
 	v1.Get("/thumbnails/:id", thumbnails.Download)
 
 	// Chunks
-	chunks := chunks.Controller{deps}
+	chunks := chunks.Controller{Dependencies: deps}
 	v1.Post("/files/:file_id/chunks/:chunk_id/:hash", chunks.Write)
 
 	// Users
-	users := users.Controller{deps}
+	users := users.Controller{Dependencies: deps}
 	v1.Post("/users", users.Create)
 	v1.Get("/username/valid", users.ValidateUsername)
 	v1.Get("/users/:id", users.Read)
 
 	// Sessions
-	sessions := sessions.Controller{deps}
+	sessions := sessions.Controller{Dependencies: deps}
 	v1.Post("/sessions", sessions.Create)
 
 	// P2P
@@ -126,11 +127,18 @@ func Run(appConfig Config) {
 	v1.Post("/p2p/:id", p2p.Answer)
 
 	// Dashboard
-	dash := dashboard.Controller{deps}
+	dash := dashboard.Controller{Dependencies: deps}
 	v1.Get("/dashboard", dash.Index)
 
 	e.Static("/assets", "assets")
-	e.Get("/*", AppIndex)
+	e.Get("/*", Index)
+
+	ws := ws.NewServer()
+	ws.Dependencies = &deps
+	ws.Start()
+
+	// WebSockets
+	e.Get("/ws", standard.WrapHandler(ws.Endpoint()))
 
 	// Horribleness for optional letsencrypt stuff
 	var s *standard.Server
