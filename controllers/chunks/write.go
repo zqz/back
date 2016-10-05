@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/back/processors"
@@ -192,7 +191,6 @@ func (c Controller) checkFinished(f *models.File) {
 	go func() {
 		c.wsFileIDsLock.RLock()
 		wsID := c.wsFileIDs[f.ID]
-		spew.Dump(c.wsFileIDs)
 		c.wsFileIDsLock.RUnlock()
 
 		err = processors.CompleteFile(c.Dependencies, f)

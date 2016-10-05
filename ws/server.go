@@ -1,8 +1,6 @@
 package ws
 
 import (
-	"fmt"
-
 	"github.com/zqzca/back/controllers"
 
 	"golang.org/x/net/websocket"
@@ -69,7 +67,7 @@ func (s *Server) sendAll(e *Event) {
 func (s *Server) WriteClient(cID string, e string, p interface{}) {
 	c, ok := s.clients[cID]
 	if !ok {
-		fmt.Println("No client with id", cID)
+		s.Info("WS: Client ID not found.", "id", cID)
 	}
 	event := &Event{E: e, P: p}
 	s.send(c, event)

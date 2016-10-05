@@ -10,8 +10,8 @@ import (
 type Controller struct {
 	controllers.Dependencies
 
-	wsFileIDs     map[string]string
 	wsFileIDsLock *sync.RWMutex
+	wsFileIDs     map[string]string
 }
 
 // NewController ..
