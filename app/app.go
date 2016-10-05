@@ -80,12 +80,19 @@ func Run(appConfig Config) {
 	log.Out = os.Stdout
 	log.Formatter = &logrus.TextFormatter{}
 
+	// Websockets
+	ws := ws.NewServer()
+
 	// Shared dependencies between all controllers
 	deps := controllers.Dependencies{
 		Fs:     afero.NewOsFs(),
 		Logger: log,
 		DB:     db,
+		WS:     ws,
 	}
+
+	ws.Dependencies = &deps
+	ws.Start()
 
 	e.Get("/", Index)
 
@@ -108,8 +115,8 @@ func Run(appConfig Config) {
 	v1.Get("/thumbnails/:id", thumbnails.Download)
 
 	// Chunks
-	chunks := chunks.Controller{Dependencies: deps}
-	v1.Post("/files/:file_id/chunks/:chunk_id/:hash", chunks.Write)
+	chunks := chunks.NewController(deps)
+	v1.Post("/files/:file_id/chunks/:chunk_id/:hash/:ws_id", chunks.Write)
 
 	// Users
 	users := users.Controller{Dependencies: deps}
@@ -132,10 +139,6 @@ func Run(appConfig Config) {
 
 	e.Static("/assets", "assets")
 	e.Get("/*", Index)
-
-	ws := ws.NewServer()
-	ws.Dependencies = &deps
-	ws.Start()
 
 	// WebSockets
 	e.Get("/ws", standard.WrapHandler(ws.Endpoint()))

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/back/processors"
@@ -20,6 +21,13 @@ import (
 )
 
 const maxChunkSize = 5 * 1024 * 1024
+
+func (c Controller) storeWebsocket(fID string, ws string) {
+	c.wsFileIDsLock.Lock()
+	c.Info("Storing WS for File", "ws", ws, "file", fID)
+	c.wsFileIDs[fID] = ws
+	c.wsFileIDsLock.Unlock()
+}
 
 func (c Controller) Write(e echo.Context) error {
 	req := e.Request()
@@ -106,6 +114,11 @@ func (c Controller) Write(e echo.Context) error {
 		Hash:     hash,
 	}
 
+	wsID := e.Param("ws_id")
+	if len(wsID) > 0 {
+		c.storeWebsocket(f.ID, wsID)
+	}
+
 	if err = chunk.Insert(c.DB); err != nil {
 		c.Error("Failed to insert chunk in DB", "Error", err)
 		return e.NoContent(http.StatusInternalServerError)
@@ -177,12 +190,25 @@ func (c Controller) checkFinished(f *models.File) {
 	}
 
 	go func() {
+		c.wsFileIDsLock.RLock()
+		wsID := c.wsFileIDs[f.ID]
+		spew.Dump(c.wsFileIDs)
+		c.wsFileIDsLock.RUnlock()
+
 		err = processors.CompleteFile(c.Dependencies, f)
 
 		if err != nil {
 			c.Error("Failed to finish file", "error", err, "name", f.Name, "id", f.ID)
 			return
 		}
+
+		if len(wsID) > 0 {
+			c.Info("Sending WS msg", "ws", wsID)
+			c.WS.WriteClient(wsID, "file:completed", f)
+		} else {
+			c.Info("No WS ID")
+		}
+
 		c.Info("Finished File", "name", f.Name, "id", f.ID)
 	}()
 }

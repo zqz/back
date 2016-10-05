@@ -48,7 +48,7 @@ func (c *Client) Write(e *Event) {
 	case c.ch <- e:
 	default:
 		c.server.Del(c)
-		err := fmt.Errorf("client %d is disconnected.", c.id)
+		err := fmt.Errorf("client %s is disconnected", c.id)
 		c.server.Err(err)
 	}
 }

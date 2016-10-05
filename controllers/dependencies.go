@@ -6,12 +6,18 @@ import (
 	"github.com/spf13/afero"
 )
 
+// WebsocketClientWriter can send a message to a client
+type WebsocketClientWriter interface {
+	WriteClient(string, string, interface{})
+}
+
 // Dependencies for each controller. This allows us to provide things like
 // loggers and database handles. Also makes it easy to test.
 type Dependencies struct {
 	*logrus.Logger
 	*sqlx.DB
 	afero.Fs
+	WS WebsocketClientWriter
 }
 
 // Info provides log15 api over logrus
