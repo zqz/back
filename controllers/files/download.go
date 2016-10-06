@@ -1,6 +1,7 @@
 package files
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -27,7 +28,8 @@ func (f Controller) Download(e echo.Context) error {
 	res.Header().Set("Content-Type", file.Type)
 	res.Header().Set("Etag", etag)
 	res.Header().Set("Cache-Control", "max-age=2592000") // 30 days
-	res.Header().Set("Content-Disposition", "inline")    // 30 days
+	disposition := fmt.Sprintf("inline; filename=%s", file.Name)
+	res.Header().Set("Content-Disposition", disposition)
 
 	// If set just return early.
 	if match := e.Request().Header().Get("If-None-Match"); match != "" {
