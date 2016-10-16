@@ -33,9 +33,8 @@ func (f Controller) Download(e echo.Context) error {
 
 	// If set just return early.
 	if match := e.Request().Header().Get("If-None-Match"); match != "" {
-		f.Debug("existing", "match", match)
-		f.Debug("want", "etag", etag)
 		if strings.Contains(match, etag) {
+			go lib.TrackDownload(f.DB, file.ID, e, true)
 			return e.NoContent(http.StatusNotModified)
 		}
 	}
@@ -44,6 +43,9 @@ func (f Controller) Download(e echo.Context) error {
 	if err != nil {
 		return e.NoContent(http.StatusNotFound)
 	}
+
+	go lib.TrackDownload(f.DB, file.ID, e, false)
+
 	defer data.Close()
 	_, err = io.Copy(res, data)
 	return err
