@@ -78,7 +78,6 @@ var (
 	// Force bytes in case of primary key column that uses []byte (for relationship compares)
 	_ = bytes.MinRead
 )
-
 var userBeforeInsertHooks []UserHook
 var userBeforeUpdateHooks []UserHook
 var userBeforeDeleteHooks []UserHook
@@ -324,22 +323,6 @@ func (q userQuery) Exists() (bool, error) {
 	return count > 0, nil
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // UsersG retrieves all records.
 func UsersG(mods ...qm.QueryMod) userQuery {
 	return Users(boil.GetDB(), mods...)
@@ -473,15 +456,15 @@ func (o *User) Insert(exec boil.Executor, whitelist ...string) error {
 	value := reflect.Indirect(reflect.ValueOf(o))
 	vals := queries.ValuesFromMapping(value, cache.valueMapping)
 
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, cache.query)
+		fmt.Fprintln(boil.DebugWriter, vals)
+	}
+
 	if len(cache.retMapping) != 0 {
 		err = exec.QueryRow(cache.query, vals...).Scan(queries.PtrsFromMapping(value, cache.retMapping)...)
 	} else {
 		_, err = exec.Exec(cache.query, vals...)
-	}
-
-	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, cache.query)
-		fmt.Fprintln(boil.DebugWriter, vals)
 	}
 
 	if err != nil {
@@ -741,8 +724,8 @@ func (o *User) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns
 			return errors.New("models: unable to upsert users, could not build update column list")
 		}
 
-		var conflict []string
-		if len(conflictColumns) == 0 {
+		conflict := conflictColumns
+		if len(conflict) == 0 {
 			conflict = make([]string, len(userPrimaryKeyColumns))
 			copy(conflict, userPrimaryKeyColumns)
 		}
@@ -761,7 +744,7 @@ func (o *User) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns
 	}
 
 	value := reflect.Indirect(reflect.ValueOf(o))
-	values := queries.ValuesFromMapping(value, cache.valueMapping)
+	vals := queries.ValuesFromMapping(value, cache.valueMapping)
 	var returns []interface{}
 	if len(cache.retMapping) != 0 {
 		returns = queries.PtrsFromMapping(value, cache.retMapping)
@@ -769,12 +752,13 @@ func (o *User) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, cache.query)
-		fmt.Fprintln(boil.DebugWriter, values)
+		fmt.Fprintln(boil.DebugWriter, vals)
 	}
+
 	if len(cache.retMapping) != 0 {
-		err = exec.QueryRow(cache.query, values...).Scan(returns...)
+		err = exec.QueryRow(cache.query, vals...).Scan(returns...)
 	} else {
-		_, err = exec.Exec(cache.query, values...)
+		_, err = exec.Exec(cache.query, vals...)
 	}
 	if err != nil {
 		return errors.Wrap(err, "models: unable to upsert for users")
@@ -1084,5 +1068,3 @@ func UserExistsP(exec boil.Executor, id string) bool {
 
 	return e
 }
-
-

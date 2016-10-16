@@ -76,7 +76,6 @@ var (
 	// Force bytes in case of primary key column that uses []byte (for relationship compares)
 	_ = bytes.MinRead
 )
-
 var chunkBeforeInsertHooks []ChunkHook
 var chunkBeforeUpdateHooks []ChunkHook
 var chunkBeforeDeleteHooks []ChunkHook
@@ -323,14 +322,14 @@ func (q chunkQuery) Exists() (bool, error) {
 }
 
 // FileG pointed to by the foreign key.
-func (c *Chunk) FileG(mods ...qm.QueryMod) fileQuery {
-	return c.File(boil.GetDB(), mods...)
+func (o *Chunk) FileG(mods ...qm.QueryMod) fileQuery {
+	return o.File(boil.GetDB(), mods...)
 }
 
 // File pointed to by the foreign key.
-func (c *Chunk) File(exec boil.Executor, mods ...qm.QueryMod) fileQuery {
+func (o *Chunk) File(exec boil.Executor, mods ...qm.QueryMod) fileQuery {
 	queryMods := []qm.QueryMod{
-		qm.Where("id=$1", c.FileID),
+		qm.Where("id=$1", o.FileID),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -340,8 +339,6 @@ func (c *Chunk) File(exec boil.Executor, mods ...qm.QueryMod) fileQuery {
 
 	return query
 }
-
-
 
 // LoadFile allows an eager lookup of values, cached into the
 // loaded structs of the objects.
@@ -359,9 +356,11 @@ func (chunkL) LoadFile(e boil.Executor, singular bool, maybeChunk interface{}) e
 
 	args := make([]interface{}, count)
 	if singular {
+		object.R = &chunkR{}
 		args[0] = object.FileID
 	} else {
 		for i, obj := range slice {
+			obj.R = &chunkR{}
 			args[i] = obj.FileID
 		}
 	}
@@ -386,7 +385,7 @@ func (chunkL) LoadFile(e boil.Executor, singular bool, maybeChunk interface{}) e
 		return errors.Wrap(err, "failed to bind eager loaded slice File")
 	}
 
-	if len(fileAfterSelectHooks) != 0 {
+	if len(chunkAfterSelectHooks) != 0 {
 		for _, obj := range resultSlice {
 			if err := obj.doAfterSelectHooks(e); err != nil {
 				return err
@@ -395,9 +394,6 @@ func (chunkL) LoadFile(e boil.Executor, singular bool, maybeChunk interface{}) e
 	}
 
 	if singular && len(resultSlice) != 0 {
-		if object.R == nil {
-			object.R = &chunkR{}
-		}
 		object.R.File = resultSlice[0]
 		return nil
 	}
@@ -405,9 +401,6 @@ func (chunkL) LoadFile(e boil.Executor, singular bool, maybeChunk interface{}) e
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
 			if local.FileID == foreign.ID {
-				if local.R == nil {
-					local.R = &chunkR{}
-				}
 				local.R.File = foreign
 				break
 			}
@@ -417,18 +410,10 @@ func (chunkL) LoadFile(e boil.Executor, singular bool, maybeChunk interface{}) e
 	return nil
 }
 
-
-
-
-
-
-
-
-
 // SetFile of the chunk to the related item.
-// Sets c.R.File to related.
-// Adds c to related.R.Chunks.
-func (c *Chunk) SetFile(exec boil.Executor, insert bool, related *File) error {
+// Sets o.R.File to related.
+// Adds o to related.R.Chunks.
+func (o *Chunk) SetFile(exec boil.Executor, insert bool, related *File) error {
 	var err error
 	if insert {
 		if err = related.Insert(exec); err != nil {
@@ -436,36 +421,42 @@ func (c *Chunk) SetFile(exec boil.Executor, insert bool, related *File) error {
 		}
 	}
 
-	oldVal := c.FileID
-	c.FileID = related.ID
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"chunks\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 1, []string{"file_id"}),
+		strmangle.WhereClause("\"", "\"", 2, chunkPrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.ID}
 
-	if err = c.Update(exec, "file_id"); err != nil {
-		c.FileID = oldVal
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, updateQuery)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
 
+	if _, err = exec.Exec(updateQuery, values...); err != nil {
 		return errors.Wrap(err, "failed to update local table")
 	}
 
-	if c.R == nil {
-		c.R = &chunkR{
+	o.FileID = related.ID
+
+	if o.R == nil {
+		o.R = &chunkR{
 			File: related,
 		}
 	} else {
-		c.R.File = related
+		o.R.File = related
 	}
 
 	if related.R == nil {
 		related.R = &fileR{
-			Chunks: ChunkSlice{c},
+			Chunks: ChunkSlice{o},
 		}
 	} else {
-		related.R.Chunks = append(related.R.Chunks, c)
+		related.R.Chunks = append(related.R.Chunks, o)
 	}
 
 	return nil
 }
-
-
-
 
 // ChunksG retrieves all records.
 func ChunksG(mods ...qm.QueryMod) chunkQuery {
@@ -600,15 +591,15 @@ func (o *Chunk) Insert(exec boil.Executor, whitelist ...string) error {
 	value := reflect.Indirect(reflect.ValueOf(o))
 	vals := queries.ValuesFromMapping(value, cache.valueMapping)
 
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, cache.query)
+		fmt.Fprintln(boil.DebugWriter, vals)
+	}
+
 	if len(cache.retMapping) != 0 {
 		err = exec.QueryRow(cache.query, vals...).Scan(queries.PtrsFromMapping(value, cache.retMapping)...)
 	} else {
 		_, err = exec.Exec(cache.query, vals...)
-	}
-
-	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, cache.query)
-		fmt.Fprintln(boil.DebugWriter, vals)
 	}
 
 	if err != nil {
@@ -868,8 +859,8 @@ func (o *Chunk) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumn
 			return errors.New("models: unable to upsert chunks, could not build update column list")
 		}
 
-		var conflict []string
-		if len(conflictColumns) == 0 {
+		conflict := conflictColumns
+		if len(conflict) == 0 {
 			conflict = make([]string, len(chunkPrimaryKeyColumns))
 			copy(conflict, chunkPrimaryKeyColumns)
 		}
@@ -888,7 +879,7 @@ func (o *Chunk) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumn
 	}
 
 	value := reflect.Indirect(reflect.ValueOf(o))
-	values := queries.ValuesFromMapping(value, cache.valueMapping)
+	vals := queries.ValuesFromMapping(value, cache.valueMapping)
 	var returns []interface{}
 	if len(cache.retMapping) != 0 {
 		returns = queries.PtrsFromMapping(value, cache.retMapping)
@@ -896,12 +887,13 @@ func (o *Chunk) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumn
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, cache.query)
-		fmt.Fprintln(boil.DebugWriter, values)
+		fmt.Fprintln(boil.DebugWriter, vals)
 	}
+
 	if len(cache.retMapping) != 0 {
-		err = exec.QueryRow(cache.query, values...).Scan(returns...)
+		err = exec.QueryRow(cache.query, vals...).Scan(returns...)
 	} else {
-		_, err = exec.Exec(cache.query, values...)
+		_, err = exec.Exec(cache.query, vals...)
 	}
 	if err != nil {
 		return errors.Wrap(err, "models: unable to upsert for chunks")
@@ -1211,5 +1203,3 @@ func ChunkExistsP(exec boil.Executor, id string) bool {
 
 	return e
 }
-
-

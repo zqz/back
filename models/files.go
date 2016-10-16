@@ -35,6 +35,7 @@ type File struct {
 
 // fileR is where relationships are stored.
 type fileR struct {
+	Downloads  DownloadSlice
 	Chunks     ChunkSlice
 	Thumbnails ThumbnailSlice
 }
@@ -80,7 +81,6 @@ var (
 	// Force bytes in case of primary key column that uses []byte (for relationship compares)
 	_ = bytes.MinRead
 )
-
 var fileBeforeInsertHooks []FileHook
 var fileBeforeUpdateHooks []FileHook
 var fileBeforeDeleteHooks []FileHook
@@ -326,15 +326,13 @@ func (q fileQuery) Exists() (bool, error) {
 	return count > 0, nil
 }
 
-
-
-// ChunksG retrieves all the file's chunks.
-func (f *File) ChunksG(mods ...qm.QueryMod) chunkQuery {
-	return f.Chunks(boil.GetDB(), mods...)
+// DownloadsG retrieves all the download's downloads.
+func (o *File) DownloadsG(mods ...qm.QueryMod) downloadQuery {
+	return o.Downloads(boil.GetDB(), mods...)
 }
 
-// Chunks retrieves all the file's chunks with an executor.
-func (f *File) Chunks(exec boil.Executor, mods ...qm.QueryMod) chunkQuery {
+// Downloads retrieves all the download's downloads with an executor.
+func (o *File) Downloads(exec boil.Executor, mods ...qm.QueryMod) downloadQuery {
 	queryMods := []qm.QueryMod{
 		qm.Select("\"a\".*"),
 	}
@@ -344,7 +342,31 @@ func (f *File) Chunks(exec boil.Executor, mods ...qm.QueryMod) chunkQuery {
 	}
 
 	queryMods = append(queryMods,
-		qm.Where("\"a\".\"file_id\"=$1", f.ID),
+		qm.Where("\"a\".\"file_id\"=$1", o.ID),
+	)
+
+	query := Downloads(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"downloads\" as \"a\"")
+	return query
+}
+
+// ChunksG retrieves all the chunk's chunks.
+func (o *File) ChunksG(mods ...qm.QueryMod) chunkQuery {
+	return o.Chunks(boil.GetDB(), mods...)
+}
+
+// Chunks retrieves all the chunk's chunks with an executor.
+func (o *File) Chunks(exec boil.Executor, mods ...qm.QueryMod) chunkQuery {
+	queryMods := []qm.QueryMod{
+		qm.Select("\"a\".*"),
+	}
+
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"a\".\"file_id\"=$1", o.ID),
 	)
 
 	query := Chunks(exec, queryMods...)
@@ -352,13 +374,13 @@ func (f *File) Chunks(exec boil.Executor, mods ...qm.QueryMod) chunkQuery {
 	return query
 }
 
-// ThumbnailsG retrieves all the file's thumbnails.
-func (f *File) ThumbnailsG(mods ...qm.QueryMod) thumbnailQuery {
-	return f.Thumbnails(boil.GetDB(), mods...)
+// ThumbnailsG retrieves all the thumbnail's thumbnails.
+func (o *File) ThumbnailsG(mods ...qm.QueryMod) thumbnailQuery {
+	return o.Thumbnails(boil.GetDB(), mods...)
 }
 
-// Thumbnails retrieves all the file's thumbnails with an executor.
-func (f *File) Thumbnails(exec boil.Executor, mods ...qm.QueryMod) thumbnailQuery {
+// Thumbnails retrieves all the thumbnail's thumbnails with an executor.
+func (o *File) Thumbnails(exec boil.Executor, mods ...qm.QueryMod) thumbnailQuery {
 	queryMods := []qm.QueryMod{
 		qm.Select("\"a\".*"),
 	}
@@ -368,7 +390,7 @@ func (f *File) Thumbnails(exec boil.Executor, mods ...qm.QueryMod) thumbnailQuer
 	}
 
 	queryMods = append(queryMods,
-		qm.Where("\"a\".\"file_id\"=$1", f.ID),
+		qm.Where("\"a\".\"file_id\"=$1", o.ID),
 	)
 
 	query := Thumbnails(exec, queryMods...)
@@ -376,13 +398,73 @@ func (f *File) Thumbnails(exec boil.Executor, mods ...qm.QueryMod) thumbnailQuer
 	return query
 }
 
+// LoadDownloads allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (fileL) LoadDownloads(e boil.Executor, singular bool, maybeFile interface{}) error {
+	var slice []*File
+	var object *File
 
+	count := 1
+	if singular {
+		object = maybeFile.(*File)
+	} else {
+		slice = *maybeFile.(*FileSlice)
+		count = len(slice)
+	}
 
+	args := make([]interface{}, count)
+	if singular {
+		object.R = &fileR{}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			obj.R = &fileR{}
+			args[i] = obj.ID
+		}
+	}
 
+	query := fmt.Sprintf(
+		"select * from \"downloads\" where \"file_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
 
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load downloads")
+	}
+	defer results.Close()
 
+	var resultSlice []*Download
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice downloads")
+	}
 
+	if len(downloadAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.Downloads = resultSlice
+		return nil
+	}
 
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.FileID.String {
+				local.R.Downloads = append(local.R.Downloads, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
+}
 
 // LoadChunks allows an eager lookup of values, cached into the
 // loaded structs of the objects.
@@ -400,9 +482,11 @@ func (fileL) LoadChunks(e boil.Executor, singular bool, maybeFile interface{}) e
 
 	args := make([]interface{}, count)
 	if singular {
+		object.R = &fileR{}
 		args[0] = object.ID
 	} else {
 		for i, obj := range slice {
+			obj.R = &fileR{}
 			args[i] = obj.ID
 		}
 	}
@@ -434,9 +518,6 @@ func (fileL) LoadChunks(e boil.Executor, singular bool, maybeFile interface{}) e
 		}
 	}
 	if singular {
-		if object.R == nil {
-			object.R = &fileR{}
-		}
 		object.R.Chunks = resultSlice
 		return nil
 	}
@@ -444,9 +525,6 @@ func (fileL) LoadChunks(e boil.Executor, singular bool, maybeFile interface{}) e
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
 			if local.ID == foreign.FileID {
-				if local.R == nil {
-					local.R = &fileR{}
-				}
 				local.R.Chunks = append(local.R.Chunks, foreign)
 				break
 			}
@@ -472,9 +550,11 @@ func (fileL) LoadThumbnails(e boil.Executor, singular bool, maybeFile interface{
 
 	args := make([]interface{}, count)
 	if singular {
+		object.R = &fileR{}
 		args[0] = object.ID
 	} else {
 		for i, obj := range slice {
+			obj.R = &fileR{}
 			args[i] = obj.ID
 		}
 	}
@@ -506,9 +586,6 @@ func (fileL) LoadThumbnails(e boil.Executor, singular bool, maybeFile interface{
 		}
 	}
 	if singular {
-		if object.R == nil {
-			object.R = &fileR{}
-		}
 		object.R.Thumbnails = resultSlice
 		return nil
 	}
@@ -516,9 +593,6 @@ func (fileL) LoadThumbnails(e boil.Executor, singular bool, maybeFile interface{
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
 			if local.ID == foreign.FileID {
-				if local.R == nil {
-					local.R = &fileR{}
-				}
 				local.R.Thumbnails = append(local.R.Thumbnails, foreign)
 				break
 			}
@@ -528,21 +602,15 @@ func (fileL) LoadThumbnails(e boil.Executor, singular bool, maybeFile interface{
 	return nil
 }
 
-
-
-
-
-
-
-
-// AddChunks adds the given related objects to the existing relationships
+// AddDownloads adds the given related objects to the existing relationships
 // of the file, optionally inserting them as new records.
-// Appends related to f.R.Chunks.
+// Appends related to o.R.Downloads.
 // Sets related.R.File appropriately.
-func (f *File) AddChunks(exec boil.Executor, insert bool, related ...*Chunk) error {
+func (o *File) AddDownloads(exec boil.Executor, insert bool, related ...*Download) error {
 	var err error
 	for _, rel := range related {
-		rel.FileID = f.ID
+		rel.FileID.String = o.ID
+		rel.FileID.Valid = true
 		if insert {
 			if err = rel.Insert(exec); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
@@ -554,21 +622,130 @@ func (f *File) AddChunks(exec boil.Executor, insert bool, related ...*Chunk) err
 		}
 	}
 
-	if f.R == nil {
-		f.R = &fileR{
+	if o.R == nil {
+		o.R = &fileR{
+			Downloads: related,
+		}
+	} else {
+		o.R.Downloads = append(o.R.Downloads, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &downloadR{
+				File: o,
+			}
+		} else {
+			rel.R.File = o
+		}
+	}
+	return nil
+}
+
+// SetDownloads removes all previously related items of the
+// file replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.File's Downloads accordingly.
+// Replaces o.R.Downloads with related.
+// Sets related.R.File's Downloads accordingly.
+func (o *File) SetDownloads(exec boil.Executor, insert bool, related ...*Download) error {
+	query := "update \"downloads\" set \"file_id\" = null where \"file_id\" = $1"
+	values := []interface{}{o.ID}
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err := exec.Exec(query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.Downloads {
+			rel.FileID.Valid = false
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.File = nil
+		}
+
+		o.R.Downloads = nil
+	}
+	return o.AddDownloads(exec, insert, related...)
+}
+
+// RemoveDownloads relationships from objects passed in.
+// Removes related items from R.Downloads (uses pointer comparison, removal does not keep order)
+// Sets related.R.File.
+func (o *File) RemoveDownloads(exec boil.Executor, related ...*Download) error {
+	var err error
+	for _, rel := range related {
+		rel.FileID.Valid = false
+		if rel.R != nil {
+			rel.R.File = nil
+		}
+		if err = rel.Update(exec, "file_id"); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.Downloads {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.Downloads)
+			if ln > 1 && i < ln-1 {
+				o.R.Downloads[i] = o.R.Downloads[ln-1]
+			}
+			o.R.Downloads = o.R.Downloads[:ln-1]
+			break
+		}
+	}
+
+	return nil
+}
+
+// AddChunks adds the given related objects to the existing relationships
+// of the file, optionally inserting them as new records.
+// Appends related to o.R.Chunks.
+// Sets related.R.File appropriately.
+func (o *File) AddChunks(exec boil.Executor, insert bool, related ...*Chunk) error {
+	var err error
+	for _, rel := range related {
+		rel.FileID = o.ID
+		if insert {
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			if err = rel.Update(exec, "file_id"); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+		}
+	}
+
+	if o.R == nil {
+		o.R = &fileR{
 			Chunks: related,
 		}
 	} else {
-		f.R.Chunks = append(f.R.Chunks, related...)
+		o.R.Chunks = append(o.R.Chunks, related...)
 	}
 
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &chunkR{
-				File: f,
+				File: o,
 			}
 		} else {
-			rel.R.File = f
+			rel.R.File = o
 		}
 	}
 	return nil
@@ -576,12 +753,12 @@ func (f *File) AddChunks(exec boil.Executor, insert bool, related ...*Chunk) err
 
 // AddThumbnails adds the given related objects to the existing relationships
 // of the file, optionally inserting them as new records.
-// Appends related to f.R.Thumbnails.
+// Appends related to o.R.Thumbnails.
 // Sets related.R.File appropriately.
-func (f *File) AddThumbnails(exec boil.Executor, insert bool, related ...*Thumbnail) error {
+func (o *File) AddThumbnails(exec boil.Executor, insert bool, related ...*Thumbnail) error {
 	var err error
 	for _, rel := range related {
-		rel.FileID = f.ID
+		rel.FileID = o.ID
 		if insert {
 			if err = rel.Insert(exec); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
@@ -593,25 +770,26 @@ func (f *File) AddThumbnails(exec boil.Executor, insert bool, related ...*Thumbn
 		}
 	}
 
-	if f.R == nil {
-		f.R = &fileR{
+	if o.R == nil {
+		o.R = &fileR{
 			Thumbnails: related,
 		}
 	} else {
-		f.R.Thumbnails = append(f.R.Thumbnails, related...)
+		o.R.Thumbnails = append(o.R.Thumbnails, related...)
 	}
 
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &thumbnailR{
-				File: f,
+				File: o,
 			}
 		} else {
-			rel.R.File = f
+			rel.R.File = o
 		}
 	}
 	return nil
 }
+
 // FilesG retrieves all records.
 func FilesG(mods ...qm.QueryMod) fileQuery {
 	return Files(boil.GetDB(), mods...)
@@ -745,15 +923,15 @@ func (o *File) Insert(exec boil.Executor, whitelist ...string) error {
 	value := reflect.Indirect(reflect.ValueOf(o))
 	vals := queries.ValuesFromMapping(value, cache.valueMapping)
 
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, cache.query)
+		fmt.Fprintln(boil.DebugWriter, vals)
+	}
+
 	if len(cache.retMapping) != 0 {
 		err = exec.QueryRow(cache.query, vals...).Scan(queries.PtrsFromMapping(value, cache.retMapping)...)
 	} else {
 		_, err = exec.Exec(cache.query, vals...)
-	}
-
-	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, cache.query)
-		fmt.Fprintln(boil.DebugWriter, vals)
 	}
 
 	if err != nil {
@@ -1013,8 +1191,8 @@ func (o *File) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns
 			return errors.New("models: unable to upsert files, could not build update column list")
 		}
 
-		var conflict []string
-		if len(conflictColumns) == 0 {
+		conflict := conflictColumns
+		if len(conflict) == 0 {
 			conflict = make([]string, len(filePrimaryKeyColumns))
 			copy(conflict, filePrimaryKeyColumns)
 		}
@@ -1033,7 +1211,7 @@ func (o *File) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns
 	}
 
 	value := reflect.Indirect(reflect.ValueOf(o))
-	values := queries.ValuesFromMapping(value, cache.valueMapping)
+	vals := queries.ValuesFromMapping(value, cache.valueMapping)
 	var returns []interface{}
 	if len(cache.retMapping) != 0 {
 		returns = queries.PtrsFromMapping(value, cache.retMapping)
@@ -1041,12 +1219,13 @@ func (o *File) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, cache.query)
-		fmt.Fprintln(boil.DebugWriter, values)
+		fmt.Fprintln(boil.DebugWriter, vals)
 	}
+
 	if len(cache.retMapping) != 0 {
-		err = exec.QueryRow(cache.query, values...).Scan(returns...)
+		err = exec.QueryRow(cache.query, vals...).Scan(returns...)
 	} else {
-		_, err = exec.Exec(cache.query, values...)
+		_, err = exec.Exec(cache.query, vals...)
 	}
 	if err != nil {
 		return errors.Wrap(err, "models: unable to upsert for files")
@@ -1356,5 +1535,3 @@ func FileExistsP(exec boil.Executor, id string) bool {
 
 	return e
 }
-
-

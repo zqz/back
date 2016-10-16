@@ -19,7 +19,6 @@ func testUsers(t *testing.T) {
 		t.Error("expected a query, got nothing")
 	}
 }
-
 func testUsersDelete(t *testing.T) {
 	t.Parallel()
 
@@ -111,7 +110,6 @@ func testUsersSliceDeleteAll(t *testing.T) {
 		t.Error("want zero records, got:", count)
 	}
 }
-
 func testUsersExists(t *testing.T) {
 	t.Parallel()
 
@@ -132,11 +130,10 @@ func testUsersExists(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unable to check if User exists: %s", err)
 	}
-	if e != true {
+	if !e {
 		t.Errorf("Expected UserExistsG to return true, but got false.")
 	}
 }
-
 func testUsersFind(t *testing.T) {
 	t.Parallel()
 
@@ -162,7 +159,6 @@ func testUsersFind(t *testing.T) {
 		t.Error("want a record, got nil")
 	}
 }
-
 func testUsersBind(t *testing.T) {
 	t.Parallel()
 
@@ -272,7 +268,6 @@ func testUsersCount(t *testing.T) {
 		t.Error("want 2 records, got:", count)
 	}
 }
-
 func userBeforeInsertHook(e boil.Executor, o *User) error {
 	*o = User{}
 	return nil
@@ -412,7 +407,6 @@ func testUsersHooks(t *testing.T) {
 	}
 	userAfterUpsertHooks = []UserHook{}
 }
-
 func testUsersInsert(t *testing.T) {
 	t.Parallel()
 
@@ -465,16 +459,6 @@ func testUsersInsertWhitelist(t *testing.T) {
 	}
 }
 
-
-
-
-
-
-
-
-
-
-
 func testUsersReload(t *testing.T) {
 	t.Parallel()
 
@@ -518,7 +502,6 @@ func testUsersReloadAll(t *testing.T) {
 		t.Error(err)
 	}
 }
-
 func testUsersSelect(t *testing.T) {
 	t.Parallel()
 
@@ -643,7 +626,6 @@ func testUsersSliceUpdateAll(t *testing.T) {
 		t.Error(err)
 	}
 }
-
 func testUsersUpsert(t *testing.T) {
 	t.Parallel()
 
@@ -690,4 +672,3 @@ func testUsersUpsert(t *testing.T) {
 		t.Error("want one record, got:", count)
 	}
 }
-

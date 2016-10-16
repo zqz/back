@@ -75,7 +75,6 @@ var (
 	// Force bytes in case of primary key column that uses []byte (for relationship compares)
 	_ = bytes.MinRead
 )
-
 var thumbnailBeforeInsertHooks []ThumbnailHook
 var thumbnailBeforeUpdateHooks []ThumbnailHook
 var thumbnailBeforeDeleteHooks []ThumbnailHook
@@ -322,14 +321,14 @@ func (q thumbnailQuery) Exists() (bool, error) {
 }
 
 // FileG pointed to by the foreign key.
-func (t *Thumbnail) FileG(mods ...qm.QueryMod) fileQuery {
-	return t.File(boil.GetDB(), mods...)
+func (o *Thumbnail) FileG(mods ...qm.QueryMod) fileQuery {
+	return o.File(boil.GetDB(), mods...)
 }
 
 // File pointed to by the foreign key.
-func (t *Thumbnail) File(exec boil.Executor, mods ...qm.QueryMod) fileQuery {
+func (o *Thumbnail) File(exec boil.Executor, mods ...qm.QueryMod) fileQuery {
 	queryMods := []qm.QueryMod{
-		qm.Where("id=$1", t.FileID),
+		qm.Where("id=$1", o.FileID),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -339,8 +338,6 @@ func (t *Thumbnail) File(exec boil.Executor, mods ...qm.QueryMod) fileQuery {
 
 	return query
 }
-
-
 
 // LoadFile allows an eager lookup of values, cached into the
 // loaded structs of the objects.
@@ -358,9 +355,11 @@ func (thumbnailL) LoadFile(e boil.Executor, singular bool, maybeThumbnail interf
 
 	args := make([]interface{}, count)
 	if singular {
+		object.R = &thumbnailR{}
 		args[0] = object.FileID
 	} else {
 		for i, obj := range slice {
+			obj.R = &thumbnailR{}
 			args[i] = obj.FileID
 		}
 	}
@@ -385,7 +384,7 @@ func (thumbnailL) LoadFile(e boil.Executor, singular bool, maybeThumbnail interf
 		return errors.Wrap(err, "failed to bind eager loaded slice File")
 	}
 
-	if len(fileAfterSelectHooks) != 0 {
+	if len(thumbnailAfterSelectHooks) != 0 {
 		for _, obj := range resultSlice {
 			if err := obj.doAfterSelectHooks(e); err != nil {
 				return err
@@ -394,9 +393,6 @@ func (thumbnailL) LoadFile(e boil.Executor, singular bool, maybeThumbnail interf
 	}
 
 	if singular && len(resultSlice) != 0 {
-		if object.R == nil {
-			object.R = &thumbnailR{}
-		}
 		object.R.File = resultSlice[0]
 		return nil
 	}
@@ -404,9 +400,6 @@ func (thumbnailL) LoadFile(e boil.Executor, singular bool, maybeThumbnail interf
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
 			if local.FileID == foreign.ID {
-				if local.R == nil {
-					local.R = &thumbnailR{}
-				}
 				local.R.File = foreign
 				break
 			}
@@ -416,18 +409,10 @@ func (thumbnailL) LoadFile(e boil.Executor, singular bool, maybeThumbnail interf
 	return nil
 }
 
-
-
-
-
-
-
-
-
 // SetFile of the thumbnail to the related item.
-// Sets t.R.File to related.
-// Adds t to related.R.Thumbnails.
-func (t *Thumbnail) SetFile(exec boil.Executor, insert bool, related *File) error {
+// Sets o.R.File to related.
+// Adds o to related.R.Thumbnails.
+func (o *Thumbnail) SetFile(exec boil.Executor, insert bool, related *File) error {
 	var err error
 	if insert {
 		if err = related.Insert(exec); err != nil {
@@ -435,36 +420,42 @@ func (t *Thumbnail) SetFile(exec boil.Executor, insert bool, related *File) erro
 		}
 	}
 
-	oldVal := t.FileID
-	t.FileID = related.ID
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"thumbnails\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 1, []string{"file_id"}),
+		strmangle.WhereClause("\"", "\"", 2, thumbnailPrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.ID}
 
-	if err = t.Update(exec, "file_id"); err != nil {
-		t.FileID = oldVal
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, updateQuery)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
 
+	if _, err = exec.Exec(updateQuery, values...); err != nil {
 		return errors.Wrap(err, "failed to update local table")
 	}
 
-	if t.R == nil {
-		t.R = &thumbnailR{
+	o.FileID = related.ID
+
+	if o.R == nil {
+		o.R = &thumbnailR{
 			File: related,
 		}
 	} else {
-		t.R.File = related
+		o.R.File = related
 	}
 
 	if related.R == nil {
 		related.R = &fileR{
-			Thumbnails: ThumbnailSlice{t},
+			Thumbnails: ThumbnailSlice{o},
 		}
 	} else {
-		related.R.Thumbnails = append(related.R.Thumbnails, t)
+		related.R.Thumbnails = append(related.R.Thumbnails, o)
 	}
 
 	return nil
 }
-
-
-
 
 // ThumbnailsG retrieves all records.
 func ThumbnailsG(mods ...qm.QueryMod) thumbnailQuery {
@@ -599,15 +590,15 @@ func (o *Thumbnail) Insert(exec boil.Executor, whitelist ...string) error {
 	value := reflect.Indirect(reflect.ValueOf(o))
 	vals := queries.ValuesFromMapping(value, cache.valueMapping)
 
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, cache.query)
+		fmt.Fprintln(boil.DebugWriter, vals)
+	}
+
 	if len(cache.retMapping) != 0 {
 		err = exec.QueryRow(cache.query, vals...).Scan(queries.PtrsFromMapping(value, cache.retMapping)...)
 	} else {
 		_, err = exec.Exec(cache.query, vals...)
-	}
-
-	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, cache.query)
-		fmt.Fprintln(boil.DebugWriter, vals)
 	}
 
 	if err != nil {
@@ -867,8 +858,8 @@ func (o *Thumbnail) Upsert(exec boil.Executor, updateOnConflict bool, conflictCo
 			return errors.New("models: unable to upsert thumbnails, could not build update column list")
 		}
 
-		var conflict []string
-		if len(conflictColumns) == 0 {
+		conflict := conflictColumns
+		if len(conflict) == 0 {
 			conflict = make([]string, len(thumbnailPrimaryKeyColumns))
 			copy(conflict, thumbnailPrimaryKeyColumns)
 		}
@@ -887,7 +878,7 @@ func (o *Thumbnail) Upsert(exec boil.Executor, updateOnConflict bool, conflictCo
 	}
 
 	value := reflect.Indirect(reflect.ValueOf(o))
-	values := queries.ValuesFromMapping(value, cache.valueMapping)
+	vals := queries.ValuesFromMapping(value, cache.valueMapping)
 	var returns []interface{}
 	if len(cache.retMapping) != 0 {
 		returns = queries.PtrsFromMapping(value, cache.retMapping)
@@ -895,12 +886,13 @@ func (o *Thumbnail) Upsert(exec boil.Executor, updateOnConflict bool, conflictCo
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, cache.query)
-		fmt.Fprintln(boil.DebugWriter, values)
+		fmt.Fprintln(boil.DebugWriter, vals)
 	}
+
 	if len(cache.retMapping) != 0 {
-		err = exec.QueryRow(cache.query, values...).Scan(returns...)
+		err = exec.QueryRow(cache.query, vals...).Scan(returns...)
 	} else {
-		_, err = exec.Exec(cache.query, values...)
+		_, err = exec.Exec(cache.query, vals...)
 	}
 	if err != nil {
 		return errors.Wrap(err, "models: unable to upsert for thumbnails")
@@ -1210,5 +1202,3 @@ func ThumbnailExistsP(exec boil.Executor, id string) bool {
 
 	return e
 }
-
-

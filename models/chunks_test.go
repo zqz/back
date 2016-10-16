@@ -19,7 +19,6 @@ func testChunks(t *testing.T) {
 		t.Error("expected a query, got nothing")
 	}
 }
-
 func testChunksDelete(t *testing.T) {
 	t.Parallel()
 
@@ -111,7 +110,6 @@ func testChunksSliceDeleteAll(t *testing.T) {
 		t.Error("want zero records, got:", count)
 	}
 }
-
 func testChunksExists(t *testing.T) {
 	t.Parallel()
 
@@ -132,11 +130,10 @@ func testChunksExists(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unable to check if Chunk exists: %s", err)
 	}
-	if e != true {
+	if !e {
 		t.Errorf("Expected ChunkExistsG to return true, but got false.")
 	}
 }
-
 func testChunksFind(t *testing.T) {
 	t.Parallel()
 
@@ -162,7 +159,6 @@ func testChunksFind(t *testing.T) {
 		t.Error("want a record, got nil")
 	}
 }
-
 func testChunksBind(t *testing.T) {
 	t.Parallel()
 
@@ -272,7 +268,6 @@ func testChunksCount(t *testing.T) {
 		t.Error("want 2 records, got:", count)
 	}
 }
-
 func chunkBeforeInsertHook(e boil.Executor, o *Chunk) error {
 	*o = Chunk{}
 	return nil
@@ -412,7 +407,6 @@ func testChunksHooks(t *testing.T) {
 	}
 	chunkAfterUpsertHooks = []ChunkHook{}
 }
-
 func testChunksInsert(t *testing.T) {
 	t.Parallel()
 
@@ -465,13 +459,7 @@ func testChunksInsertWhitelist(t *testing.T) {
 	}
 }
 
-
-
-
-
-
-
-func testChunkToOneFile_File(t *testing.T) {
+func testChunkToOneFileUsingFile(t *testing.T) {
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
@@ -521,9 +509,7 @@ func testChunkToOneFile_File(t *testing.T) {
 	}
 }
 
-
-
-func testChunkToOneSetOpFile_File(t *testing.T) {
+func testChunkToOneSetOpFileUsingFile(t *testing.T) {
 	var err error
 
 	tx := MustTx(boil.Begin())
@@ -579,7 +565,6 @@ func testChunkToOneSetOpFile_File(t *testing.T) {
 		}
 	}
 }
-
 func testChunksReload(t *testing.T) {
 	t.Parallel()
 
@@ -623,7 +608,6 @@ func testChunksReloadAll(t *testing.T) {
 		t.Error(err)
 	}
 }
-
 func testChunksSelect(t *testing.T) {
 	t.Parallel()
 
@@ -748,7 +732,6 @@ func testChunksSliceUpdateAll(t *testing.T) {
 		t.Error(err)
 	}
 }
-
 func testChunksUpsert(t *testing.T) {
 	t.Parallel()
 
@@ -795,4 +778,3 @@ func testChunksUpsert(t *testing.T) {
 		t.Error("want one record, got:", count)
 	}
 }
-

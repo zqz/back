@@ -42,4 +42,3 @@ func makeCacheKey(wl, nzDefaults []string) string {
 	strmangle.PutBuffer(buf)
 	return str
 }
-

@@ -26,4 +26,3 @@ func NewQuery(exec boil.Executor, mods ...qm.QueryMod) *queries.Query {
 
 	return q
 }
-

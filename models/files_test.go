@@ -19,7 +19,6 @@ func testFiles(t *testing.T) {
 		t.Error("expected a query, got nothing")
 	}
 }
-
 func testFilesDelete(t *testing.T) {
 	t.Parallel()
 
@@ -111,7 +110,6 @@ func testFilesSliceDeleteAll(t *testing.T) {
 		t.Error("want zero records, got:", count)
 	}
 }
-
 func testFilesExists(t *testing.T) {
 	t.Parallel()
 
@@ -132,11 +130,10 @@ func testFilesExists(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unable to check if File exists: %s", err)
 	}
-	if e != true {
+	if !e {
 		t.Errorf("Expected FileExistsG to return true, but got false.")
 	}
 }
-
 func testFilesFind(t *testing.T) {
 	t.Parallel()
 
@@ -162,7 +159,6 @@ func testFilesFind(t *testing.T) {
 		t.Error("want a record, got nil")
 	}
 }
-
 func testFilesBind(t *testing.T) {
 	t.Parallel()
 
@@ -272,7 +268,6 @@ func testFilesCount(t *testing.T) {
 		t.Error("want 2 records, got:", count)
 	}
 }
-
 func fileBeforeInsertHook(e boil.Executor, o *File) error {
 	*o = File{}
 	return nil
@@ -412,7 +407,6 @@ func testFilesHooks(t *testing.T) {
 	}
 	fileAfterUpsertHooks = []FileHook{}
 }
-
 func testFilesInsert(t *testing.T) {
 	t.Parallel()
 
@@ -465,9 +459,78 @@ func testFilesInsertWhitelist(t *testing.T) {
 	}
 }
 
+func testFileToManyDownloads(t *testing.T) {
+	var err error
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
 
+	var a File
+	var b, c Download
 
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
+	}
 
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	randomize.Struct(seed, &b, downloadDBTypes, false, downloadColumnsWithDefault...)
+	randomize.Struct(seed, &c, downloadDBTypes, false, downloadColumnsWithDefault...)
+	b.FileID.Valid = true
+	c.FileID.Valid = true
+	b.FileID.String = a.ID
+	c.FileID.String = a.ID
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	download, err := a.Downloads(tx).All()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bFound, cFound := false, false
+	for _, v := range download {
+		if v.FileID.String == b.FileID.String {
+			bFound = true
+		}
+		if v.FileID.String == c.FileID.String {
+			cFound = true
+		}
+	}
+
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
+
+	slice := FileSlice{&a}
+	if err = a.L.LoadDownloads(tx, false, &slice); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.Downloads); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.R.Downloads = nil
+	if err = a.L.LoadDownloads(tx, true, &a); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.Downloads); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	if t.Failed() {
+		t.Logf("%#v", download)
+	}
+}
 
 func testFileToManyChunks(t *testing.T) {
 	var err error
@@ -486,8 +549,8 @@ func testFileToManyChunks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	randomize.Struct(seed, &b, chunkDBTypes, false, "file_id")
-	randomize.Struct(seed, &c, chunkDBTypes, false, "file_id")
+	randomize.Struct(seed, &b, chunkDBTypes, false, chunkColumnsWithDefault...)
+	randomize.Struct(seed, &c, chunkDBTypes, false, chunkColumnsWithDefault...)
 
 	b.FileID = a.ID
 	c.FileID = a.ID
@@ -558,8 +621,8 @@ func testFileToManyThumbnails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	randomize.Struct(seed, &b, thumbnailDBTypes, false, "file_id")
-	randomize.Struct(seed, &c, thumbnailDBTypes, false, "file_id")
+	randomize.Struct(seed, &b, thumbnailDBTypes, false, thumbnailColumnsWithDefault...)
+	randomize.Struct(seed, &c, thumbnailDBTypes, false, thumbnailColumnsWithDefault...)
 
 	b.FileID = a.ID
 	c.FileID = a.ID
@@ -613,7 +676,253 @@ func testFileToManyThumbnails(t *testing.T) {
 	}
 }
 
+func testFileToManyAddOpDownloads(t *testing.T) {
+	var err error
 
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a File
+	var b, c, d, e Download
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Download{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, downloadDBTypes, false, strmangle.SetComplement(downloadPrimaryKeyColumns, downloadColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*Download{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddDownloads(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if a.ID != first.FileID.String {
+			t.Error("foreign key was wrong value", a.ID, first.FileID.String)
+		}
+		if a.ID != second.FileID.String {
+			t.Error("foreign key was wrong value", a.ID, second.FileID.String)
+		}
+
+		if first.R.File != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.File != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.Downloads[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.Downloads[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.Downloads(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
+
+func testFileToManySetOpDownloads(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a File
+	var b, c, d, e Download
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Download{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, downloadDBTypes, false, strmangle.SetComplement(downloadPrimaryKeyColumns, downloadColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.SetDownloads(tx, false, &b, &c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.Downloads(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.SetDownloads(tx, true, &d, &e)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.Downloads(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if b.FileID.Valid {
+		t.Error("want b's foreign key value to be nil")
+	}
+	if c.FileID.Valid {
+		t.Error("want c's foreign key value to be nil")
+	}
+	if a.ID != d.FileID.String {
+		t.Error("foreign key was wrong value", a.ID, d.FileID.String)
+	}
+	if a.ID != e.FileID.String {
+		t.Error("foreign key was wrong value", a.ID, e.FileID.String)
+	}
+
+	if b.R.File != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if c.R.File != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if d.R.File != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+	if e.R.File != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+
+	if a.R.Downloads[0] != &d {
+		t.Error("relationship struct slice not set to correct value")
+	}
+	if a.R.Downloads[1] != &e {
+		t.Error("relationship struct slice not set to correct value")
+	}
+}
+
+func testFileToManyRemoveOpDownloads(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a File
+	var b, c, d, e Download
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Download{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, downloadDBTypes, false, strmangle.SetComplement(downloadPrimaryKeyColumns, downloadColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.AddDownloads(tx, true, foreigners...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.Downloads(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 4 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.RemoveDownloads(tx, foreigners[:2]...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.Downloads(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if b.FileID.Valid {
+		t.Error("want b's foreign key value to be nil")
+	}
+	if c.FileID.Valid {
+		t.Error("want c's foreign key value to be nil")
+	}
+
+	if b.R.File != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if c.R.File != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if d.R.File != &a {
+		t.Error("relationship to a should have been preserved")
+	}
+	if e.R.File != &a {
+		t.Error("relationship to a should have been preserved")
+	}
+
+	if len(a.R.Downloads) != 2 {
+		t.Error("should have preserved two relationships")
+	}
+
+	// Removal doesn't do a stable deletion for performance so we have to flip the order
+	if a.R.Downloads[1] != &d {
+		t.Error("relationship to d should have been preserved")
+	}
+	if a.R.Downloads[0] != &e {
+		t.Error("relationship to e should have been preserved")
+	}
+}
 
 func testFileToManyAddOpChunks(t *testing.T) {
 	var err error
@@ -764,9 +1073,6 @@ func testFileToManyAddOpThumbnails(t *testing.T) {
 	}
 }
 
-
-
-
 func testFilesReload(t *testing.T) {
 	t.Parallel()
 
@@ -810,7 +1116,6 @@ func testFilesReloadAll(t *testing.T) {
 		t.Error(err)
 	}
 }
-
 func testFilesSelect(t *testing.T) {
 	t.Parallel()
 
@@ -935,7 +1240,6 @@ func testFilesSliceUpdateAll(t *testing.T) {
 		t.Error(err)
 	}
 }
-
 func testFilesUpsert(t *testing.T) {
 	t.Parallel()
 
@@ -982,4 +1286,3 @@ func testFilesUpsert(t *testing.T) {
 		t.Error("want one record, got:", count)
 	}
 }
-

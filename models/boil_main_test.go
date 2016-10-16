@@ -147,4 +147,3 @@ func validateConfig(driverName string) error {
 
 	return errors.New("not a valid driver name")
 }
-

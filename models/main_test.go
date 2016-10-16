@@ -10,11 +10,11 @@ import (
 	"os/exec"
 	"strings"
 
+	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"github.com/vattle/sqlboiler/bdb/drivers"
 	"github.com/vattle/sqlboiler/randomize"
-	_ "github.com/lib/pq"
 )
 
 type pgTester struct {
@@ -120,7 +120,7 @@ func (p *pgTester) pgEnv() []string {
 		fmt.Sprintf("PGHOST=%s", p.host),
 		fmt.Sprintf("PGPORT=%d", p.port),
 		fmt.Sprintf("PGUSER=%s", p.user),
-		fmt.Sprintf("PGPASS=%s", p.pgPassFile),
+		fmt.Sprintf("PGPASSFILE=%s", p.pgPassFile),
 	}
 }
 
@@ -129,6 +129,12 @@ func (p *pgTester) makePGPassFile() error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create option file")
 	}
+
+	fmt.Fprintf(tmp, "%s:%d:postgres:%s", p.host, p.port, p.user)
+	if len(p.pass) != 0 {
+		fmt.Fprintf(tmp, ":%s", p.pass)
+	}
+	fmt.Fprintln(tmp)
 
 	fmt.Fprintf(tmp, "%s:%d:%s:%s", p.host, p.port, p.dbName, p.user)
 	if len(p.pass) != 0 {
@@ -182,5 +188,3 @@ func (p *pgTester) conn() (*sql.DB, error) {
 
 	return p.dbConn, nil
 }
-
-

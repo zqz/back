@@ -19,7 +19,6 @@ func testThumbnails(t *testing.T) {
 		t.Error("expected a query, got nothing")
 	}
 }
-
 func testThumbnailsDelete(t *testing.T) {
 	t.Parallel()
 
@@ -111,7 +110,6 @@ func testThumbnailsSliceDeleteAll(t *testing.T) {
 		t.Error("want zero records, got:", count)
 	}
 }
-
 func testThumbnailsExists(t *testing.T) {
 	t.Parallel()
 
@@ -132,11 +130,10 @@ func testThumbnailsExists(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unable to check if Thumbnail exists: %s", err)
 	}
-	if e != true {
+	if !e {
 		t.Errorf("Expected ThumbnailExistsG to return true, but got false.")
 	}
 }
-
 func testThumbnailsFind(t *testing.T) {
 	t.Parallel()
 
@@ -162,7 +159,6 @@ func testThumbnailsFind(t *testing.T) {
 		t.Error("want a record, got nil")
 	}
 }
-
 func testThumbnailsBind(t *testing.T) {
 	t.Parallel()
 
@@ -272,7 +268,6 @@ func testThumbnailsCount(t *testing.T) {
 		t.Error("want 2 records, got:", count)
 	}
 }
-
 func thumbnailBeforeInsertHook(e boil.Executor, o *Thumbnail) error {
 	*o = Thumbnail{}
 	return nil
@@ -412,7 +407,6 @@ func testThumbnailsHooks(t *testing.T) {
 	}
 	thumbnailAfterUpsertHooks = []ThumbnailHook{}
 }
-
 func testThumbnailsInsert(t *testing.T) {
 	t.Parallel()
 
@@ -465,13 +459,7 @@ func testThumbnailsInsertWhitelist(t *testing.T) {
 	}
 }
 
-
-
-
-
-
-
-func testThumbnailToOneFile_File(t *testing.T) {
+func testThumbnailToOneFileUsingFile(t *testing.T) {
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
@@ -521,9 +509,7 @@ func testThumbnailToOneFile_File(t *testing.T) {
 	}
 }
 
-
-
-func testThumbnailToOneSetOpFile_File(t *testing.T) {
+func testThumbnailToOneSetOpFileUsingFile(t *testing.T) {
 	var err error
 
 	tx := MustTx(boil.Begin())
@@ -579,7 +565,6 @@ func testThumbnailToOneSetOpFile_File(t *testing.T) {
 		}
 	}
 }
-
 func testThumbnailsReload(t *testing.T) {
 	t.Parallel()
 
@@ -623,7 +608,6 @@ func testThumbnailsReloadAll(t *testing.T) {
 		t.Error(err)
 	}
 }
-
 func testThumbnailsSelect(t *testing.T) {
 	t.Parallel()
 
@@ -748,7 +732,6 @@ func testThumbnailsSliceUpdateAll(t *testing.T) {
 		t.Error(err)
 	}
 }
-
 func testThumbnailsUpsert(t *testing.T) {
 	t.Parallel()
 
@@ -795,4 +778,3 @@ func testThumbnailsUpsert(t *testing.T) {
 		t.Error("want one record, got:", count)
 	}
 }
-
