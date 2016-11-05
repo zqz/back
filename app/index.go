@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"net/http"
 	"strings"
 
-	"github.com/zqzca/echo"
+	"github.com/pressly/chi/render"
 )
 
 // The CSS Assets to inject into the page.
@@ -92,9 +93,8 @@ func generateIndex(tmplData map[string]interface{}) string {
 }
 
 // Index generates an index.html
-func Index(c echo.Context) error {
-	host := c.Request().Host()
-	d := templateData(host)
+func Index(w http.ResponseWriter, r *http.Request) {
+	d := templateData(r.Host)
 	o := generateIndex(d)
-	return c.HTML(200, o)
+	render.HTML(w, r, o)
 }

@@ -78,7 +78,7 @@ func (s *Server) send(c *Client, e *Event) {
 }
 
 func (s *Server) Start() {
-	go s.handleChannels()
+	s.handleChannels()
 }
 
 func (s *Server) Endpoint() websocket.Handler {
