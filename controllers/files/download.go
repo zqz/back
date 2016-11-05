@@ -7,46 +7,59 @@ import (
 	"os"
 	"strings"
 
+	"github.com/pressly/chi"
+	"github.com/pressly/chi/render"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
-	"github.com/zqzca/echo"
 
 	"github.com/vattle/sqlboiler/queries/qm"
 )
 
 // Download sends the entire file to the client.
-func (f Controller) Download(e echo.Context) error {
-	slug := e.Param("slug")
+func (f Controller) Download(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	if len(slug) == 0 {
+		render.Status(r, http.StatusInternalServerError)
+		render.PlainText(w, r, "")
+		return
+	}
+
 	file, err := models.Files(f.DB, qm.Where("slug=$1", slug)).One()
 	if err != nil {
-		return e.NoContent(http.StatusNotFound)
+		render.Status(r, http.StatusNotFound)
+		render.PlainText(w, r, "")
+		return
 	}
 
 	// Build Etag
 	etag := file.Hash
-	res := e.Response()
-	res.Header().Set("Content-Type", file.Type)
-	res.Header().Set("Etag", etag)
-	res.Header().Set("Cache-Control", "max-age=2592000") // 30 days
+	r.Header.Set("Content-Type", file.Type)
+	r.Header.Set("Etag", etag)
+	r.Header.Set("Cache-Control", "max-age=2592000") // 30 days
 	disposition := fmt.Sprintf("inline; filename=%s", file.Name)
-	res.Header().Set("Content-Disposition", disposition)
+	r.Header.Set("Content-Disposition", disposition)
 
 	// If set just return early.
-	if match := e.Request().Header().Get("If-None-Match"); match != "" {
+	if match := r.Header.Get("If-None-Match"); match != "" {
 		if strings.Contains(match, etag) {
-			go lib.TrackDownload(f.DB, file.ID, e, true)
-			return e.NoContent(http.StatusNotModified)
+			go lib.TrackDownload(f.DB, file.ID, r, true)
+			render.Status(r, http.StatusNotModified)
+			render.PlainText(w, r, "")
+			return
 		}
 	}
 
 	data, err := os.Open(lib.LocalPath(file.Hash))
 	if err != nil {
-		return e.NoContent(http.StatusNotFound)
+		render.Status(r, http.StatusNotModified)
+		render.PlainText(w, r, "")
+		return
 	}
-
-	go lib.TrackDownload(f.DB, file.ID, e, false)
-
 	defer data.Close()
-	_, err = io.Copy(res, data)
-	return err
+
+	go lib.TrackDownload(f.DB, file.ID, r, false)
+
+	if _, err := io.Copy(w, data); err != nil {
+		http.Error(w, "Failed to write response", 500)
+	}
 }

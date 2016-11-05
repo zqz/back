@@ -1,8 +1,8 @@
 package chunks
 
-import "github.com/zqzca/echo"
+import "net/http"
 
 // Read does nothing
-func Read(c echo.Context) error {
-	return nil
+func Read(w http.ResponseWriter, r *http.Request) {
+	return
 }

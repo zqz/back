@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/zqzca/back/models"
-	"github.com/zqzca/echo"
+	"github.com/labstack/echo"
 )
 
 // Create creates a new user

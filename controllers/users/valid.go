@@ -5,7 +5,7 @@ import (
 
 	"github.com/labstack/gommon/log"
 	"github.com/zqzca/back/models"
-	"github.com/zqzca/echo"
+	"github.com/labstack/echo"
 
 	"github.com/vattle/sqlboiler/queries/qm"
 )

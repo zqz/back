@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/zqzca/back/models"
-	"github.com/zqzca/echo"
+	"github.com/labstack/echo"
 )
 
 func (u Controller) Read(e echo.Context) error {

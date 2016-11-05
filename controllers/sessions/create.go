@@ -6,7 +6,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/zqzca/back/models"
-	"github.com/zqzca/echo"
+	"github.com/labstack/echo"
 
 	"github.com/vattle/sqlboiler/queries/qm"
 )

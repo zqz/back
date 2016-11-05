@@ -3,23 +3,25 @@ package thumbnails
 import (
 	"net/http"
 
+	"github.com/pressly/chi"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
-	"github.com/zqzca/echo"
 )
 
 // Download a file
-func (t Controller) Download(e echo.Context) error {
-	id := e.Param("id")
+func (t Controller) Download(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 
 	if len(id) != 36 {
-		return e.NoContent(http.StatusNotFound)
+		http.Error(w, "Thumbnail not found", 404)
+		return
 	}
 
 	thumb, err := models.FindThumbnail(t.DB, id)
 	if err != nil {
-		return err
+		http.Error(w, "Thumbnail not found", 404)
+		return
 	}
 
-	return e.File(lib.LocalPath(thumb.Hash))
+	http.ServeFile(w, r, lib.LocalPath(thumb.Hash))
 }

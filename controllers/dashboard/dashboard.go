@@ -2,18 +2,17 @@ package dashboard
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"math"
 	"net/http"
-	"strconv"
 	"time"
 
 	"gopkg.in/nullbio/null.v4"
 
+	"github.com/pressly/chi/render"
 	"github.com/zqzca/back/controllers"
 	"github.com/zqzca/back/db"
-	"github.com/zqzca/echo"
+	"github.com/zqzca/back/lib"
 )
 
 type dashboardEntry struct {
@@ -53,14 +52,15 @@ const totalPagesSQL = `
 `
 
 //Index returns a list of files
-func (d Controller) Index(c echo.Context) error {
-	page, perPage := paginationOptions(c)
+func (d Controller) Index(w http.ResponseWriter, r *http.Request) {
+	page, perPage := lib.PaginationOptions(r)
 
 	entries, err := pagination(d.DB, page, perPage)
 
 	if err != nil {
-		fmt.Println("failed to fetch page:", err)
-		return err
+		d.Error("failed to fetch page:", "err", err)
+		http.Error(w, http.StatusText(500), 500)
+		return
 	}
 
 	total := totalPages(d.DB, perPage)
@@ -71,7 +71,7 @@ func (d Controller) Index(c echo.Context) error {
 		Page:    page,
 	}
 
-	return c.JSON(http.StatusOK, data)
+	render.JSON(w, r, data)
 }
 
 func totalPages(ex db.Executor, perPage int) int {
@@ -117,26 +117,4 @@ func pagination(ex db.Executor, page int, perPage int) (*[]dashboardEntry, error
 	}
 
 	return &entries, err
-}
-
-func paginationOptions(c echo.Context) (int, int) {
-	page, err := strconv.Atoi(c.QueryParam("page"))
-	if err != nil {
-		page = 0
-	}
-
-	perPage, err := strconv.Atoi(c.QueryParam("per_page"))
-	if err != nil {
-		perPage = 10
-	}
-
-	if perPage == 0 {
-		perPage = 20
-	}
-
-	if page < 0 {
-		page = 0
-	}
-
-	return page, perPage
 }

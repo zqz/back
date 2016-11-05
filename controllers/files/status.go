@@ -3,10 +3,11 @@ package files
 import (
 	"net/http"
 
+	"github.com/pressly/chi"
+	"github.com/pressly/chi/render"
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
-	"github.com/zqzca/echo"
 
 	"github.com/vattle/sqlboiler/queries/qm"
 )
@@ -64,21 +65,27 @@ func statusForFile(ex boil.Executor, f *models.File) (*fileStatus, error) {
 }
 
 // Status returns JSON with the current state of the file.
-func (f Controller) Status(e echo.Context) error {
-	hash := e.Param("hash")
+func (f Controller) Status(w http.ResponseWriter, r *http.Request) {
+	hash := chi.URLParam(r, "hash")
+	if len(hash) == 0 {
+		http.Error(w, "Hash not specified", 500)
+		return
+	}
 
 	file, err := models.Files(f.DB, qm.Where("hash=$1", hash)).One()
 	if err != nil {
 		f.Debug("Failed to find file with hash", "hash", hash)
-		return e.NoContent(http.StatusNotFound)
+		http.Error(w, "", http.StatusNoContent)
+		return
 	}
 
 	fs, err := statusForFile(f.DB, file)
 
 	if err != nil {
 		f.Info("Failed to fetch status for file", "err", err)
-		return e.NoContent(http.StatusInternalServerError)
+		http.Error(w, "Failed to fetch status for file", http.StatusInternalServerError)
+		return
 	}
 
-	return e.JSON(http.StatusOK, fs)
+	render.JSON(w, r, fs)
 }

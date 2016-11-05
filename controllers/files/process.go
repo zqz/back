@@ -6,7 +6,7 @@ import (
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/back/processors"
-	"github.com/zqzca/echo"
+	"github.com/labstack/echo"
 
 	"github.com/vattle/sqlboiler/queries/qm"
 )

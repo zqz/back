@@ -9,7 +9,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/websocket"
-	"github.com/zqzca/echo"
+	"github.com/labstack/echo"
 )
 
 type p2p struct {

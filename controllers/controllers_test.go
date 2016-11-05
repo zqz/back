@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/zqzca/back/models"
-	"github.com/zqzca/echo"
+	"github.com/labstack/echo"
 )
 
 func request(method string, path string, jsonRequest string) (*httptest.ResponseRecorder, *echo.Context) {

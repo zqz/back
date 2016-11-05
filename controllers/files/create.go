@@ -3,10 +3,10 @@ package files
 import (
 	"net/http"
 
+	"github.com/pressly/chi/render"
 	"github.com/vattle/sqlboiler/queries/qm"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
-	"github.com/zqzca/echo"
 
 	"github.com/vattle/sqlboiler/boil"
 )
@@ -22,30 +22,42 @@ func fileExistsWithHash(ex boil.Executor, hash string) (bool, error) {
 }
 
 // Create creates a file container in the database.
-func (f Controller) Create(e echo.Context) error {
+func (f Controller) Create(w http.ResponseWriter, r *http.Request) {
 	file := &models.File{}
 
-	if err := e.Bind(file); err != nil {
-		return err
+	if err := render.Bind(r.Body, file); err != nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+
+		return
 	}
 
 	if file.NumChunks < 1 {
-		return e.NoContent(http.StatusUnprocessableEntity)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
 	}
 
-	if ok, err := fileExistsWithHash(f.DB, file.Hash); err != nil {
-		return err
-	} else if ok {
+	exists, err := fileExistsWithHash(f.DB, file.Hash)
+	if err != nil {
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+
+	if exists {
 		f.Debug("file exists with hash", "hash", file.Hash)
-		return e.NoContent(http.StatusConflict)
+		render.Status(r, http.StatusConflict)
+		render.JSON(w, r, map[string]string{"error": "File Exists"})
+		return
 	}
 
 	f.Debug("file doesnt exist with hash", "hash", file.Hash)
 	file.State = lib.FileIncomplete
 
 	if err := file.Insert(f.DB); err != nil {
-		return err
+		http.Error(w, http.StatusText(500), 500)
+		return
 	}
 
-	return e.JSON(http.StatusCreated, file)
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, file)
+	return
 }
