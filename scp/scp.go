@@ -281,7 +281,7 @@ func (s *scpRequest) DownloadFile(channel ssh.Channel, req *ssh.Request) error {
 func (s *scpRequest) EndConnectionGracefully(channel ssh.Channel, req *ssh.Request) error {
 	ch := makeChanReq(channel, req)
 
-	// Tell them we recieved their file
+	// Tell them we received their file
 	ch.Write(zeroByte)
 	// Set exit status of the "exec'd" program
 	ch.SendRequest("exit-status", []byte{0, 0, 0, 0})
