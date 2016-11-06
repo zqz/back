@@ -103,8 +103,8 @@ func (s *Server) handleChannels(chans <-chan ssh.NewChannel) {
 	}
 }
 
-// only create messages are supported for now. scp can preserve file attributes
-// but that doesnt really make sense for us.
+// Only create (CXXXX) messages are supported for now. SCP can preserve file
+// attributes but that doesn't make sense for zqz.
 // Format: C0644 4 test
 func parseHeader(header []byte) (perm string, size int64, name string, err error) {
 	frags := strings.Split(string(header), " ")

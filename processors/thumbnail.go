@@ -70,7 +70,7 @@ func readOrientation(r io.ReadSeeker) (int, error) {
 	_, err := r.Seek(0, os.SEEK_SET)
 
 	if err != nil {
-		fmt.Println("Failed to seek to begginning of stream")
+		fmt.Println("Failed to seek to beginning of stream")
 		return 0, err
 	}
 
