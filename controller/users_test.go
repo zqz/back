@@ -1,4 +1,4 @@
-package controller._test
+package controller_test
 
 import (
 	"database/sql"

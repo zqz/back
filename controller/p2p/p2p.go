@@ -48,7 +48,7 @@ func Answer(c echo.Context) error {
 
 	s, ok := api.sessions[id]
 
-	if ok == false {
+	if !ok {
 		fmt.Println("failed to find session")
 		return c.NoContent(http.StatusNotFound)
 	}
@@ -77,7 +77,7 @@ func Join(c echo.Context) error {
 
 	s, ok := api.sessions[id]
 
-	if ok == false {
+	if !ok {
 		fmt.Println("failed to find session")
 		return c.NoContent(http.StatusNotFound)
 	}

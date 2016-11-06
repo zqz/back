@@ -1,139 +1,19 @@
 package chunks
 
 import (
-	"bytes"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/back/processors"
 
 	"github.com/vattle/sqlboiler/queries/qm"
 )
 
-const maxChunkSize = 5 * 1024 * 1024
-
-type chunkUpload struct {
-	chunkID    int
-	fileID     string
-	size       int
-	wsID       string
-	remoteHash string
-	localHash  string
-	data       []byte
-
-	request *http.Request
-}
-
-func parseRequest(r *http.Request) *chunkUpload {
-	c := chunkUpload{}
-
-	u := r.URL
-	fmt.Println(u.RawQuery)
-
-	m, err := url.ParseQuery(u.RawQuery)
-
-	if err != nil {
-		fmt.Println("err", err.Error())
-	}
-
-	c.request = r
-	chunkIDStr := m["position"][0]
-	c.chunkID = -1
-	c.chunkID, _ = strconv.Atoi(chunkIDStr)
-	c.size = int(r.ContentLength)
-	c.fileID = m["file_id"][0]
-	c.remoteHash = m["hash"][0]
-	c.wsID = m["ws_id"][0]
-
-	return &c
-}
-
-func (u *chunkUpload) validData() (bool, error) {
-	if u.remoteHash != u.localHash {
-		return false, errors.New("Hash does not match")
-	}
-
-	if u.size != len(u.data) {
-		return false, errors.New("Incorrect size given")
-	}
-
-	return true, nil
-}
-
-func (u *chunkUpload) validRequest() (bool, error) {
-	if u.size == 0 {
-		return false, errors.New("Chunk has no size")
-	}
-
-	if u.size > maxChunkSize {
-		return false, errors.New("Chunk is too big")
-	}
-
-	if len(u.fileID) == 0 {
-		return false, errors.New("No FileID specified")
-	}
-
-	if u.chunkID < 0 {
-		return false, errors.New("No ChunkID specified")
-	}
-
-	if len(u.remoteHash) == 0 {
-		return false, errors.New("No Hash specified")
-	}
-
-	return true, nil
-}
-
-func (u *chunkUpload) loadData() error {
-	var err error
-	u.data, err = ioutil.ReadAll(u.request.Body)
-	return err
-}
-
-func (u *chunkUpload) hashData() error {
-	br := bytes.NewReader(u.data)
-	var err error
-	u.localHash, err = lib.Hash(br)
-	br.Seek(0, os.SEEK_SET)
-	return err
-}
-
-func (u *chunkUpload) storeData() error {
-	dst, err := os.Create(u.localPath())
-	if err != nil {
-		return err
-	}
-	defer dst.Close()
-
-	br := bytes.NewReader(u.data)
-	if _, err := io.Copy(dst, br); err != nil {
-		return errors.Wrap(err, "Failed to copy chunk data to dst")
-	}
-
-	return nil
-}
-
-func (u *chunkUpload) localPath() string {
-	return filepath.Join("files", "chunks", u.localHash)
-}
-
-func (c Controller) storeWebsocket(fID string, ws string) {
-	c.wsFileIDsLock.Lock()
-	c.Info("Storing WS for File", "ws", ws, "file", fID)
-	c.wsFileIDs[fID] = ws
-	c.wsFileIDsLock.Unlock()
-}
-
+// Create receives chunk data via a POST.
 func (c Controller) Create(w http.ResponseWriter, r *http.Request) {
 	u := parseRequest(r)
 
@@ -193,7 +73,7 @@ func (c Controller) Create(w http.ResponseWriter, r *http.Request) {
 
 	chunk := &models.Chunk{
 		FileID:   u.fileID,
-		Position: int(u.chunkID),
+		Position: u.chunkID,
 		Size:     u.size,
 		Hash:     u.localHash,
 	}
@@ -223,31 +103,6 @@ func (c Controller) chunkExists(fid string, hash string) bool {
 	return chunkCount > 0
 }
 
-// storeChunk writes the chunk data from src to a new file at path.
-func (c Controller) storeChunk(src io.Reader, path string) (int, error) {
-	dst, err := os.Create(path)
-
-	if err != nil {
-		return 0, err
-	}
-
-	defer dst.Close()
-
-	var fileSize int64
-
-	if fileSize, err = io.Copy(dst, src); err != nil {
-		c.Error(
-			"Failed to copy chunk data to destination",
-			"Destination", path,
-			"Error", err,
-		)
-
-		return int(fileSize), err
-	}
-
-	return 0, nil
-}
-
 func (c Controller) checkFinished(f *models.File) {
 	chunks, err := models.Chunks(c.DB, qm.Where("file_id=$1", f.ID)).All()
 
@@ -262,7 +117,7 @@ func (c Controller) checkFinished(f *models.File) {
 	fmt.Println("Completed Chunks:", completedChunks)
 	fmt.Println("Required:", requiredChunks)
 
-	if completedChunks != int(requiredChunks) {
+	if completedChunks != requiredChunks {
 		c.Info(
 			"File not finished",
 			"Received", completedChunks,
@@ -293,4 +148,35 @@ func (c Controller) checkFinished(f *models.File) {
 
 		c.Info("Finished File", "name", f.Name, "id", f.ID)
 	}()
+}
+
+func parseRequest(r *http.Request) *upload {
+	c := upload{}
+
+	u := r.URL
+	fmt.Println(u.RawQuery)
+
+	m, err := url.ParseQuery(u.RawQuery)
+
+	if err != nil {
+		fmt.Println("err", err.Error())
+	}
+
+	c.request = r
+	chunkIDStr := m["position"][0]
+	c.chunkID = -1
+	c.chunkID, _ = strconv.Atoi(chunkIDStr)
+	c.size = int(r.ContentLength)
+	c.fileID = m["file_id"][0]
+	c.remoteHash = m["hash"][0]
+	c.wsID = m["ws_id"][0]
+
+	return &c
+}
+
+func (c Controller) storeWebsocket(fID string, ws string) {
+	c.wsFileIDsLock.Lock()
+	c.Info("Storing WS for File", "ws", ws, "file", fID)
+	c.wsFileIDs[fID] = ws
+	c.wsFileIDsLock.Unlock()
 }

@@ -23,8 +23,16 @@ func Pagination(next http.Handler) http.Handler {
 			rawPage = "0"
 		}
 
-		perPage, _ := strconv.Atoi(rawPerPage)
-		page, _ := strconv.Atoi(rawPage)
+		var err error
+		var perPage int
+		if perPage, err = strconv.Atoi(rawPerPage); err != nil {
+			perPage = 20
+		}
+
+		var page int
+		if page, err = strconv.Atoi(rawPage); err != nil {
+			page = 0
+		}
 
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, 1001, perPage)

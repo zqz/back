@@ -19,8 +19,8 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
-	"github.com/zqzca/back/controller"
 	"github.com/zqzca/back/db"
+	"github.com/zqzca/back/dependencies"
 
 	"golang.org/x/crypto/ssh"
 )
