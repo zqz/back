@@ -151,27 +151,27 @@ func (c Controller) checkFinished(f *models.File) {
 }
 
 func parseRequest(r *http.Request) *upload {
-	c := upload{}
-
-	u := r.URL
-	fmt.Println(u.RawQuery)
-
-	m, err := url.ParseQuery(u.RawQuery)
-
+	m, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
 		fmt.Println("err", err.Error())
+		return nil
 	}
 
-	c.request = r
-	chunkIDStr := m["position"][0]
-	c.chunkID = -1
-	c.chunkID, _ = strconv.Atoi(chunkIDStr)
-	c.size = int(r.ContentLength)
-	c.fileID = m["file_id"][0]
-	c.remoteHash = m["hash"][0]
-	c.wsID = m["ws_id"][0]
+	positionStr := m["position"][0]
+	position, err := strconv.Atoi(positionStr)
+	if err != nil {
+		fmt.Println("err", err.Error())
+		return nil
+	}
 
-	return &c
+	return &upload{
+		request:    r,
+		size:       int(r.ContentLength),
+		chunkID:    position,
+		fileID:     m["file_id"][0],
+		remoteHash: m["hash"][0],
+		wsID:       m["ws_id"][0],
+	}
 }
 
 func (c Controller) storeWebsocket(fID string, ws string) {
