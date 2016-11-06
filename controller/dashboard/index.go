@@ -10,9 +10,8 @@ import (
 	"gopkg.in/nullbio/null.v4"
 
 	"github.com/pressly/chi/render"
-	"github.com/zqzca/back/controllers"
+	"github.com/zqzca/back/controller"
 	"github.com/zqzca/back/db"
-	"github.com/zqzca/back/lib"
 )
 
 type dashboardEntry struct {
@@ -24,7 +23,7 @@ type dashboardEntry struct {
 
 // Controller is a exposed struct
 type Controller struct {
-	controllers.Dependencies
+	controller.Dependencies
 }
 
 type dashboardData struct {
@@ -44,26 +43,23 @@ const paginationSQL = `
 	LIMIT $2
 `
 
-const totalPagesSQL = `
-	SELECT
-	count(*)
-	FROM
-	files
-`
+const totalPagesSQL = `SELECT count(*) FROM files`
 
-//Index returns a list of files
-func (d Controller) Index(w http.ResponseWriter, r *http.Request) {
-	page, perPage := lib.PaginationOptions(r)
+// Index returns a list of files
+func (c Controller) Index(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	perPage := ctx.Value(1001).(int)
+	page := ctx.Value(1002).(int)
 
-	entries, err := pagination(d.DB, page, perPage)
+	entries, err := pagination(c.DB, page, perPage)
 
 	if err != nil {
-		d.Error("failed to fetch page:", "err", err)
+		c.Error("failed to fetch page:", "err", err)
 		http.Error(w, http.StatusText(500), 500)
 		return
 	}
 
-	total := totalPages(d.DB, perPage)
+	total := totalPages(c.DB, perPage)
 
 	data := dashboardData{
 		Entries: entries,

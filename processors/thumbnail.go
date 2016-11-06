@@ -12,7 +12,7 @@ import (
 
 	"github.com/disintegration/imaging"
 	"github.com/rwcarlsen/goexif/exif"
-	"github.com/zqzca/back/controllers"
+	"github.com/zqzca/back/controller"
 	"github.com/zqzca/back/lib"
 )
 
@@ -99,7 +99,7 @@ func readOrientation(r io.ReadSeeker) (int, error) {
 }
 
 // CreateThumnail builds a JPG thumbnail and can rotate if an exif bit is set.
-func CreateThumbnail(deps controllers.Dependencies, r io.ReadSeeker) (string, int, error) {
+func CreateThumbnail(deps controller.Dependencies, r io.ReadSeeker) (string, int, error) {
 	raw, format, err := image.Decode(r)
 
 	if format == "" {

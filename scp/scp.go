@@ -19,7 +19,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
-	"github.com/zqzca/back/controllers"
+	"github.com/zqzca/back/controller"
 	"github.com/zqzca/back/db"
 
 	"golang.org/x/crypto/ssh"
@@ -34,7 +34,7 @@ var (
 
 // Server foo
 type Server struct {
-	controllers.Dependencies
+	controller.Dependencies
 
 	CertPath string
 	BindAddr string

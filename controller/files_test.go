@@ -1,4 +1,4 @@
-package controllers_test
+package controller._test
 
 import "testing"
 

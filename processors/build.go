@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/vattle/sqlboiler/queries/qm"
-	"github.com/zqzca/back/controllers"
+	"github.com/zqzca/back/controller"
 	"github.com/zqzca/back/models"
 )
 
@@ -25,7 +25,7 @@ func chunksExist(hashes []string) (bool, error) {
 }
 
 // BuildFile builds a file from chunks.
-func BuildFile(deps controllers.Dependencies, f *models.File) (io.ReadSeeker, error) {
+func BuildFile(deps controller.Dependencies, f *models.File) (io.ReadSeeker, error) {
 	chunks, err := models.Chunks(
 		deps.DB,
 		qm.Where("file_id=$1", f.ID),

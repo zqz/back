@@ -134,7 +134,7 @@ func (c Controller) storeWebsocket(fID string, ws string) {
 	c.wsFileIDsLock.Unlock()
 }
 
-func (c Controller) Write(w http.ResponseWriter, r *http.Request) {
+func (c Controller) Create(w http.ResponseWriter, r *http.Request) {
 	u := parseRequest(r)
 
 	if ok, err := u.validRequest(); !ok {

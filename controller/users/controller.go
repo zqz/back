@@ -1,8 +1,8 @@
 package users
 
-import "github.com/zqzca/back/controllers"
+import "github.com/zqzca/back/controller"
 
 // Controller carries dependencies
 type Controller struct {
-	controllers.Dependencies
+	controller.Dependencies
 }

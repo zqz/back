@@ -1,11 +1,11 @@
-package controllers_test
+package controller._test
 
 import (
 	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/zqzca/back/controllers/users"
+	"github.com/zqzca/back/controller/users"
 	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"

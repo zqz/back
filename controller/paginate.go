@@ -1,4 +1,4 @@
-package controllers
+package controller
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 	"github.com/pressly/chi"
 )
 
-// Paginate adds the values "per_page" and "page" to the context with values
+// Pagination adds the values "per_page" and "page" to the context with values
 // from the query params.
-func Paginate(next http.Handler) http.Handler {
+func Pagination(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		rawPerPage := chi.URLParam(r, "per_page")
 		rawPage := chi.URLParam(r, "page")
@@ -20,7 +20,7 @@ func Paginate(next http.Handler) http.Handler {
 		}
 
 		if len(rawPage) == 0 {
-			rawPerPage = "0"
+			rawPage = "0"
 		}
 
 		perPage, _ := strconv.Atoi(rawPerPage)
