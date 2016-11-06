@@ -10,8 +10,8 @@ import (
 	"gopkg.in/nullbio/null.v4"
 
 	"github.com/pressly/chi/render"
-	"github.com/zqzca/back/controller"
 	"github.com/zqzca/back/db"
+	"github.com/zqzca/back/dependencies"
 )
 
 type dashboardEntry struct {
@@ -23,7 +23,7 @@ type dashboardEntry struct {
 
 // Controller is a exposed struct
 type Controller struct {
-	controller.Dependencies
+	dependencies.Dependencies
 }
 
 type dashboardData struct {

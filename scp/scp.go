@@ -34,7 +34,7 @@ var (
 
 // Server foo
 type Server struct {
-	controller.Dependencies
+	dependencies.Dependencies
 
 	CertPath string
 	BindAddr string

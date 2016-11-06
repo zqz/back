@@ -1,8 +1,7 @@
 package ws
 
 import (
-	"github.com/zqzca/back/controller"
-
+	"github.com/zqzca/back/dependencies"
 	"golang.org/x/net/websocket"
 )
 
@@ -15,7 +14,7 @@ type Server struct {
 	doneCh    chan bool
 	errCh     chan error
 
-	*controller.Dependencies
+	*dependencies.Dependencies
 }
 
 // Create new chat server.

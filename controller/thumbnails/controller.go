@@ -1,8 +1,8 @@
 package thumbnails
 
-import "github.com/zqzca/back/controller"
+import "github.com/zqzca/back/dependencies"
 
 // Controller carries dependencies
 type Controller struct {
-	controller.Dependencies
+	dependencies.Dependencies
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/zqzca/back/controller/dashboard"
 	"github.com/zqzca/back/controller/files"
 	"github.com/zqzca/back/controller/thumbnails"
+	"github.com/zqzca/back/dependencies"
 	"github.com/zqzca/back/ws"
 )
 
@@ -20,7 +21,7 @@ func secureRedirect() http.HandlerFunc {
 }
 
 // Routes defines all the routes for the application
-func Routes(deps controller.Dependencies) http.Handler {
+func Routes(deps dependencies.Dependencies) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)

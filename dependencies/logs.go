@@ -1,24 +1,4 @@
-package controller
-
-import (
-	"github.com/Sirupsen/logrus"
-	"github.com/jmoiron/sqlx"
-	"github.com/spf13/afero"
-)
-
-// WebsocketClientWriter can send a message to a client
-type WebsocketClientWriter interface {
-	WriteClient(string, string, interface{})
-}
-
-// Dependencies for each controller. This allows us to provide things like
-// loggers and database handles. Also makes it easy to test.
-type Dependencies struct {
-	*logrus.Logger
-	*sqlx.DB
-	afero.Fs
-	WS WebsocketClientWriter
-}
+package dependencies
 
 // Info provides log15 api over logrus
 func (d Dependencies) Info(msg string, args ...interface{}) {

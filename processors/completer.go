@@ -3,13 +3,13 @@ package processors
 import (
 	"github.com/pkg/errors"
 	"github.com/vattle/sqlboiler/queries/qm"
-	"github.com/zqzca/back/controller"
+	"github.com/zqzca/back/dependencies"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
 )
 
 // CompleteFile builds the file from chunks and then generates thumbnails
-func CompleteFile(deps controller.Dependencies, f *models.File) error {
+func CompleteFile(deps dependencies.Dependencies, f *models.File) error {
 	deps.Info("Processing File", "name", f.Name, "id", f.ID)
 
 	tx, err := deps.DB.Begin()

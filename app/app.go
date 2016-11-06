@@ -10,7 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/spf13/afero"
-	"github.com/zqzca/back/controller"
+	"github.com/zqzca/back/dependencies"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/ws"
 	"golang.org/x/crypto/acme/autocert"
@@ -43,7 +43,7 @@ func Run(appConfig Config) {
 	ws := ws.NewServer()
 
 	// Shared dependencies between all controller
-	deps := controller.Dependencies{
+	deps := dependencies.Dependencies{
 		Fs:     afero.NewOsFs(),
 		Logger: log,
 		DB:     db,
