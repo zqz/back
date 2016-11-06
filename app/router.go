@@ -14,12 +14,6 @@ import (
 	"github.com/zqzca/back/ws"
 )
 
-func secureRedirect() http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		http.Redirect(w, req, "https://"+req.Host+req.RequestURI, http.StatusMovedPermanently)
-	}
-}
-
 // Routes defines all the routes for the application
 func Routes(deps dependencies.Dependencies) http.Handler {
 	r := chi.NewRouter()
@@ -93,33 +87,11 @@ func Routes(deps dependencies.Dependencies) http.Handler {
 	// v1.Get("/p2p/:id", p2p.Join)
 	// v1.Post("/p2p/:id", p2p.Answer)
 
-	// Horribleness for optional letsencrypt stuff
-	// var s *standard.Server
-
-	// if config.Secure {
-	// 	fmt.Println("Running in Secure Mode")
-	// 	var m letsencrypt.Manager
-	// 	if err := m.CacheFile("certs/letsencrypt.cache"); err != nil {
-	// 		log.Fatal(err)
-	// 	}
-
-	// 	cfg := &tls.Config{
-	// 		GetCertificate: m.GetCertificate,
-	// 	}
-
-	// 	engineConfig := engine.Config{
-	// 		Address:   config.HTTPBindAddr,
-	// 		TLSConfig: cfg,
-	// 	}
-
-	// 	s = standard.WithConfig(engineConfig)
-	// 	http2.ConfigureServer(s.Server, &http2.Server{})
-	// 	deps.Info("Listening for HTTP2 connections", "addr", config.HTTPBindAddr)
-	// 	go redirect()
-	// } else {
-	// 	deps.Info("Listening for HTTP connections", "addr", config.HTTPBindAddr)
-	// 	s = standard.New(config.HTTPBindAddr)
-	// }
-
 	return r
+}
+
+func secureRedirect() http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		http.Redirect(w, req, "https://"+req.Host+req.RequestURI, http.StatusMovedPermanently)
+	}
 }
