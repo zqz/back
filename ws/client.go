@@ -47,7 +47,7 @@ func (c *Client) Write(e *Event) {
 	select {
 	case c.ch <- e:
 	default:
-		c.server.Del(c)
+		c.server.Unregister(c)
 		err := fmt.Errorf("client %s is disconnected", c.id)
 		c.server.Err(err)
 	}
@@ -76,7 +76,7 @@ func (c *Client) listenWrite() {
 
 		// receive done request
 		case <-c.doneCh:
-			c.server.Del(c)
+			c.server.Unregister(c)
 			c.doneCh <- true // for listenRead method
 			return
 		}
@@ -90,7 +90,7 @@ func (c *Client) listenRead() {
 
 		// receive done request
 		case <-c.doneCh:
-			c.server.Del(c)
+			c.server.Unregister(c)
 			c.doneCh <- true // for listenWrite method
 			return
 
