@@ -9,6 +9,7 @@ import (
 
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/back/processors"
+	"github.com/zqzca/back/serializer"
 
 	"github.com/vattle/sqlboiler/queries/qm"
 )
@@ -142,6 +143,8 @@ func (c Controller) checkFinished(f *models.File) {
 		if len(wsID) > 0 {
 			c.Info("Sending WS msg", "ws", wsID)
 			c.WS.WriteClient(wsID, "file:completed", f)
+			de := serializer.NewDashboardItemFromFile(c.DB, f)
+			c.WS.Broadcast("file:added", de)
 		} else {
 			c.Info("No WS ID")
 		}

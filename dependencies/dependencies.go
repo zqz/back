@@ -9,6 +9,7 @@ import (
 // WebsocketClientWriter can send a message to a client
 type WebsocketClientWriter interface {
 	WriteClient(string, string, interface{})
+	Broadcast(string, interface{})
 }
 
 // Dependencies are used throughout the app.
@@ -19,7 +20,17 @@ type Dependencies struct {
 	WS WebsocketClientWriter
 }
 
-// New blap
+// New dependencies for non test
 func New() Dependencies {
 	return Dependencies{}
+}
+
+// Test dependencies
+func Test() Dependencies {
+	return Dependencies{
+		Fs:     afero.NewMemMapFs(),
+		Logger: nil,
+		DB:     nil,
+		WS:     nil,
+	}
 }

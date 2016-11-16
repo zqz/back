@@ -72,6 +72,12 @@ func (s *Server) WriteClient(cID string, e string, p interface{}) {
 	s.send(c, event)
 }
 
+func (s *Server) Broadcast(e string, p interface{}) {
+	for cID, _ := range s.clients {
+		s.WriteClient(cID, e, p)
+	}
+}
+
 func (s *Server) send(c *Client, e *Event) {
 	c.Write(e)
 }

@@ -5,21 +5,12 @@ import (
 	"log"
 	"math"
 	"net/http"
-	"time"
-
-	"gopkg.in/nullbio/null.v4"
 
 	"github.com/pressly/chi/render"
 	"github.com/zqzca/back/db"
 	"github.com/zqzca/back/dependencies"
+	"github.com/zqzca/back/serializer"
 )
-
-type dashboardEntry struct {
-	Name        string      `json:"name"`
-	Slug        string      `json:"slug"`
-	ThumbnailID null.String `json:"thumb_id"`
-	CreatedAt   time.Time   `json:"created_at"`
-}
 
 // Controller is a exposed struct
 type Controller struct {
@@ -27,9 +18,9 @@ type Controller struct {
 }
 
 type dashboardData struct {
-	Entries *[]dashboardEntry `json:"data"`
-	Page    int               `json:"current_page"`
-	Total   int               `json:"total_pages"`
+	Entries *[]serializer.DashboardItem `json:"data"`
+	Page    int                         `json:"current_page"`
+	Total   int                         `json:"total_pages"`
 }
 
 const paginationSQL = `
@@ -82,8 +73,8 @@ func totalPages(ex db.Executor, perPage int) int {
 	return int(math.Ceil(float64(count) / float64(perPage)))
 }
 
-func pagination(ex db.Executor, page int, perPage int) (*[]dashboardEntry, error) {
-	var entries []dashboardEntry
+func pagination(ex db.Executor, page int, perPage int) (*[]serializer.DashboardItem, error) {
+	var entries []serializer.DashboardItem
 	var err error
 	var rows *sql.Rows
 
@@ -95,7 +86,7 @@ func pagination(ex db.Executor, page int, perPage int) (*[]dashboardEntry, error
 	defer rows.Close()
 
 	for rows.Next() {
-		var e dashboardEntry
+		var e serializer.DashboardItem
 
 		err = rows.Scan(
 			&e.Name, &e.ThumbnailID, &e.Slug, &e.CreatedAt,
