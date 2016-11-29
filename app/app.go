@@ -66,12 +66,13 @@ func Run(appConfig Config) {
 		m := autocert.Manager{
 			Cache:      c,
 			Prompt:     autocert.AcceptTOS,
-			HostPolicy: autocert.HostWhitelist("x.zqz.ca"),
+			HostPolicy: autocert.HostWhitelist("x.zqz.ca", "de.zqz.ca", "zqz.ca"),
 		}
 
 		s := &http.Server{
 			Addr:      config.HTTPBindAddr,
 			TLSConfig: &tls.Config{GetCertificate: m.GetCertificate},
+			Handler:   Routes(deps),
 		}
 
 		deps.Info("Listening for HTTP1.1 Connections", "addr", ":3001")

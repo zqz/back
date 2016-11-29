@@ -42,6 +42,7 @@ func (c Controller) Index(w http.ResponseWriter, r *http.Request) {
 	perPage := ctx.Value(1001).(int)
 	page := ctx.Value(1002).(int)
 
+	perPage = 100
 	entries, err := pagination(c.DB, page, perPage)
 
 	if err != nil {

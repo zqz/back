@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/pressly/chi"
@@ -28,7 +29,7 @@ func Routes(deps dependencies.Dependencies) http.Handler {
 
 	// Default
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.CloseNotify)
+		// r.Use(middleware.CloseNotify)
 		r.Use(middleware.Compress(5))
 
 		r.(*chi.Mux).FileServer("/assets", http.Dir("./assets"))
@@ -92,6 +93,8 @@ func Routes(deps dependencies.Dependencies) http.Handler {
 
 func secureRedirect() http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		http.Redirect(w, req, "https://"+req.Host+req.RequestURI, http.StatusMovedPermanently)
+		redir := "https://" + req.Host + req.RequestURI
+		fmt.Println("Redirecting to", redir)
+		http.Redirect(w, req, redir, http.StatusMovedPermanently)
 	}
 }
