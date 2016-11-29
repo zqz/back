@@ -35,7 +35,7 @@ func (f Controller) Download(w http.ResponseWriter, r *http.Request) {
 	etag := file.Hash
 	w.Header().Set("Content-Type", file.Type)
 	w.Header().Set("Etag", etag)
-	w.Header().Set("Cache-Control", "max-age=2592000") // 30 days
+	w.Header().Set("Cache-Control", "no-cache")
 	disposition := fmt.Sprintf("inline; filename=%s", file.Name)
 	w.Header().Set("Content-Disposition", disposition)
 
