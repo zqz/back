@@ -3,10 +3,10 @@ package files
 import (
 	"net/http"
 
+	"github.com/labstack/echo"
 	"github.com/zqzca/back/lib"
 	"github.com/zqzca/back/models"
 	"github.com/zqzca/back/processors"
-	"github.com/labstack/echo"
 
 	"github.com/vattle/sqlboiler/queries/qm"
 )
@@ -27,7 +27,7 @@ func (f Controller) Process(e echo.Context) error {
 		return e.NoContent(http.StatusConflict)
 	}
 
-	err = processors.CompleteFile(f.Dependencies, file)
+	err = processors.CompleteFile(f.Dependencies, *file)
 
 	if err != nil {
 		f.Debug("failed to complete file", "err", err)

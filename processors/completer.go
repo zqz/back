@@ -40,7 +40,7 @@ func CompleteFile(deps dependencies.Dependencies, f models.File) error {
 		return errors.Wrap(err, "Failed to update state")
 	}
 
-	reader, err := BuildFile(deps, f)
+	reader, err := BuildFile(deps, &f)
 	if err != nil {
 		tx.Rollback()
 		return errors.Wrap(err, "Failed to complete building file")
@@ -78,7 +78,7 @@ func CompleteFile(deps dependencies.Dependencies, f models.File) error {
 		return errors.Wrap(err, "Failed to commit transaction")
 	}
 
-	if err = Cleanup(deps, f); err != nil {
+	if err = Cleanup(deps, &f); err != nil {
 		return errors.Wrap(err, "Failed to cleanup file")
 	}
 

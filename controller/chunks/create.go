@@ -133,7 +133,7 @@ func (c Controller) checkFinished(f *models.File) {
 		wsID := c.wsFileIDs[f.ID]
 		c.wsFileIDsLock.RUnlock()
 
-		err = processors.CompleteFile(c.Dependencies, f)
+		err = processors.CompleteFile(c.Dependencies, *f)
 
 		if err != nil {
 			c.Error("Failed to finish file", "error", err, "name", f.Name, "id", f.ID)
