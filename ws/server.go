@@ -67,6 +67,7 @@ func (s *Server) WriteClient(cID string, e string, p interface{}) {
 	c, ok := s.clients[cID]
 	if !ok {
 		s.Info("WS: Client ID not found.", "id", cID)
+		return
 	}
 	event := &Event{E: e, P: p}
 	s.send(c, event)

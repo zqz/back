@@ -62,6 +62,8 @@ func Routes(deps dependencies.Dependencies) http.Handler {
 			r.With(controller.Pagination).Get("/dashboard", dash.Index)
 		})
 
+		r.Get("/loaderio-be3da1f0d6cfb2791e752a0ecc4995b2/", dash.LoaderIO)
+
 		// Catchall
 		r.Get("/*", Index)
 	})

@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"math"
 	"net/http"
@@ -35,6 +36,10 @@ const paginationSQL = `
 `
 
 const totalPagesSQL = `SELECT count(*) FROM files`
+
+func (c Controller) LoaderIO(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "loaderio-be3da1f0d6cfb2791e752a0ecc4995b2")
+}
 
 // Index returns a list of files
 func (c Controller) Index(w http.ResponseWriter, r *http.Request) {
